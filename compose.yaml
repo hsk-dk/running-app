@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: running-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_BASE_URL: ${APP_BASE_URL}
+      DATABASE_PATH: /data/running.db
+    volumes:
+      - ./data/sqlite:/data
+    ports:
+      - "18000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: /api
+    container_name: running-frontend
+    restart: unless-stopped
+    ports:
+      - "18080:80"
+    depends_on:
+      - backend
