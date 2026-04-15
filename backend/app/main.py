@@ -20,6 +20,7 @@ from app.planning import (
 from app.matching import get_weekly_consistency
 from app.webhooks import verify_subscription, process_event
 from app.admin_status import get_admin_status, set_state
+from app.ai_suggestions import generate_suggestions
 
 init_db()
 rebuild_activity_links()
@@ -108,6 +109,11 @@ async def api_update_planned_run(planned_run_id: int, request: Request):
 @app.delete("/api/planning/{planned_run_id}")
 def api_delete_planned_run(planned_run_id: int):
     return delete_planned_run(planned_run_id)
+
+
+@app.get("/api/ai/suggestions")
+def api_ai_suggestions():
+    return generate_suggestions()
 
 
 @app.get("/api/admin/status")

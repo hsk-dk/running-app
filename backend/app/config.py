@@ -16,5 +16,8 @@ class Settings:
     STRAVA_ATHLETE_ID = os.getenv("STRAVA_ATHLETE_ID", "")
     STRAVA_PUSH_SUBSCRIPTION_CALLBACK_URL = os.getenv("STRAVA_PUSH_SUBSCRIPTION_CALLBACK_URL", "")
 
+    OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+
 
 settings = Settings()
