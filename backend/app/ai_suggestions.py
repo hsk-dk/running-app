@@ -131,8 +131,6 @@ def _get_current_planned_runs() -> list[dict]:
 def _next_monday() -> date:
     today = date.today()
     days_ahead = 7 - today.weekday()
-    if days_ahead == 7:
-        days_ahead = 7
     return today + timedelta(days=days_ahead)
 
 
@@ -242,25 +240,28 @@ def _call_ollama(prompt: str) -> str:
     return data.get("response", "")
 
 
-def _parse_suggestions(raw_text: str, next_monday: date) -> list[dict]:
+def _extract_json_text(raw_text: str) -> str:
+    """Strip optional markdown code fences and return bare JSON text."""
     text = raw_text.strip()
-
-    # Extract JSON if wrapped in markdown code fences
     for fence in ("```json", "```"):
         if fence in text:
             start = text.index(fence) + len(fence)
             end = text.index("```", start) if "```" in text[start:] else len(text)
-            text = text[start:end].strip()
-            break
+            return text[start:end].strip()
+    return text
 
+
+def _parse_suggestions(raw_text: str, next_monday: date) -> tuple[list[dict], str]:
+    """Return (suggestions, summary) parsed from the LLM JSON response."""
+    text = _extract_json_text(raw_text)
     data = json.loads(text)
+    summary = data.get("summary", "")
     suggestions_raw = data.get("suggestions", [])
 
     result = []
     for s in suggestions_raw:
         day_offset = int(s.get("day_offset", 0))
-        if not 0 <= day_offset <= 6:
-            day_offset = max(0, min(6, day_offset))
+        day_offset = max(0, min(6, day_offset))
         planned_date = next_monday + timedelta(days=day_offset)
 
         target_value = s.get("target_value")
@@ -277,7 +278,7 @@ def _parse_suggestions(raw_text: str, next_monday: date) -> list[dict]:
                 "notes": str(s.get("notes", "")) if s.get("notes") else None,
             }
         )
-    return result
+    return result, summary
 
 
 def generate_suggestions() -> dict:
@@ -306,35 +307,24 @@ def generate_suggestions() -> dict:
             "suggestions": [],
             "summary": None,
         }
-    except Exception as exc:
-        logger.exception("Ollama call failed: %s", exc)
+    except Exception:
+        logger.exception("Ollama call failed")
         return {
             "available": False,
-            "error": f"AI service error: {exc}",
+            "error": "AI service encountered an unexpected error.",
             "suggestions": [],
             "summary": None,
         }
 
     try:
-        suggestions = _parse_suggestions(raw_response, next_monday)
-        # Extract summary from the raw response
-        text = raw_response.strip()
-        for fence in ("```json", "```"):
-            if fence in text:
-                start = text.index(fence) + len(fence)
-                end = text.index("```", start) if "```" in text[start:] else len(text)
-                text = text[start:end].strip()
-                break
-        parsed = json.loads(text)
-        summary = parsed.get("summary", "")
-    except Exception as exc:
-        logger.warning("Failed to parse AI response: %s\nRaw: %s", exc, raw_response)
+        suggestions, summary = _parse_suggestions(raw_response, next_monday)
+    except Exception:
+        logger.warning("Failed to parse AI response. Raw: %s", raw_response)
         return {
             "available": True,
-            "error": f"Could not parse AI response: {exc}",
+            "error": "Could not parse AI response. The model may need to be prompted differently.",
             "suggestions": [],
             "summary": None,
-            "raw_response": raw_response,
         }
 
     return {

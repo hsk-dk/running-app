@@ -241,7 +241,6 @@ export default function App() {
       case "ai":
         return (
           <AiSuggestionsPage
-            {...common}
             onPlanningChanged={loadAll}
           />
         );

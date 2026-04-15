@@ -80,9 +80,6 @@ export default function AiSuggestionsPage({
   onPlanningChanged,
 }: {
   onPlanningChanged: () => void;
-  loading: boolean;
-  onRunAction: (action: "ingest" | "metrics" | "plan") => void;
-  error: string | null;
 }) {
   const [result, setResult] = useState<AiResult | null>(null);
   const [loading, setLoading] = useState(false);
