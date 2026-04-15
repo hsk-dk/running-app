@@ -4,8 +4,9 @@ import OverviewPage from "./pages/OverviewPage";
 import PlanPage from "./pages/PlanPage";
 import ActivitiesPage from "./pages/ActivitiesPage";
 import AdminPage from "./pages/AdminPage";
+import AiSuggestionsPage from "./pages/AiSuggestionsPage";
 
-type PageKey = "overview" | "plan" | "activities" | "admin";
+type PageKey = "overview" | "plan" | "activities" | "admin" | "ai";
 
 const shellStyle: React.CSSProperties = {
   minHeight: "100vh",
@@ -237,6 +238,12 @@ export default function App() {
         );
       case "admin":
         return <AdminPage {...common} adminStatus={adminStatus} />;
+      case "ai":
+        return (
+          <AiSuggestionsPage
+            onPlanningChanged={loadAll}
+          />
+        );
       default:
         return null;
     }
@@ -270,6 +277,11 @@ export default function App() {
               active={page === "admin"}
               label="Admin"
               onClick={() => setPage("admin")}
+            />
+            <NavItem
+              active={page === "ai"}
+              label="AI Forslag"
+              onClick={() => setPage("ai")}
             />
           </nav>
         </div>

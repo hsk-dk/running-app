@@ -74,6 +74,8 @@ export const api = {
   runMetrics: () => getJson("/admin/rebuild-metrics", { method: "POST" }),
   runPlanEval: () => getJson("/admin/recalculate-plan", { method: "POST" }),
 
+  // AI suggestions
+  getAiSuggestions: () => getJson("/ai/suggestions"),
 
 updatePlannedRun: (id: number, payload: any) =>
   getJson(`/planning/${id}`, {
