@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyc
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+
+# Environment files
+.env
+*.env.local
+
+# Database
+*.db
+data/
+
+# Editor/IDE
+.DS_Store
+.idea/
+*.swp
+*.swo
