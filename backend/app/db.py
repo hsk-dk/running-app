@@ -1,4 +1,5 @@
 import sqlite3
+import re
 from app.config import settings
 
 
@@ -106,6 +107,7 @@ ALLOWED_MIGRATION_COLUMNS = {
         "matched_planned_run_id": "INTEGER",
     },
 }
+SAFE_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def get_conn() -> sqlite3.Connection:
@@ -117,6 +119,8 @@ def get_conn() -> sqlite3.Connection:
 def column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
     if table not in ALLOWED_MIGRATION_COLUMNS:
         raise ValueError(f"Unsupported table for migration: {table}")
+    if not SAFE_IDENTIFIER_RE.match(table):
+        raise ValueError(f"Unsafe table identifier: {table}")
     rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
     return any(row["name"] == column for row in rows)
 
@@ -126,6 +130,7 @@ def ensure_column(conn: sqlite3.Connection, table: str, column: str, definition:
     if expected_definition != definition:
         raise ValueError(f"Unsupported column migration: {table}.{column}")
     if not column_exists(conn, table, column):
+        # table/column/definition are constrained by ALLOWED_MIGRATION_COLUMNS and SAFE_IDENTIFIER_RE.
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
