@@ -10,9 +10,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
       interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
 
   ollama-init:
     image: ollama/ollama
@@ -42,7 +42,8 @@ services:
     ports:
       - "18000:8000"
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
 
   frontend:
     build:
