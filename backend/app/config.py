@@ -18,6 +18,12 @@ class Settings:
 
     OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower()
+    LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+    LLM_API_URL = os.getenv(
+        "LLM_API_URL", "https://generativelanguage.googleapis.com/v1beta/openai"
+    )
+    LLM_MODEL = os.getenv("LLM_MODEL", "gemini-2.5-flash")
 
 
 settings = Settings()
