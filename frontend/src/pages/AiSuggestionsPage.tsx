@@ -172,7 +172,7 @@ export default function AiSuggestionsPage({
           </div>
           <div style={{ fontSize: 14, color: "#425061" }}>
             Generér næste uges træningsplan baseret på din Strava-historik via
-            lokal AI (Ollama).
+            lokal AI (Ollama) eller cloud LLM.
           </div>
         </div>
 
@@ -456,8 +456,8 @@ export default function AiSuggestionsPage({
           <br />
           <br />
           <em>
-            Kræver at Ollama kører lokalt. Data sendes udelukkende til din
-            lokale AI-instans.
+            Kræver enten en lokal Ollama-instans eller en konfigureret cloud
+            LLM (se env.example).
           </em>
         </section>
       )}

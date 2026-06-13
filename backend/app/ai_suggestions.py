@@ -240,6 +240,33 @@ def _call_ollama(prompt: str) -> str:
     return data.get("response", "")
 
 
+def _call_openai_compatible(prompt: str) -> str:
+    response = requests.post(
+        f"{settings.LLM_API_URL.rstrip('/')}/chat/completions",
+        json={
+            "model": settings.LLM_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+        },
+        headers={"Authorization": f"Bearer {settings.LLM_API_KEY}"},
+        timeout=_OLLAMA_TIMEOUT,
+    )
+    response.raise_for_status()
+    data = response.json()
+    return data["choices"][0]["message"]["content"]
+
+
+def _call_llm(prompt: str) -> str:
+    if settings.LLM_PROVIDER == "openai_compatible":
+        return _call_openai_compatible(prompt)
+    return _call_ollama(prompt)
+
+
+def _current_model_name() -> str:
+    if settings.LLM_PROVIDER == "openai_compatible":
+        return settings.LLM_MODEL
+    return settings.OLLAMA_MODEL
+
+
 def _extract_json_text(raw_text: str) -> str:
     """Strip optional markdown code fences and return bare JSON text."""
     text = raw_text.strip()
@@ -290,17 +317,17 @@ def generate_suggestions() -> dict:
     prompt = _build_prompt(activities, weekly_summary, existing_plan)
 
     try:
-        raw_response = _call_ollama(prompt)
+        raw_response = _call_llm(prompt)
     except requests.exceptions.ConnectionError:
-        logger.warning("Ollama not available (connection refused)")
+        logger.warning("LLM service not available (connection refused)")
         return {
             "available": False,
-            "error": "AI service not available. Make sure Ollama is running.",
+            "error": "AI service not available. Check your LLM configuration.",
             "suggestions": [],
             "summary": None,
         }
     except requests.exceptions.Timeout:
-        logger.warning("Ollama timed out")
+        logger.warning("LLM request timed out")
         return {
             "available": False,
             "error": "AI service timed out. Try again or increase timeout.",
@@ -308,7 +335,7 @@ def generate_suggestions() -> dict:
             "summary": None,
         }
     except Exception:
-        logger.exception("Ollama call failed")
+        logger.exception("LLM call failed")
         return {
             "available": False,
             "error": "AI service encountered an unexpected error.",
@@ -330,7 +357,7 @@ def generate_suggestions() -> dict:
     return {
         "available": True,
         "error": None,
-        "model": settings.OLLAMA_MODEL,
+        "model": _current_model_name(),
         "next_week_start": next_monday.isoformat(),
         "summary": summary,
         "suggestions": suggestions,
