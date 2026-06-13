@@ -1,4 +1,5 @@
 import sqlite3
+import re
 from app.config import settings
 
 
@@ -86,6 +87,28 @@ CREATE TABLE IF NOT EXISTS webhook_events (
 );
 """
 
+ALLOWED_MIGRATION_COLUMNS = {
+    "planned_runs": {
+        "target_type": "TEXT DEFAULT 'time'",
+        "target_value": "REAL",
+        "mandatory": "INTEGER DEFAULT 1",
+        "manual_override": "INTEGER DEFAULT 0",
+        "override_reason": "TEXT",
+        "matched_activity_date": "TEXT",
+        "matched_activity_name": "TEXT",
+        "actual_value": "REAL",
+        "evaluated_at": "TEXT",
+        "match_score": "REAL",
+        "match_reason": "TEXT",
+    },
+    "activities": {
+        "is_extra": "INTEGER DEFAULT 0",
+        "is_aborted": "INTEGER DEFAULT 0",
+        "matched_planned_run_id": "INTEGER",
+    },
+}
+SAFE_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
 
 def get_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(settings.DATABASE_PATH)
@@ -94,12 +117,20 @@ def get_conn() -> sqlite3.Connection:
 
 
 def column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    if table not in ALLOWED_MIGRATION_COLUMNS:
+        raise ValueError(f"Unsupported table for migration: {table}")
+    if not SAFE_IDENTIFIER_RE.match(table):
+        raise ValueError(f"Unsafe table identifier: {table}")
     rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
     return any(row["name"] == column for row in rows)
 
 
 def ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    expected_definition = ALLOWED_MIGRATION_COLUMNS.get(table, {}).get(column)
+    if expected_definition != definition:
+        raise ValueError(f"Unsupported column migration: {table}.{column}")
     if not column_exists(conn, table, column):
+        # table/column/definition are constrained by ALLOWED_MIGRATION_COLUMNS and SAFE_IDENTIFIER_RE.
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 

@@ -5,25 +5,13 @@ from app.config import settings
 from app.db import init_db, get_conn
 from app.ingest import ingest_recent
 from app.metrics import rebuild_metrics, get_summary, get_monthly_volume, get_activities
-from app.planning import (
-    list_planned_runs,
-    add_planned_run,
-    mark_planned_run_skipped,
-    mark_planned_run_rescheduled,
-    clear_planned_run_match,
-    match_activity_to_planned_run,
-    update_planned_run,
-    delete_planned_run,
-    rebuild_activity_links,
-    evaluate_and_sync,
-)
 from app.matching import get_weekly_consistency
-from app.webhooks import verify_subscription, process_event
 from app.admin_status import get_admin_status, set_state
 from app.ai_suggestions import generate_suggestions
+from app.services import planning_service, webhook_service
 
 init_db()
-rebuild_activity_links()
+planning_service.rebuild_activity_links()
 
 app = FastAPI(title="Running")
 
@@ -58,7 +46,7 @@ def api_monthly_volume():
 
 @app.get("/api/planning")
 def api_planning():
-    return list_planned_runs()
+    return planning_service.list_planned_runs()
 
 
 @app.get("/api/planning/weekly-consistency")
@@ -68,27 +56,27 @@ def api_weekly_consistency():
 
 @app.post("/api/planning")
 def api_add_planned_run(payload: dict):
-    return add_planned_run(payload)
+    return planning_service.add_planned_run(payload)
 
 
 @app.post("/api/planning/evaluate")
 def api_evaluate_planning():
-    return evaluate_and_sync()
+    return planning_service.evaluate_and_sync()
 
 
 @app.post("/api/planning/{planned_run_id}/mark-skipped")
 def api_mark_skipped(planned_run_id: int):
-    return mark_planned_run_skipped(planned_run_id)
+    return planning_service.mark_planned_run_skipped(planned_run_id)
 
 
 @app.post("/api/planning/{planned_run_id}/mark-rescheduled")
 def api_mark_rescheduled(planned_run_id: int):
-    return mark_planned_run_rescheduled(planned_run_id)
+    return planning_service.mark_planned_run_rescheduled(planned_run_id)
 
 
 @app.post("/api/planning/{planned_run_id}/clear-match")
 def api_clear_match(planned_run_id: int):
-    return clear_planned_run_match(planned_run_id)
+    return planning_service.clear_planned_run_match(planned_run_id)
 
 
 @app.post("/api/planning/{planned_run_id}/match-activity")
@@ -97,18 +85,18 @@ async def api_match_activity(planned_run_id: int, request: Request):
     activity_id = payload.get("activity_id")
     if not activity_id:
         raise HTTPException(status_code=400, detail="activity_id is required")
-    return match_activity_to_planned_run(planned_run_id, int(activity_id))
+    return planning_service.match_activity_to_planned_run(planned_run_id, int(activity_id))
 
 
 @app.put("/api/planning/{planned_run_id}")
 async def api_update_planned_run(planned_run_id: int, request: Request):
     payload = await request.json()
-    return update_planned_run(planned_run_id, payload)
+    return planning_service.update_planned_run(planned_run_id, payload)
 
 
 @app.delete("/api/planning/{planned_run_id}")
 def api_delete_planned_run(planned_run_id: int):
-    return delete_planned_run(planned_run_id)
+    return planning_service.delete_planned_run(planned_run_id)
 
 
 @app.get("/api/ai/suggestions")
@@ -137,12 +125,12 @@ def api_rebuild_metrics():
 
 @app.post("/api/admin/recalculate-plan")
 def api_recalculate_plan():
-    return evaluate_and_sync()
+    return planning_service.evaluate_and_sync()
 
 
 @app.post("/api/admin/rebuild-links")
 def api_rebuild_links():
-    return rebuild_activity_links()
+    return planning_service.rebuild_activity_links()
 
 
 @app.get("/api/admin/health")
@@ -178,7 +166,7 @@ def strava_webhook_verify(
     hub_verify_token: str = Query(alias="hub.verify_token"),
     hub_challenge: str = Query(alias="hub.challenge"),
 ):
-    result = verify_subscription(hub_mode, hub_verify_token, hub_challenge)
+    result = webhook_service.verify_subscription(hub_mode, hub_verify_token, hub_challenge)
     if result is None:
         raise HTTPException(status_code=403, detail="Webhook verification failed")
     return result
@@ -187,4 +175,4 @@ def strava_webhook_verify(
 @app.post("/api/webhooks/strava")
 async def strava_webhook_event(request: Request):
     payload = await request.json()
-    return process_event(payload)
+    return webhook_service.process_event(payload)
