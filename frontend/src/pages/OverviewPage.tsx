@@ -1,4 +1,5 @@
 import NowHero from "../components/NowHero";
+import StatusBadge from "../components/StatusBadge";
 import {
   AreaChart,
   Area,
@@ -50,49 +51,6 @@ function isAwaiting(plannedDate?: string, toleranceDays = 1) {
   const deadline = new Date(d);
   deadline.setDate(deadline.getDate() + toleranceDays);
   return new Date() <= deadline;
-}
-
-function metricTone(status: string) {
-  if (status === "Grøn" || status === "gennemført") {
-    return { bg: "#ecfdf5", border: "#bbf7d0", color: "#166534" };
-  }
-  if (status === "Gul" || status === "forkortet") {
-    return { bg: "#fffbeb", border: "#fde68a", color: "#92400e" };
-  }
-  if (status === "Rød" || status === "sprunget over") {
-    return { bg: "#fef2f2", border: "#fecaca", color: "#991b1b" };
-  }
-  if (status === "planlagt") {
-    return { bg: "var(--color-surface-muted)", border: "#cbd5e1", color: "var(--color-text-muted)" };
-  }
-  if (status === "flyttet") {
-    return { bg: "#eef2ff", border: "#c7d2fe", color: "#4338ca" };
-  }
-  if (status === "valgfri") {
-    return { bg: "#faf5ff", border: "#e9d5ff", color: "#7c3aed" };
-  }
-  return { bg: "var(--color-surface-muted)", border: "#e2e8f0", color: "var(--color-text-muted)" };
-}
-
-function StatusBadge({ value }: { value: string }) {
-  const tone = metricTone(value);
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "4px 10px",
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 600,
-        background: tone.bg,
-        border: `1px solid ${tone.border}`,
-        color: tone.color,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {value}
-    </span>
-  );
 }
 
 function fmtNum(value: number, decimals: number) {

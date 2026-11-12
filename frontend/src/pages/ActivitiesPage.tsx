@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import ActivityDetail from "../components/ActivityDetail";
+import StatusBadge from "../components/StatusBadge";
 
 const cardStyle: React.CSSProperties = {
   background: "var(--color-surface)",
@@ -8,24 +9,7 @@ const cardStyle: React.CSSProperties = {
   padding: 16,
 };
 
-const filterButtonStyle: React.CSSProperties = {
-  padding: "8px 12px",
-  borderRadius: 6,
-  border: "1px solid var(--color-border-control)",
-  background: "var(--color-surface)",
-  color: "var(--color-text-muted)",
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 500,
-};
 
-const activeFilterButtonStyle: React.CSSProperties = {
-  ...filterButtonStyle,
-  background: "var(--color-action-strong)",
-  border: "1px solid var(--color-action-strong)",
-  color: "var(--color-on-action)",
-  fontWeight: 700,
-};
 
 function formatDate(value?: string) {
   if (!value) return "-";
@@ -53,43 +37,6 @@ function getIsoWeekKey(value?: string) {
 
 function getCurrentIsoWeekKey() {
   return getIsoWeekKey(new Date().toISOString());
-}
-
-function statusTone(status: string) {
-  if (status === "Matchet") {
-    return { bg: "#ecfdf5", border: "#bbf7d0", color: "#166534" };
-  }
-  if (status === "Ikke planlagt") {
-    return { bg: "#eff6ff", border: "#bfdbfe", color: "#1d4ed8" };
-  }
-  if (status === "Afbrudt") {
-    return { bg: "#fef2f2", border: "#fecaca", color: "#991b1b" };
-  }
-  if (status === "Manuel") {
-    return { bg: "var(--color-surface-muted)", border: "#cbd5e1", color: "var(--color-text-muted)" };
-  }
-  return { bg: "var(--color-surface-muted)", border: "#e2e8f0", color: "var(--color-text-muted)" };
-}
-
-function StatusBadge({ value }: { value: string }) {
-  const tone = statusTone(value);
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "4px 10px",
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 600,
-        background: tone.bg,
-        border: `1px solid ${tone.border}`,
-        color: tone.color,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {value}
-    </span>
-  );
 }
 
 type FilterKey = "alle" | "matchede" | "ikke-planlagte" | "afbrudte" | "denne-uge";
@@ -205,7 +152,8 @@ export default function ActivitiesPage({
                 key={f.key}
                 type="button"
                 onClick={() => setFilter(f.key)}
-                style={filter === f.key ? activeFilterButtonStyle : filterButtonStyle}
+                className="u-btn u-btn--secondary"
+                aria-pressed={filter === f.key}
               >
                 {f.label}
               </button>

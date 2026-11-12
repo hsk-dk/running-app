@@ -34,9 +34,6 @@ button.u-header__link[aria-current='page'] { border-bottom-color: var(--color-on
 .app-main:focus { outline: none; }
 .app-footer { text-align: center; margin-top: var(--space-4); color: var(--color-text-muted); font-size: var(--text-xs); }
 
-/* Text colour for "shortened" status. Not in useful-design yet (candidate for the next minor version). */
-:root { --text-warn: #92400e; }
-
 /* "Nu": a sentence, the week as a ring, and the next run and month. */
 .now {
   display: grid;
