@@ -5,7 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.errors import NotFoundError
+from app.errors import ConflictError, ForbiddenError, NotConnectedError, NotFoundError, UnauthorizedError
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,22 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(NotFoundError)
     async def not_found(_: Request, exc: NotFoundError):
         return JSONResponse(status_code=404, content={"detail": str(exc) or "Not found"})
+
+    @app.exception_handler(UnauthorizedError)
+    async def unauthorized(_: Request, exc: UnauthorizedError):
+        return JSONResponse(status_code=401, content={"detail": str(exc) or "Not signed in"})
+
+    @app.exception_handler(ForbiddenError)
+    async def forbidden(_: Request, exc: ForbiddenError):
+        return JSONResponse(status_code=403, content={"detail": str(exc) or "Forbidden"})
+
+    @app.exception_handler(ConflictError)
+    async def conflict(_: Request, exc: ConflictError):
+        return JSONResponse(status_code=409, content={"detail": str(exc) or "Conflict"})
+
+    @app.exception_handler(NotConnectedError)
+    async def not_connected(_: Request, exc: NotConnectedError):
+        return JSONResponse(status_code=409, content={"detail": str(exc) or "Strava er ikke forbundet", "code": "strava_not_connected"})
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_: Request, exc: RequestValidationError):

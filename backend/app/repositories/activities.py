@@ -4,15 +4,16 @@ import json
 import sqlite3
 
 
-def upsert(conn: sqlite3.Connection, activity: dict) -> None:
+def upsert(conn: sqlite3.Connection, user_id: int, activity: dict) -> None:
+    """Insert or update one of the user's activities. An activity id that belongs to another user is left alone."""
     conn.execute(
         """
         INSERT INTO activities (
             id, name, sport_type, start_date, start_date_local, timezone_name, distance_m,
             moving_time_s, elapsed_time_s, total_elevation_gain, average_speed,
             max_speed, average_heartrate, max_heartrate, average_cadence,
-            raw_json, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            raw_json, user_id, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(id) DO UPDATE SET
             name = excluded.name,
             sport_type = excluded.sport_type,
@@ -30,6 +31,7 @@ def upsert(conn: sqlite3.Connection, activity: dict) -> None:
             average_cadence = excluded.average_cadence,
             raw_json = excluded.raw_json,
             updated_at = CURRENT_TIMESTAMP
+        WHERE activities.user_id = excluded.user_id
         """,
         (
             activity["id"],
@@ -48,76 +50,89 @@ def upsert(conn: sqlite3.Connection, activity: dict) -> None:
             activity.get("max_heartrate"),
             activity.get("average_cadence"),
             json.dumps(activity, ensure_ascii=False),
+            user_id,
         ),
     )
 
 
-def get(conn: sqlite3.Connection, activity_id: int) -> sqlite3.Row | None:
-    return conn.execute("SELECT * FROM activities WHERE id = ?", (activity_id,)).fetchone()
-
-
-def delete(conn: sqlite3.Connection, activity_id: int) -> int:
-    return conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,)).rowcount
-
-
-def list_runs(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    """All runs, oldest first, every column."""
+def get(conn: sqlite3.Connection, user_id: int, activity_id: int) -> sqlite3.Row | None:
     return conn.execute(
-        "SELECT * FROM activities WHERE sport_type = 'Run' ORDER BY start_date, id"
+        "SELECT * FROM activities WHERE id = ? AND user_id = ?", (activity_id, user_id)
+    ).fetchone()
+
+
+def delete(conn: sqlite3.Connection, user_id: int, activity_id: int) -> int:
+    return conn.execute(
+        "DELETE FROM activities WHERE id = ? AND user_id = ?", (activity_id, user_id)
+    ).rowcount
+
+
+def list_runs(conn: sqlite3.Connection, user_id: int) -> list[sqlite3.Row]:
+    """All of the user's runs, oldest first, every column."""
+    return conn.execute(
+        "SELECT * FROM activities WHERE user_id = ? AND sport_type = 'Run' ORDER BY start_date, id",
+        (user_id,),
     ).fetchall()
 
 
-def list_recent_runs(conn: sqlite3.Connection, limit: int) -> list[sqlite3.Row]:
+def list_recent_runs(conn: sqlite3.Connection, user_id: int, limit: int) -> list[sqlite3.Row]:
     return conn.execute(
         """
         SELECT id, name, start_date, start_date_local, distance_m, moving_time_s,
                average_heartrate, is_extra, matched_planned_run_id
         FROM activities
-        WHERE sport_type = 'Run'
+        WHERE user_id = ? AND sport_type = 'Run'
         ORDER BY start_date DESC, id DESC
         LIMIT ?
         """,
-        (limit,),
+        (user_id, limit),
     ).fetchall()
 
 
-def list_runs_since(conn: sqlite3.Connection, cutoff: str) -> list[sqlite3.Row]:
+def list_runs_since(conn: sqlite3.Connection, user_id: int, cutoff: str) -> list[sqlite3.Row]:
     return conn.execute(
         """
         SELECT start_date, start_date_local, name, distance_m, moving_time_s,
                average_heartrate, total_elevation_gain
         FROM activities
-        WHERE sport_type = 'Run' AND start_date >= ?
+        WHERE user_id = ? AND sport_type = 'Run' AND start_date >= ?
         ORDER BY start_date
         """,
-        (cutoff,),
+        (user_id, cutoff),
     ).fetchall()
 
 
-def list_runs_for_metrics(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+def list_runs_for_metrics(conn: sqlite3.Connection, user_id: int) -> list[sqlite3.Row]:
     return conn.execute(
         """
         SELECT id, name, sport_type, start_date, start_date_local, distance_m, moving_time_s,
                average_heartrate, is_extra, matched_planned_run_id
         FROM activities
-        WHERE sport_type = 'Run'
+        WHERE user_id = ? AND sport_type = 'Run'
         ORDER BY start_date
-        """
+        """,
+        (user_id,),
     ).fetchall()
 
 
 # ---- plan links ------------------------------------------------------------
 
-def reset_links(conn: sqlite3.Connection) -> None:
-    """Forget every plan link and extra flag (used before re-matching)."""
-    conn.execute("UPDATE activities SET matched_planned_run_id = NULL, is_extra = 0")
+def reset_links(conn: sqlite3.Connection, user_id: int) -> None:
+    """Forget every plan link and extra flag of the user (used before re-matching)."""
+    conn.execute(
+        "UPDATE activities SET matched_planned_run_id = NULL, is_extra = 0 WHERE user_id = ?",
+        (user_id,),
+    )
 
 
-def mark_all_extra(conn: sqlite3.Connection) -> None:
-    conn.execute("UPDATE activities SET matched_planned_run_id = NULL, is_extra = 1")
+def mark_all_extra(conn: sqlite3.Connection, user_id: int) -> None:
+    conn.execute(
+        "UPDATE activities SET matched_planned_run_id = NULL, is_extra = 1 WHERE user_id = ?",
+        (user_id,),
+    )
 
 
-def link_from_planned_runs(conn: sqlite3.Connection) -> None:
+def link_from_planned_runs(conn: sqlite3.Connection, user_id: int) -> None:
     """Derive activity -> plan links from planned_runs.matched_activity_id."""
     conn.execute(
         """
@@ -125,62 +140,68 @@ def link_from_planned_runs(conn: sqlite3.Connection) -> None:
         SET
             matched_planned_run_id = (
                 SELECT p.id FROM planned_runs p
-                WHERE p.matched_activity_id = activities.id
+                WHERE p.matched_activity_id = activities.id AND p.user_id = activities.user_id
                 LIMIT 1
             ),
             is_extra = 0
-        WHERE EXISTS (
-            SELECT 1 FROM planned_runs p WHERE p.matched_activity_id = activities.id
+        WHERE activities.user_id = ? AND EXISTS (
+            SELECT 1 FROM planned_runs p
+            WHERE p.matched_activity_id = activities.id AND p.user_id = activities.user_id
         )
-        """
+        """,
+        (user_id,),
     )
 
 
 def set_matched_plan(
-    conn: sqlite3.Connection, activity_id: int, plan_id: int, is_extra: int | None = None
+    conn: sqlite3.Connection, user_id: int, activity_id: int, plan_id: int, is_extra: int | None = None
 ) -> None:
     if is_extra is None:
         conn.execute(
-            "UPDATE activities SET matched_planned_run_id = ? WHERE id = ?",
-            (plan_id, activity_id),
+            "UPDATE activities SET matched_planned_run_id = ? WHERE id = ? AND user_id = ?",
+            (plan_id, activity_id, user_id),
         )
     else:
         conn.execute(
-            "UPDATE activities SET matched_planned_run_id = ?, is_extra = ? WHERE id = ?",
-            (plan_id, is_extra, activity_id),
+            "UPDATE activities SET matched_planned_run_id = ?, is_extra = ? WHERE id = ? AND user_id = ?",
+            (plan_id, is_extra, activity_id, user_id),
         )
 
 
-def clear_links_for_plan(conn: sqlite3.Connection, plan_id: int) -> None:
+def clear_links_for_plan(conn: sqlite3.Connection, user_id: int, plan_id: int) -> None:
     conn.execute(
-        "UPDATE activities SET matched_planned_run_id = NULL WHERE matched_planned_run_id = ?",
-        (plan_id,),
+        "UPDATE activities SET matched_planned_run_id = NULL WHERE matched_planned_run_id = ? AND user_id = ?",
+        (plan_id, user_id),
     )
 
 
-def clear_link_for_activity(conn: sqlite3.Connection, activity_id: int) -> None:
+def clear_link_for_activity(conn: sqlite3.Connection, user_id: int, activity_id: int) -> None:
     conn.execute(
-        "UPDATE activities SET matched_planned_run_id = NULL WHERE id = ?",
-        (activity_id,),
+        "UPDATE activities SET matched_planned_run_id = NULL WHERE id = ? AND user_id = ?",
+        (activity_id, user_id),
     )
 
 
-def refresh_extra_flags(conn: sqlite3.Connection) -> None:
+def refresh_extra_flags(conn: sqlite3.Connection, user_id: int) -> None:
     conn.execute(
         """
         UPDATE activities
         SET is_extra = CASE WHEN matched_planned_run_id IS NULL THEN 1 ELSE 0 END
-        WHERE sport_type = 'Run'
-        """
+        WHERE user_id = ? AND sport_type = 'Run'
+        """,
+        (user_id,),
     )
 
 
-def count_link_mismatches(conn: sqlite3.Connection) -> int:
+def count_link_mismatches(conn: sqlite3.Connection, user_id: int | None = None) -> int:
+    """Activities whose link disagrees with the plans. user_id=None checks every user."""
+    scope = "" if user_id is None else "AND a.user_id = ?"
+    params = () if user_id is None else (user_id,)
     return conn.execute(
-        """
+        f"""
         SELECT COUNT(*)
         FROM activities a
-        WHERE
+        WHERE (
             (a.matched_planned_run_id IS NULL AND EXISTS (
                 SELECT 1 FROM planned_runs p WHERE p.matched_activity_id = a.id
             ))
@@ -188,5 +209,7 @@ def count_link_mismatches(conn: sqlite3.Connection) -> int:
             (a.matched_planned_run_id IS NOT NULL AND NOT EXISTS (
                 SELECT 1 FROM planned_runs p WHERE p.id = a.matched_planned_run_id
             ))
-        """
+        ) {scope}
+        """,  # scope is a fixed literal, never user input
+        params,
     ).fetchone()[0]

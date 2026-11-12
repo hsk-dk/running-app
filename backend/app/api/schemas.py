@@ -133,3 +133,28 @@ class StravaWebhookEvent(BaseModel):
     subscription_id: int | str | None = None
     event_time: int | None = None
     updates: dict | None = None
+
+
+class StravaStatusOut(BaseModel):
+    connected: bool
+    configured: bool
+    athlete_id: str | None
+
+
+class MeOut(BaseModel):
+    id: int
+    username: str
+    display_name: str
+    role: str
+    sharing_level: str
+    family_sharing_enabled: bool
+    strava: StravaStatusOut
+
+
+class MeUpdate(BaseModel):
+    sharing_level: Literal["private", "overview", "all"] | None = None
+    display_name: str | None = Field(default=None, max_length=60)
+
+
+class ConnectOut(BaseModel):
+    url: str

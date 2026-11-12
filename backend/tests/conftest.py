@@ -83,3 +83,16 @@ def get_activity(db, activity_id):
         return dict(conn.execute("SELECT * FROM activities WHERE id = ?", (activity_id,)).fetchone())
     finally:
         conn.close()
+
+
+def connect_strava(db, user_id=1, athlete_id="1"):
+    """Give a user a Strava account (webhook events are routed by athlete id)."""
+    conn = db.get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO strava_accounts (user_id, athlete_id, refresh_token) VALUES (?, ?, 'refresh')",
+            (user_id, str(athlete_id)),
+        )
+        conn.commit()
+    finally:
+        conn.close()

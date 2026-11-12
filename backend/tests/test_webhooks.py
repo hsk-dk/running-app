@@ -8,10 +8,16 @@ from fastapi.testclient import TestClient
 def client(db, monkeypatch):
     import app.main
     import app.services.sync_service as sync_service
+    from tests.conftest import connect_strava
 
     importlib.reload(app.main)
 
+    connect_strava(db, user_id=1, athlete_id="1")
+
     class FakeStrava:
+        def __init__(self, refresh_token, access_token=None, access_expires_at=None, on_tokens=None):
+            pass
+
         def get_activity(self, activity_id):
             return {
                 "id": activity_id,
@@ -73,20 +79,18 @@ def test_delete_removes_activity(client):
     assert _ids(get_conn) == []
 
 
-def test_owner_mismatch_ignored(client, monkeypatch):
+def test_event_from_an_unconnected_athlete_is_ignored(client):
     c, get_conn = client
-    import app.services.webhook_service as webhook_service
-
-    monkeypatch.setattr(webhook_service.settings, "STRAVA_ATHLETE_ID", "999")
-    c.post("/api/webhooks/strava", json=EVENT)
+    c.post("/api/webhooks/strava", json={**EVENT, "owner_id": 999})
     assert _ids(get_conn) == []
+    assert _events(get_conn) == (1, 1)  # stored, but marked processed: nothing to retry
 
 
 def test_failure_leaves_event_unprocessed_and_sets_error(client, monkeypatch):
     c, get_conn = client
     import app.services.webhook_service as webhook_service
 
-    def boom(_):
+    def boom(user_id, activity_id):
         raise RuntimeError("strava down")
 
     monkeypatch.setattr(webhook_service, "ingest_single_activity", boom)
