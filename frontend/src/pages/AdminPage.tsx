@@ -1,7 +1,7 @@
 const cardStyle: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
+  background: "var(--color-surface)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-large)",
   padding: 16,
 };
 
@@ -9,9 +9,9 @@ const primaryButtonStyle: React.CSSProperties = {
   padding: "10px 20px",
   borderRadius: 6,
   border: "1px solid transparent",
-  background: "linear-gradient(to bottom right, #9dc0ff, #446ea8)",
-  color: "white",
-  boxShadow: "0 6px 16px rgba(0,0,0,0.18)",
+  background: "var(--color-action-strong)",
+  color: "var(--color-on-action)",
+  boxShadow: "var(--shadow-small)",
   cursor: "pointer",
   fontSize: 14,
   fontWeight: 500,
@@ -20,9 +20,9 @@ const primaryButtonStyle: React.CSSProperties = {
 const secondaryButtonStyle: React.CSSProperties = {
   padding: "10px 20px",
   borderRadius: 6,
-  border: "1px solid #d1d5db",
-  background: "#ffffff",
-  color: "#6b7280",
+  border: "1px solid var(--color-border-control)",
+  background: "var(--color-surface)",
+  color: "var(--color-text-muted)",
   cursor: "pointer",
   fontSize: 14,
   fontWeight: 500,
@@ -103,8 +103,8 @@ export default function AdminPage({
         }}
       >
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#243140" }}>Admin</div>
-          <div style={{ fontSize: 14, color: "#425061" }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>Admin</div>
+          <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
             Drift, sync og teknisk status.
           </div>
         </div>
@@ -147,11 +147,11 @@ export default function AdminPage({
               style={{
                 marginTop: 6,
                 padding: 12,
-                background: "#f8fafc",
-                border: "1px solid #e5e7eb",
+                background: "var(--color-surface-muted)",
+                border: "1px solid var(--color-border)",
                 borderRadius: 8,
                 fontSize: 12,
-                color: "#475569",
+                color: "var(--color-text-muted)",
                 overflowX: "auto",
                 whiteSpace: "pre-wrap",
               }}
@@ -166,11 +166,11 @@ export default function AdminPage({
               style={{
                 marginTop: 6,
                 padding: 12,
-                background: "#f8fafc",
-                border: "1px solid #e5e7eb",
+                background: "var(--color-surface-muted)",
+                border: "1px solid var(--color-border)",
                 borderRadius: 8,
                 fontSize: 12,
-                color: "#475569",
+                color: "var(--color-text-muted)",
                 overflowX: "auto",
                 whiteSpace: "pre-wrap",
               }}
@@ -189,7 +189,7 @@ export default function AdminPage({
                 border: "1px solid #fed7aa",
                 borderRadius: 8,
                 fontSize: 12,
-                color: lastError ? "#9a3412" : "#64748b",
+                color: lastError ? "#9a3412" : "var(--color-text-muted)",
                 overflowX: "auto",
                 whiteSpace: "pre-wrap",
               }}

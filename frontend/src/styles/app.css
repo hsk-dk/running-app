@@ -1,0 +1,35 @@
+/* Running-specific styles on top of useful.css (useful-design, version pinned in the first line of that file).
+ * Only things that are specific to this app belong here. Everything visual comes from tokens. */
+
+/* The photo is served from this app, never hot-linked (decision D17). */
+.u-page {
+  --u-background-image: url('/background.jpg');
+  /* Equal-width digits for figures and tables (decision D10). */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Navigation items are buttons here (no router yet): make them look like .u-header__link. */
+button.u-header__link {
+  appearance: none;
+  background: transparent;
+  border-width: 0 0 2px;
+  border-style: solid;
+  border-color: transparent;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+button.u-header__link:hover { border-bottom-color: rgba(255, 255, 255, 0.7); }
+button.u-header__link[aria-current='page'] { border-bottom-color: var(--color-on-header); }
+
+/* Controls that are styled inline get the same visible focus as the u- components. */
+:focus-visible {
+  outline: 2px solid var(--color-focus-outline);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
+}
+.u-header :focus-visible { outline-color: var(--color-on-header); box-shadow: none; }
+
+.app-main { padding-bottom: var(--space-6); }
+.app-main:focus { outline: none; }
+.app-footer { text-align: center; margin-top: var(--space-4); color: var(--color-text-muted); font-size: var(--text-xs); }

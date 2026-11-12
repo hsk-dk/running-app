@@ -8,82 +8,6 @@ import AiSuggestionsPage from "./pages/AiSuggestionsPage";
 
 type PageKey = "overview" | "plan" | "activities" | "admin" | "ai";
 
-const shellStyle: React.CSSProperties = {
-  minHeight: "100vh",
-  fontFamily:
-    "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, sans-serif",
-  lineHeight: 1.6,
-  color: "#1f2937",
-  background:
-    "#C9CFD8 url(https://auth.useful.dk/media/public/background.jpg) center center / cover no-repeat fixed",
-};
-
-const overlayStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 0,
-  background:
-    "radial-gradient(120% 120% at 50% 30%, rgba(0,0,0,0.00) 0%, rgba(0,0,0,0.05) 55%, rgba(0,0,0,0.14) 100%), linear-gradient(to bottom, rgba(0,0,0,0.04), rgba(0,0,0,0.06))",
-  pointerEvents: "none",
-};
-
-const topbarOuterStyle: React.CSSProperties = {
-  position: "relative",
-  zIndex: 2,
-  background: "linear-gradient(to right, #5d8fd9, #6ea0eb)",
-  borderBottom: "1px solid rgba(255,255,255,0.18)",
-  boxShadow: "0 1px 0 rgba(255,255,255,0.06) inset",
-};
-
-const topbarInnerStyle: React.CSSProperties = {
-  maxWidth: 1280,
-  margin: "0 auto",
-  padding: "14px 18px",
-  display: "flex",
-  alignItems: "center",
-  gap: 28,
-};
-
-const brandStyle: React.CSSProperties = {
-  color: "#ffffff",
-  fontSize: 22,
-  fontWeight: 800,
-  letterSpacing: "-0.02em",
-  userSelect: "none",
-};
-
-const navStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 24,
-  flexWrap: "wrap",
-};
-
-const mainWrapperStyle: React.CSSProperties = {
-  position: "relative",
-  zIndex: 1,
-  maxWidth: 940,
-  margin: "24px auto 0",
-  padding: "0 16px 32px",
-};
-
-const panelStyle: React.CSSProperties = {
-  background: "rgba(255,255,255,0.86)",
-  backdropFilter: "saturate(110%) blur(6px)",
-  borderRadius: 14,
-  padding: 20,
-  boxShadow: "0 10px 30px rgba(0,0,0,0.20)",
-  border: "1px solid rgba(36,49,64,0.10)",
-  minHeight: 620,
-};
-
-const footerStyle: React.CSSProperties = {
-  textAlign: "center",
-  marginTop: 18,
-  color: "#425061",
-  fontSize: 12,
-};
-
 function formatDateTime(value?: string) {
   if (!value) return "-";
   const d = new Date(value);
@@ -109,19 +33,10 @@ function NavItem({
 }) {
   return (
     <button
+      type="button"
+      className="u-header__link"
+      aria-current={active ? "page" : undefined}
       onClick={onClick}
-      style={{
-        appearance: "none",
-        background: "transparent",
-        border: "none",
-        color: "#ffffff",
-        cursor: "pointer",
-        fontSize: 14,
-        fontWeight: active ? 700 : 500,
-        padding: "8px 0",
-        borderBottom: active ? "2px solid rgba(255,255,255,0.95)" : "2px solid transparent",
-        opacity: active ? 1 : 0.88,
-      }}
     >
       {label}
     </button>
@@ -249,14 +164,16 @@ export default function App() {
   }
 
   return (
-    <div style={shellStyle}>
-      <div style={overlayStyle} />
+    <>
+      <a className="u-skip-link" href="#indhold">
+        Spring til indhold
+      </a>
 
-      <div style={topbarOuterStyle}>
-        <div style={topbarInnerStyle}>
-          <div style={brandStyle}>Running</div>
+      <header className="u-header">
+        <div className="u-header__inner">
+          <div className="u-header__brand">Running</div>
 
-          <nav style={navStyle}>
+          <nav className="u-header__nav" aria-label="Hovednavigation">
             <NavItem
               active={page === "overview"}
               label="Overblik"
@@ -284,15 +201,17 @@ export default function App() {
             />
           </nav>
         </div>
-      </div>
+      </header>
 
-      <div style={mainWrapperStyle}>
-        <div style={panelStyle}>{renderPage()}</div>
+      <main id="indhold" className="u-container app-main" tabIndex={-1}>
+        <div className="u-panel" style={{ minHeight: 620 }}>
+          {renderPage()}
+        </div>
 
-        <footer style={footerStyle}>
+        <footer className="app-footer">
           Sidst synkroniseret: {formatDateTime(adminStatus?.last_sync_at?.value)}
         </footer>
-      </div>
-    </div>
+      </main>
+    </>
   );
 }

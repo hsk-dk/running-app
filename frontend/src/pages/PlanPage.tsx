@@ -3,18 +3,18 @@ import { createPortal } from "react-dom";
 import { api } from "../api";
 
 const cardStyle: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
+  background: "var(--color-surface)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-large)",
   padding: 16,
 };
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "12px 16px",
-  border: "1px solid #d1d5db",
+  border: "1px solid var(--color-border-control)",
   borderRadius: 8,
-  background: "#ffffff",
+  background: "var(--color-surface)",
   fontSize: 14,
   boxSizing: "border-box",
 };
@@ -23,9 +23,9 @@ const primaryButtonStyle: React.CSSProperties = {
   padding: "10px 20px",
   borderRadius: 6,
   border: "1px solid transparent",
-  background: "linear-gradient(to bottom right, #9dc0ff, #446ea8)",
-  color: "white",
-  boxShadow: "0 6px 16px rgba(0,0,0,0.18)",
+  background: "var(--color-action-strong)",
+  color: "var(--color-on-action)",
+  boxShadow: "var(--shadow-small)",
   cursor: "pointer",
   fontSize: 14,
   fontWeight: 500,
@@ -34,9 +34,9 @@ const primaryButtonStyle: React.CSSProperties = {
 const secondaryButtonStyle: React.CSSProperties = {
   padding: "8px 12px",
     borderRadius: 6,
-  border: "1px solid #d1d5db",
-  background: "#ffffff",
-  color: "#6b7280",
+  border: "1px solid var(--color-border-control)",
+  background: "var(--color-surface)",
+  color: "var(--color-text-muted)",
   cursor: "pointer",
   fontSize: 13,
   fontWeight: 500,
@@ -45,9 +45,9 @@ const secondaryButtonStyle: React.CSSProperties = {
 const compactButtonStyle: React.CSSProperties = {
   padding: "3px 7px",
   borderRadius: 6,
-  border: "1px solid #d1d5db",
-  background: "#ffffff",
-  color: "#6b7280",
+  border: "1px solid var(--color-border-control)",
+  background: "var(--color-surface)",
+  color: "var(--color-text-muted)",
   cursor: "pointer",
   fontSize: 11,
   fontWeight: 500,
@@ -57,9 +57,9 @@ const compactButtonStyle: React.CSSProperties = {
 const dialogActionButtonStyle: React.CSSProperties = {
   padding: "6px 10px",
   borderRadius: 6,
-  border: "1px solid #d1d5db",
-  background: "#ffffff",
-  color: "#6b7280",
+  border: "1px solid var(--color-border-control)",
+  background: "var(--color-surface)",
+  color: "var(--color-text-muted)",
   cursor: "pointer",
   fontSize: 12,
   fontWeight: 500,
@@ -68,16 +68,17 @@ const dialogActionButtonStyle: React.CSSProperties = {
 
 const dangerButtonStyle: React.CSSProperties = {
   ...dialogActionButtonStyle,
-    color: "#b91c1c",
+    color: "var(--text-bad)",
   border: "1px solid #fecaca",
   background: "#fff7f7",
 };
 
 const activeFilterButtonStyle: React.CSSProperties = {
   ...secondaryButtonStyle,
-  background: "#eef2ff",
-  border: "1px solid #c7d2fe",
-  color: "#4338ca",
+  background: "var(--color-action-strong)",
+  border: "1px solid var(--color-action-strong)",
+  color: "var(--color-on-action)",
+  fontWeight: 700,
 };
 
 const modalBackdropStyle: React.CSSProperties = {
@@ -97,9 +98,9 @@ const modalStyle: React.CSSProperties = {
   maxHeight: "calc(100vh - 48px)",
   overflowY: "auto",
   overflowX: "hidden",
-  background: "#ffffff",
+  background: "var(--color-surface)",
   borderRadius: 14,
-  border: "1px solid #e5e7eb",
+  border: "1px solid var(--color-border)",
   boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
   padding: 20,
   boxSizing: "border-box",
@@ -109,11 +110,11 @@ const modalHeaderStyle: React.CSSProperties = {
   position: "sticky",
   top: -20,
   zIndex: 2,
-  background: "#ffffff",
+  background: "var(--color-surface)",
   paddingTop: 20,
   paddingBottom: 12,
   marginBottom: 16,
-  borderBottom: "1px solid #e5e7eb",
+  borderBottom: "1px solid var(--color-border)",
 };
 
 function formatDate(value?: string) {
@@ -176,12 +177,12 @@ function metricTone(status: string) {
         return { bg: "#fef2f2", border: "#fecaca", color: "#991b1b" };
   }
   if (status === "planlagt") {
-    return { bg: "#f8fafc", border: "#cbd5e1", color: "#475569" };
+    return { bg: "var(--color-surface-muted)", border: "#cbd5e1", color: "var(--color-text-muted)" };
   }
   if (status === "flyttet") {
     return { bg: "#eef2ff", border: "#c7d2fe", color: "#4338ca" };
   }
-  return { bg: "#f8fafc", border: "#e2e8f0", color: "#475569" };
+  return { bg: "var(--color-surface-muted)", border: "#e2e8f0", color: "var(--color-text-muted)" };
 }
 
 function StatusBadge({ value }: { value: string }) {
@@ -214,9 +215,9 @@ function OverrideBadge() {
         borderRadius: 999,
         fontSize: 11,
         fontWeight: 600,
-        background: "#f8fafc",
+        background: "var(--color-surface-muted)",
         border: "1px solid #cbd5e1",
-        color: "#475569",
+        color: "var(--color-text-muted)",
         whiteSpace: "nowrap",
       }}
     >
@@ -570,8 +571,8 @@ return (
         }}
       >
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#243140" }}>Plan</div>
-          <div style={{ fontSize: 14, color: "#425061" }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>Plan</div>
+          <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
             Planevaluering og overstyring af planlagte træninger.
           </div>
         </div>
@@ -608,23 +609,23 @@ return (
         }}
       >
         <div>
-          <div style={{ fontWeight: 600, color: "#374151", marginBottom: 8 }}>
+          <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 8 }}>
             Denne uge
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <StatusBadge value={currentWeek.score} />
-            <span style={{ fontSize: 13, color: "#64748b" }}>{currentWeek.weekKey}</span>
+            <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{currentWeek.weekKey}</span>
           </div>
         </div>
 
         <div style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontSize: 14, color: "#243140" }}>
+          <div style={{ fontSize: 14, color: "var(--color-text)" }}>
             {currentWeek.completed}/{currentWeek.relevantNow} aktuelle obligatoriske pas gennemført
           </div>
-          <div style={{ fontSize: 13, color: "#64748b" }}>
+          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
             {currentWeek.awaiting} obligatoriske pas afventer stadig og tæller ikke negativt endnu.
           </div>
-          <div style={{ fontSize: 13, color: "#64748b" }}>
+          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
             Valgfrie træninger vises i planen, men påvirker ikke ugefarven negativt.
           </div>
         </div>
@@ -642,7 +643,7 @@ return (
               flexWrap: "wrap",
             }}
           >
-            <div style={{ fontWeight: 600, color: "#374151" }}>Planevaluering</div>
+            <div style={{ fontWeight: 600, color: "var(--color-text)" }}>Planevaluering</div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {filters.map((f) => (
@@ -661,26 +662,26 @@ return (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
-                <tr style={{ textAlign: "left", color: "#6b7280" }}>
-                  <th style={{ padding: "9px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                <tr style={{ textAlign: "left", color: "var(--color-text-muted)" }}>
+                  <th style={{ padding: "9px 8px", borderBottom: "1px solid var(--color-border)" }}>
                                 Dato
                   </th>
-                  <th style={{ padding: "9px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                  <th style={{ padding: "9px 8px", borderBottom: "1px solid var(--color-border)" }}>
                     Type
                   </th>
-                  <th style={{ padding: "9px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                  <th style={{ padding: "9px 8px", borderBottom: "1px solid var(--color-border)" }}>
                     Mål
                   </th>
-                  <th style={{ padding: "9px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                  <th style={{ padding: "9px 8px", borderBottom: "1px solid var(--color-border)" }}>
                     Faktisk
                   </th>
-                  <th style={{ padding: "9px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                  <th style={{ padding: "9px 8px", borderBottom: "1px solid var(--color-border)" }}>
                     Match
                   </th>
-                  <th style={{ padding: "9px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                  <th style={{ padding: "9px 8px", borderBottom: "1px solid var(--color-border)" }}>
                     Status
                   </th>
-                  <th style={{ padding: "9px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                  <th style={{ padding: "9px 8px", borderBottom: "1px solid var(--color-border)" }}>
                     Handling
                   </th>
                 </tr>
@@ -692,22 +693,22 @@ return (
 
                   return (
                     <tr key={p.id}>
-                      <td style={{ padding: "6px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                         {formatDate(p.planned_date)}
                       </td>
-                      <td style={{ padding: "6px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                         {p.session_type}
                       </td>
-                                      <td style={{ padding: "6px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                                      <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                         {p.display_target}
                       </td>
-                      <td style={{ padding: "6px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                         {p.display_actual}
                       </td>
-                      <td style={{ padding: "6px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                         {p.matched_activity_name ?? "-"}
                       </td>
-                      <td style={{ padding: "6px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                         <div
                           style={{
                             display: "flex",
@@ -722,7 +723,7 @@ return (
                           {p.manual_override ? <OverrideBadge /> : null}
                         </div>
                       </td>
-                      <td style={{ padding: "6px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                         <button
                           type="button"
                           style={compactButtonStyle}
@@ -742,9 +743,9 @@ return (
                       colSpan={7}
                       style={{
                         padding: "18px 8px",
-                        color: "#64748b",
+                        color: "var(--color-text-muted)",
                         textAlign: "center",
-                        borderBottom: "1px solid #f1f5f9",
+                        borderBottom: "1px solid var(--color-surface-muted)",
                       }}
                     >
                       Ingen træninger matcher det valgte filter.
@@ -769,10 +770,10 @@ return (
             }}
           >
                  <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#243140" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>
                 Tilføj træning
               </div>
-              <div style={{ fontSize: 14, color: "#64748b" }}>
+              <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
                 Opret en ny planlagt træning.
               </div>
             </div>
@@ -841,7 +842,7 @@ return (
                          display: "flex",
                 gap: 8,
                 alignItems: "center",
-                color: "#4b5563",
+                color: "var(--color-text-muted)",
                 fontSize: 14,
               }}
             >
@@ -891,10 +892,10 @@ return (
             }}
           >
             <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#243140" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>
                 Rediger træning
               </div>
-              <div style={{ fontSize: 14, color: "#64748b" }}>
+              <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
                 {formatDate(editing.planned_date)} · {editing.session_type}
               </div>
             </div>
@@ -972,7 +973,7 @@ return (
                   display: "flex",
                   gap: 8,
                   alignItems: "center",
-                  color: "#4b5563",
+                  color: "var(--color-text-muted)",
                   fontSize: 14,
                 }}
               >
@@ -1056,30 +1057,30 @@ return (
             {(editing.matched_activity_name || editing.match_reason) && (
               <div
                 style={{
-                  borderTop: "1px solid #e5e7eb",
+                  borderTop: "1px solid var(--color-border)",
                   paddingTop: 16,
                   display: "grid",
                   gap: 8,
                 }}
               >
-                <div style={{ fontWeight: 600, color: "#374151" }}>Nuværende match</div>
+                <div style={{ fontWeight: 600, color: "var(--color-text)" }}>Nuværende match</div>
 
                 {editing.matched_activity_name ? (
                   <div
                     style={{
                       padding: "10px 12px",
-                      border: "1px solid #e5e7eb",
+                      border: "1px solid var(--color-border)",
                       borderRadius: 8,
-                      background: "#f8fafc",
+                      background: "var(--color-surface-muted)",
                       display: "grid",
                       gap: 4,
                     }}
                   >
-                    <div style={{ fontWeight: 600, color: "#243140" }}>
+                    <div style={{ fontWeight: 600, color: "var(--color-text)" }}>
                       {editing.matched_activity_name}
                     </div>
 
-                    <div style={{ fontSize: 13, color: "#64748b" }}>
+                    <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
                       {editing.matched_activity_date
                         ? `${formatDate(editing.matched_activity_date)}`
                         : "Dato ukendt"}
@@ -1088,14 +1089,14 @@ return (
                     </div>
 
                     {editing.match_reason ? (
-                      <div style={{ fontSize: 13, color: "#475569" }}>
+                      <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
                         <strong>Begrundelse:</strong> {editing.match_reason}
                       </div>
                     ) : null}
 
                     {editing.match_score !== null &&
                     editing.match_score !== undefined ? (
-                      <div style={{ fontSize: 12, color: "#64748b" }}>
+                      <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
                         Match-score: {editing.match_score}
                       </div>
                     ) : null}
@@ -1104,11 +1105,11 @@ return (
                   <div
                     style={{
                       padding: "10px 12px",
-                      border: "1px solid #e5e7eb",
+                      border: "1px solid var(--color-border)",
                       borderRadius: 8,
-                      background: "#f8fafc",
+                      background: "var(--color-surface-muted)",
                       fontSize: 13,
-                      color: "#475569",
+                      color: "var(--color-text-muted)",
                     }}
                   >
                     <strong>Begrundelse:</strong> {editing.match_reason}
@@ -1117,17 +1118,17 @@ return (
               </div>
             )}
 
-            <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 16 }}>
-               <div style={{ fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+            <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 16 }}>
+               <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>
                 Vælg match
               </div>
-              <div style={{ fontSize: 13, color: "#64748b", marginBottom: 10 }}>
+              <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 10 }}>
                 Kandidater sorteres efter nærhed til planlagt dato og derefter nærhed til målet.
               </div>
 
               {candidateGroups.near.length > 0 && (
                 <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
                     Tæt på planen
                   </div>
 
@@ -1141,13 +1142,13 @@ return (
                         gap: 12,
                         padding: 10,
                         borderRadius: 8,
-                        border: "1px solid #e5e7eb",
-                        background: "#f8fafc",
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-surface-muted)",
                       }}
                     >
                       <div>
-                        <div style={{ fontWeight: 600, color: "#243140" }}>{a.name}</div>
-                        <div style={{ fontSize: 13, color: "#64748b" }}>
+                        <div style={{ fontWeight: 600, color: "var(--color-text)" }}>{a.name}</div>
+                        <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
                           {formatDate(a.date)} · {a.distance_km} km · {a.duration_min} min ·{" "}
                           {a.dayDiff} dag(e) fra planen
                         </div>
@@ -1175,7 +1176,7 @@ return (
                       gap: 12,
                     }}
                   >
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
                       Andre kandidater
                     </div>
 
@@ -1199,13 +1200,13 @@ return (
                           gap: 12,
                           padding: 10,
                           borderRadius: 8,
-                          border: "1px solid #e5e7eb",
-                          background: "#f8fafc",
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-surface-muted)",
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: 600, color: "#243140" }}>{a.name}</div>
-                          <div style={{ fontSize: 13, color: "#64748b" }}>
+                          <div style={{ fontWeight: 600, color: "var(--color-text)" }}>{a.name}</div>
+                          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
                             {formatDate(a.date)} · {a.distance_km} km · {a.duration_min} min ·{" "}
                             {a.dayDiff} dag(e) fra planen
                           </div>
@@ -1225,7 +1226,7 @@ return (
             )}
 
               {candidateGroups.near.length === 0 && candidateGroups.other.length === 0 && (
-                <div style={{ color: "#64748b", fontSize: 14 }}>
+                <div style={{ color: "var(--color-text-muted)", fontSize: 14 }}>
                   Ingen relevante løb at matche med.
                 </div>
               )}

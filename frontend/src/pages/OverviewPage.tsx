@@ -9,9 +9,9 @@ import {
 } from "recharts";
 
 const cardStyle: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
+  background: "var(--color-surface)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-large)",
   padding: 16,
 };
 
@@ -62,7 +62,7 @@ function metricTone(status: string) {
     return { bg: "#fef2f2", border: "#fecaca", color: "#991b1b" };
   }
   if (status === "planlagt") {
-    return { bg: "#f8fafc", border: "#cbd5e1", color: "#475569" };
+    return { bg: "var(--color-surface-muted)", border: "#cbd5e1", color: "var(--color-text-muted)" };
   }
   if (status === "flyttet") {
     return { bg: "#eef2ff", border: "#c7d2fe", color: "#4338ca" };
@@ -70,7 +70,7 @@ function metricTone(status: string) {
   if (status === "valgfri") {
     return { bg: "#faf5ff", border: "#e9d5ff", color: "#7c3aed" };
   }
-  return { bg: "#f8fafc", border: "#e2e8f0", color: "#475569" };
+  return { bg: "var(--color-surface-muted)", border: "#e2e8f0", color: "var(--color-text-muted)" };
 }
 
 function StatusBadge({ value }: { value: string }) {
@@ -134,14 +134,14 @@ function SummaryCard({
           fontSize: 12,
           textTransform: "uppercase",
           letterSpacing: "0.05em",
-          color: "#6b7280",
+          color: "var(--color-text-muted)",
           marginBottom: 6,
         }}
       >
         {title}
       </div>
-      <div style={{ fontSize: 28, fontWeight: 700, color: "#1e40af" }}>{value}</div>
-      <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>{subtitle}</div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: "var(--color-text)" }}>{value}</div>
+      <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 4 }}>{subtitle}</div>
     </div>
   );
 }
@@ -209,8 +209,8 @@ export default function OverviewPage({
   return (
     <div style={{ display: "grid", gap: 24 }}>
       <section>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "#243140" }}>Overblik</div>
-        <div style={{ fontSize: 14, color: "#425061" }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>Overblik</div>
+        <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
           Hurtig status på løb, plan og konsistens.
         </div>
       </section>
@@ -265,22 +265,22 @@ export default function OverviewPage({
         }}
       >
         <div style={cardStyle}>
-          <div style={{ marginBottom: 8, fontWeight: 600, color: "#374151" }}>Denne uge</div>
+          <div style={{ marginBottom: 8, fontWeight: 600, color: "var(--color-text)" }}>Denne uge</div>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
             <StatusBadge value={currentWeekScore} />
-            <span style={{ fontSize: 13, color: "#64748b" }}>{currentWeekKey}</span>
+            <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{currentWeekKey}</span>
           </div>
 
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#243140", marginBottom: 4 }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text)", marginBottom: 4 }}>
             {currentWeekCompleted}/{currentWeekRelevant.length}
           </div>
 
-          <div style={{ fontSize: 14, color: "#64748b", marginBottom: 10 }}>
+          <div style={{ fontSize: 14, color: "var(--color-text-muted)", marginBottom: 10 }}>
             aktuelle obligatoriske pas gennemført
           </div>
 
-          <div style={{ display: "grid", gap: 6, fontSize: 13, color: "#64748b" }}>
+          <div style={{ display: "grid", gap: 6, fontSize: 13, color: "var(--color-text-muted)" }}>
             <div>Forkortede pas: {currentWeekShortened}</div>
             <div>Afventende obligatoriske pas: {currentWeekAwaiting}</div>
             <div>Valgfrie pas denne uge: {currentWeekRuns.filter((p: any) => p.optional).length}</div>
@@ -288,16 +288,16 @@ export default function OverviewPage({
         </div>
 
         <div style={cardStyle}>
-          <div style={{ marginBottom: 8, fontWeight: 600, color: "#374151" }}>
+          <div style={{ marginBottom: 8, fontWeight: 600, color: "var(--color-text)" }}>
             Næste planlagte træning
           </div>
 
           {nextPlanned ? (
             <div style={{ display: "grid", gap: 8 }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#243140" }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text)" }}>
                 {nextPlanned.display_target}
               </div>
-              <div style={{ fontSize: 14, color: "#64748b" }}>
+              <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
                 {formatDate(nextPlanned.planned_date)} · {nextPlanned.session_type}
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -305,21 +305,21 @@ export default function OverviewPage({
                 {nextPlanned.optional ? <StatusBadge value="valgfri" /> : null}
               </div>
               {nextPlanned.notes ? (
-                <div style={{ fontSize: 13, color: "#64748b" }}>{nextPlanned.notes}</div>
+                <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{nextPlanned.notes}</div>
               ) : null}
             </div>
           ) : (
-            <div style={{ color: "#64748b" }}>Ingen planlagte træninger.</div>
+            <div style={{ color: "var(--color-text-muted)" }}>Ingen planlagte træninger.</div>
           )}
         </div>
 
         <div style={cardStyle}>
-          <div style={{ marginBottom: 8, fontWeight: 600, color: "#374151" }}>
+          <div style={{ marginBottom: 8, fontWeight: 600, color: "var(--color-text)" }}>
             Kommende plan
           </div>
 
           {upcomingRuns.length === 0 ? (
-            <div style={{ color: "#64748b" }}>Ingen kommende træninger.</div>
+            <div style={{ color: "var(--color-text-muted)" }}>Ingen kommende træninger.</div>
           ) : (
             <div style={{ display: "grid", gap: 8 }}>
               {upcomingRuns.map((run: any) => (
@@ -327,17 +327,18 @@ export default function OverviewPage({
                   key={run.id}
                   style={{
                     display: "flex",
+                    flexWrap: "wrap",
                     justifyContent: "space-between",
                     gap: 12,
                     paddingBottom: 8,
-                    borderBottom: "1px solid #f1f5f9",
+                    borderBottom: "1px solid var(--color-surface-muted)",
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: 600, color: "#243140" }}>
+                    <div style={{ fontWeight: 600, color: "var(--color-text)" }}>
                       {formatDate(run.planned_date)}
                     </div>
-                    <div style={{ fontSize: 13, color: "#64748b" }}>
+                    <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
                       {run.session_type} · {run.display_target}
                     </div>
                   </div>
@@ -359,7 +360,7 @@ export default function OverviewPage({
         }}
       >
         <div style={cardStyle}>
-          <div style={{ marginBottom: 12, fontWeight: 600, color: "#374151" }}>
+          <div style={{ marginBottom: 12, fontWeight: 600, color: "var(--color-text)" }}>
             Månedlig distance
           </div>
           <div style={{ width: "100%", height: 280 }}>
@@ -372,8 +373,8 @@ export default function OverviewPage({
                 <Area
                   type="monotone"
                   dataKey="km"
-                  stroke="#446ea8"
-                  fill="#9dc0ff"
+                  stroke="var(--data-1)"
+                  fill="var(--data-fill)"
                   fillOpacity={0.22}
                 />
               </AreaChart>
@@ -382,17 +383,17 @@ export default function OverviewPage({
         </div>
 
         <div style={cardStyle}>
-          <div style={{ marginBottom: 12, fontWeight: 600, color: "#374151" }}>
+          <div style={{ marginBottom: 12, fontWeight: 600, color: "var(--color-text)" }}>
             Seneste planmatch
           </div>
 
           {latestMatched ? (
             <div style={{ display: "grid", gap: 10 }}>
               <div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "#243140" }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)" }}>
                   {latestMatched.matched_activity_name}
                 </div>
-                <div style={{ fontSize: 14, color: "#64748b" }}>
+                <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
                   {formatDate(latestMatched.planned_date)} · {latestMatched.session_type}
                 </div>
               </div>
@@ -411,7 +412,7 @@ export default function OverviewPage({
               </div>
             </div>
           ) : (
-            <div style={{ color: "#64748b" }}>Ingen match endnu.</div>
+            <div style={{ color: "var(--color-text-muted)" }}>Ingen match endnu.</div>
           )}
         </div>
       </section>
@@ -423,10 +424,10 @@ export default function OverviewPage({
           gap: 8,
         }}
       >
-        <div style={{ fontWeight: 600, color: "#374151" }}>Ugekonsistens</div>
+        <div style={{ fontWeight: 600, color: "var(--color-text)" }}>Ugekonsistens</div>
 
         {weeklyConsistency.length === 0 ? (
-          <div style={{ color: "#64748b", fontSize: 14 }}>
+          <div style={{ color: "var(--color-text-muted)", fontSize: 14 }}>
             Ingen planlagte træninger endnu.
           </div>
         ) : (
@@ -440,13 +441,13 @@ export default function OverviewPage({
                 alignItems: "center",
                 padding: 12,
                 borderRadius: 8,
-                background: "#f9fafb",
-                border: "1px solid #e5e7eb",
+                background: "var(--color-surface-muted)",
+                border: "1px solid var(--color-border)",
               }}
             >
               <div>
                 <div style={{ fontWeight: 600 }}>{week.week}</div>
-                <div style={{ fontSize: 13, color: "#64748b" }}>
+                <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
                   {week.completed}/{week.relevant_runs} relevante obligatoriske pas
                 </div>
               </div>
