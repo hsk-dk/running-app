@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api";
+import StatusBadge from "../components/StatusBadge";
 import WeekPlanChart from "../components/WeekPlanChart";
 
 const cardStyle: React.CSSProperties = {
@@ -20,67 +21,11 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-const primaryButtonStyle: React.CSSProperties = {
-  padding: "10px 20px",
-  borderRadius: 6,
-  border: "1px solid transparent",
-  background: "var(--color-action-strong)",
-  color: "var(--color-on-action)",
-  boxShadow: "var(--shadow-small)",
-  cursor: "pointer",
-  fontSize: 14,
-  fontWeight: 500,
-};
 
-const secondaryButtonStyle: React.CSSProperties = {
-  padding: "8px 12px",
-    borderRadius: 6,
-  border: "1px solid var(--color-border-control)",
-  background: "var(--color-surface)",
-  color: "var(--color-text-muted)",
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 500,
-};
 
-const compactButtonStyle: React.CSSProperties = {
-  padding: "3px 7px",
-  borderRadius: 6,
-  border: "1px solid var(--color-border-control)",
-  background: "var(--color-surface)",
-  color: "var(--color-text-muted)",
-  cursor: "pointer",
-  fontSize: 11,
-  fontWeight: 500,
-  lineHeight: 1.1,
-};
 
-const dialogActionButtonStyle: React.CSSProperties = {
-  padding: "6px 10px",
-  borderRadius: 6,
-  border: "1px solid var(--color-border-control)",
-  background: "var(--color-surface)",
-  color: "var(--color-text-muted)",
-  cursor: "pointer",
-  fontSize: 12,
-  fontWeight: 500,
-  whiteSpace: "nowrap",
-};
 
-const dangerButtonStyle: React.CSSProperties = {
-  ...dialogActionButtonStyle,
-    color: "var(--text-bad)",
-  border: "1px solid #fecaca",
-  background: "#fff7f7",
-};
 
-const activeFilterButtonStyle: React.CSSProperties = {
-  ...secondaryButtonStyle,
-  background: "var(--color-action-strong)",
-  border: "1px solid var(--color-action-strong)",
-  color: "var(--color-on-action)",
-  fontWeight: 700,
-};
 
 const modalBackdropStyle: React.CSSProperties = {
   position: "fixed",
@@ -167,106 +112,6 @@ function isAwaiting(plannedDate?: string, toleranceDays = 1) {
   return new Date() <= deadline;
 }
 
-function metricTone(status: string) {
-  if (status === "gennemført" || status === "Grøn") {
-    return { bg: "#ecfdf5", border: "#bbf7d0", color: "#166534" };
-  }
-  if (status === "forkortet" || status === "Gul") {
-    return { bg: "#fffbeb", border: "#fde68a", color: "#92400e" };
-  }
-  if (status === "sprunget over" || status === "Rød") {
-        return { bg: "#fef2f2", border: "#fecaca", color: "#991b1b" };
-  }
-  if (status === "planlagt") {
-    return { bg: "var(--color-surface-muted)", border: "#cbd5e1", color: "var(--color-text-muted)" };
-  }
-  if (status === "flyttet") {
-    return { bg: "#eef2ff", border: "#c7d2fe", color: "#4338ca" };
-  }
-  return { bg: "var(--color-surface-muted)", border: "#e2e8f0", color: "var(--color-text-muted)" };
-}
-
-function StatusBadge({ value }: { value: string }) {
-  const tone = metricTone(value);
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "4px 10px",
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 600,
-        background: tone.bg,
-        border: `1px solid ${tone.border}`,
-        color: tone.color,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {value}
-    </span>
-  );
-}
-
-function OverrideBadge() {
-  return (
-    <span
-          style={{
-        display: "inline-block",
-        padding: "3px 8px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 600,
-        background: "var(--color-surface-muted)",
-        border: "1px solid #cbd5e1",
-        color: "var(--color-text-muted)",
-        whiteSpace: "nowrap",
-      }}
-    >
-      Manuel
-    </span>
-  );
-}
-
-function OptionalBadge() {
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "3px 8px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 600,
-        background: "#faf5ff",
-        border: "1px solid #e9d5ff",
-        color: "#7c3aed",
-        whiteSpace: "nowrap",
-      }}
-    >
-      Valgfri
-    </span>
-  );
-  }
-
-function AwaitingBadge() {
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "3px 8px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 600,
-        background: "#eff6ff",
-        border: "1px solid #bfdbfe",
-        color: "#1d4ed8",
-        whiteSpace: "nowrap",
-      }}
-    >
-      Afventer
-    </span>
-  );
-}
-
 type FilterKey =
   | "alle"
   | "planlagt"
@@ -279,11 +124,33 @@ function Modal({
   children,
   onClose,
   closeDisabled = false,
+  label,
 }: {
-    children: React.ReactNode;
+  children: React.ReactNode;
   onClose: () => void;
   closeDisabled?: boolean;
+  label: string;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Move keyboard focus into the dialog and give it back when the dialog closes.
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => previous?.focus?.();
+  }, []);
+
+  // Escape closes the dialog unless it is busy saving.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !closeDisabled) onCloseRef.current();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [closeDisabled]);
+
   return createPortal(
     <div
       style={modalBackdropStyle}
@@ -291,7 +158,15 @@ function Modal({
         if (!closeDisabled) onClose();
       }}
     >
-      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        tabIndex={-1}
+        style={{ ...modalStyle, outline: "none" }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {children}
       </div>
     </div>,
@@ -580,7 +455,7 @@ return (
 
         <button
           type="button"
-          style={primaryButtonStyle}
+          className="u-btn u-btn--primary"
           onClick={() => setCreateOpen(true)}
         >
           Tilføj træning
@@ -630,7 +505,8 @@ return (
                   key={f}
                   type="button"
                   onClick={() => setFilter(f)}
-                  style={filter === f ? activeFilterButtonStyle : secondaryButtonStyle}
+                  className="u-btn u-btn--secondary"
+                  aria-pressed={filter === f}
                 >
                   {f}
                 </button>
@@ -697,15 +573,15 @@ return (
                           }}
                         >
                           <StatusBadge value={p.status} />
-                          {awaiting ? <AwaitingBadge /> : null}
-                          {p.optional ? <OptionalBadge /> : null}
-                          {p.manual_override ? <OverrideBadge /> : null}
+                          {awaiting ? <StatusBadge value="Afventer" variant="info" /> : null}
+                          {p.optional ? <StatusBadge value="Valgfri" variant="optional" /> : null}
+                          {p.manual_override ? <StatusBadge value="Manuel" /> : null}
                         </div>
                       </td>
                       <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                         <button
                           type="button"
-                          style={compactButtonStyle}
+                          className="u-btn u-btn--secondary"
                           disabled={isBusy}
                           onClick={() => openEdit(p)}
                         >
@@ -738,7 +614,7 @@ return (
       </section>
 
       {createOpen && (
-        <Modal onClose={() => setCreateOpen(false)} closeDisabled={creating}>
+        <Modal label="Tilføj træning" onClose={() => setCreateOpen(false)} closeDisabled={creating}>
           <div
             style={{
               ...modalHeaderStyle,
@@ -759,7 +635,7 @@ return (
 
             <button
               type="button"
-              style={{ ...secondaryButtonStyle, flexShrink: 0 }}
+              className="u-btn u-btn--secondary" style={{ flexShrink: 0 }}
               onClick={() => setCreateOpen(false)}
               disabled={creating}
             >
@@ -842,13 +718,13 @@ return (
             />
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="submit" style={primaryButtonStyle} disabled={creating}>
+              <button type="submit" className="u-btn u-btn--primary" disabled={creating}>
                 {creating ? "Opretter..." : "Tilføj træning"}
               </button>
 
               <button
                 type="button"
-                style={secondaryButtonStyle}
+                className="u-btn u-btn--secondary"
                 onClick={() => setCreateOpen(false)}
                 disabled={creating}
               >
@@ -860,7 +736,7 @@ return (
       )}
 
       {editing && (
-        <Modal onClose={() => setEditing(null)} closeDisabled={savingEdit}>
+        <Modal label="Rediger træning" onClose={() => setEditing(null)} closeDisabled={savingEdit}>
           <div
             style={{
               ...modalHeaderStyle,
@@ -881,7 +757,7 @@ return (
 
             <button
               type="button"
-              style={{ ...secondaryButtonStyle, flexShrink: 0 }}
+              className="u-btn u-btn--secondary" style={{ flexShrink: 0 }}
               onClick={() => setEditing(null)}
               disabled={savingEdit}
             >
@@ -986,7 +862,7 @@ return (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                   <button
                     type="submit"
-                    style={primaryButtonStyle}
+                    className="u-btn u-btn--primary"
                     disabled={savingEdit}
                   >
                     {savingEdit ? "Gemmer..." : "Gem ændringer"}
@@ -994,7 +870,7 @@ return (
 
                   <button
                          type="button"
-                    style={dialogActionButtonStyle}
+                    className="u-btn u-btn--secondary"
                     onClick={() => handleMarkSkipped(editing.id)}
                     disabled={savingEdit}
                   >
@@ -1003,7 +879,7 @@ return (
 
                   <button
                     type="button"
-                    style={dialogActionButtonStyle}
+                    className="u-btn u-btn--secondary"
                     onClick={() => handleMarkRescheduled(editing.id)}
                     disabled={savingEdit}
                   >
@@ -1012,7 +888,7 @@ return (
 
                   <button
                     type="button"
-                    style={dialogActionButtonStyle}
+                    className="u-btn u-btn--secondary"
                     onClick={() => handleClearMatch(editing.id)}
                     disabled={savingEdit}
                   >
@@ -1023,7 +899,7 @@ return (
                 <div>
                   <button
                     type="button"
-                    style={dangerButtonStyle}
+                    className="u-btn u-btn--danger"
                     onClick={() => handleDelete(editing.id)}
                     disabled={savingEdit}
                   >
@@ -1134,7 +1010,7 @@ return (
                       </div>
                       <button
                         type="button"
-                        style={compactButtonStyle}
+                        className="u-btn u-btn--secondary"
                         onClick={() => handleMatchActivity(a.id)}
                         disabled={savingEdit}
                       >
@@ -1161,7 +1037,7 @@ return (
 
                     <button
                       type="button"
-                      style={compactButtonStyle}
+                      className="u-btn u-btn--secondary"
                       onClick={() => setShowAllCandidates((v) => !v)}
                     >
                       {showAllCandidates ? "Skjul" : "Vis flere"}
@@ -1193,7 +1069,7 @@ return (
 
                         <button
                           type="button"
-                          style={compactButtonStyle}
+                          className="u-btn u-btn--secondary"
                           onClick={() => handleMatchActivity(a.id)}
                           disabled={savingEdit}
                         >

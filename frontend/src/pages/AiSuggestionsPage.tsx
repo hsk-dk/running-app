@@ -8,28 +8,7 @@ const cardStyle: React.CSSProperties = {
   padding: 16,
 };
 
-const primaryButtonStyle: React.CSSProperties = {
-  padding: "10px 20px",
-  borderRadius: 6,
-  border: "1px solid transparent",
-  background: "var(--color-action-strong)",
-  color: "var(--color-on-action)",
-  boxShadow: "var(--shadow-small)",
-  cursor: "pointer",
-  fontSize: 14,
-  fontWeight: 500,
-};
 
-const secondaryButtonStyle: React.CSSProperties = {
-  padding: "8px 16px",
-  borderRadius: 6,
-  border: "1px solid var(--color-border-control)",
-  background: "var(--color-surface)",
-  color: "var(--color-text)",
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 500,
-};
 
 const SESSION_TYPE_LABELS: Record<string, string> = {
   easy: "Let løb",
@@ -177,7 +156,7 @@ export default function AiSuggestionsPage({
         </div>
 
         <button
-          style={primaryButtonStyle}
+          className="u-btn u-btn--primary"
           onClick={handleGenerate}
           disabled={loading}
         >
@@ -314,7 +293,7 @@ export default function AiSuggestionsPage({
                 </div>
                 {!allAdded && (
                   <button
-                    style={secondaryButtonStyle}
+                    className="u-btn u-btn--secondary"
                     onClick={handleAddAll}
                     disabled={addAllLoading || allAdded}
                   >
@@ -423,11 +402,8 @@ export default function AiSuggestionsPage({
 
                     {!added && (
                       <button
-                        style={{
-                          ...secondaryButtonStyle,
-                          alignSelf: "center",
-                          whiteSpace: "nowrap",
-                        }}
+                        className="u-btn u-btn--secondary"
+                        style={{ alignSelf: "center", whiteSpace: "nowrap" }}
                         onClick={() => handleAddOne(s, i)}
                         disabled={addingId === i}
                       >

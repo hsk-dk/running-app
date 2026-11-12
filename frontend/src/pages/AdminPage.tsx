@@ -5,28 +5,7 @@ const cardStyle: React.CSSProperties = {
   padding: 16,
 };
 
-const primaryButtonStyle: React.CSSProperties = {
-  padding: "10px 20px",
-  borderRadius: 6,
-  border: "1px solid transparent",
-  background: "var(--color-action-strong)",
-  color: "var(--color-on-action)",
-  boxShadow: "var(--shadow-small)",
-  cursor: "pointer",
-  fontSize: 14,
-  fontWeight: 500,
-};
 
-const secondaryButtonStyle: React.CSSProperties = {
-  padding: "10px 20px",
-  borderRadius: 6,
-  border: "1px solid var(--color-border-control)",
-  background: "var(--color-surface)",
-  color: "var(--color-text-muted)",
-  cursor: "pointer",
-  fontSize: 14,
-  fontWeight: 500,
-};
 
 function formatDateTime(value?: unknown) {
   if (value === null || value === undefined || value === "") return "-";
@@ -111,14 +90,14 @@ export default function AdminPage({
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <button
-            style={primaryButtonStyle}
+            className="u-btn u-btn--primary"
             onClick={() => onRunAction("ingest")}
             disabled={loading}
           >
             Synkronisér
           </button>
           <button
-            style={secondaryButtonStyle}
+            className="u-btn u-btn--secondary"
             onClick={() => onRunAction("plan")}
             disabled={loading}
           >
