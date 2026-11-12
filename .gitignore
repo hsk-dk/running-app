@@ -31,3 +31,7 @@ data/
 .idea/
 *.swp
 *.swo
+
+.pytest_cache/
+*.db-wal
+*.db-shm

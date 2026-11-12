@@ -1,0 +1,85 @@
+import importlib
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+
+@pytest.fixture()
+def db(tmp_path, monkeypatch):
+    """Fresh SQLite database per test. Returns the app.db module."""
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "test.db"))
+    monkeypatch.setenv("STRAVA_ATHLETE_ID", "")
+
+    import app.config
+    import app.db
+
+    importlib.reload(app.config)
+    importlib.reload(app.db)
+    app.db.init_db()
+    return app.db
+
+
+def add_activity(db, id, start_date, distance_m=5000, moving_time_s=1800, name="Run", sport_type="Run"):
+    conn = db.get_conn()
+    try:
+        conn.execute(
+            """
+            INSERT INTO activities (id, name, sport_type, start_date, distance_m, moving_time_s, raw_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (id, name, sport_type, start_date, distance_m, moving_time_s, json.dumps({})),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def add_plan(
+    db,
+    planned_date,
+    session_type="easy",
+    target_type="time",
+    target_value=30,
+    mandatory=1,
+    status="planlagt",
+    manual_override=0,
+    matched_activity_id=None,
+):
+    conn = db.get_conn()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO planned_runs (
+                planned_date, session_type, target_type, target_value,
+                mandatory, optional, status, manual_override, matched_activity_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                planned_date, session_type, target_type, target_value,
+                mandatory, int(not mandatory), status, manual_override, matched_activity_id,
+            ),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_plan(db, plan_id):
+    conn = db.get_conn()
+    try:
+        return dict(conn.execute("SELECT * FROM planned_runs WHERE id = ?", (plan_id,)).fetchone())
+    finally:
+        conn.close()
+
+
+def get_activity(db, activity_id):
+    conn = db.get_conn()
+    try:
+        return dict(conn.execute("SELECT * FROM activities WHERE id = ?", (activity_id,)).fetchone())
+    finally:
+        conn.close()

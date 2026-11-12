@@ -81,7 +81,7 @@ export default function AdminPage({
 }: {
   adminStatus: any;
   loading: boolean;
-  onRunAction: (action: "ingest" | "metrics" | "plan") => void;
+  onRunAction: (action: "ingest" | "plan") => void;
   error: string | null;
 }) {
   const lastSync = adminStatus?.last_sync_at?.value;
@@ -116,13 +116,6 @@ export default function AdminPage({
             disabled={loading}
           >
             Synkronisér
-          </button>
-          <button
-            style={secondaryButtonStyle}
-            onClick={() => onRunAction("metrics")}
-            disabled={loading}
-          >
-            Genberegn statistik
           </button>
           <button
             style={secondaryButtonStyle}

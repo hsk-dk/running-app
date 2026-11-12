@@ -1,5 +1,6 @@
-import sqlite3
+import json
 import re
+import sqlite3
 from app.config import settings
 
 
@@ -9,6 +10,7 @@ CREATE TABLE IF NOT EXISTS activities (
     name TEXT,
     sport_type TEXT,
     start_date TEXT,
+    start_date_local TEXT,
     timezone_name TEXT,
     distance_m REAL,
     moving_time_s INTEGER,
@@ -25,21 +27,6 @@ CREATE TABLE IF NOT EXISTS activities (
     matched_planned_run_id INTEGER,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS derived_metrics (
-    activity_id INTEGER PRIMARY KEY,
-    start_date TEXT NOT NULL,
-    year INTEGER NOT NULL,
-    month_key TEXT NOT NULL,
-    iso_week_key TEXT NOT NULL,
-    distance_km REAL,
-    moving_minutes REAL,
-    pace_sec_per_km REAL,
-    average_heartrate REAL,
-    hr_efficiency REAL,
-    easy_aerobic_flag INTEGER,
-    FOREIGN KEY (activity_id) REFERENCES activities(id)
 );
 
 CREATE TABLE IF NOT EXISTS planned_runs (
@@ -87,73 +74,173 @@ CREATE TABLE IF NOT EXISTS webhook_events (
 );
 """
 
-ALLOWED_MIGRATION_COLUMNS = {
-    "planned_runs": {
-        "target_type": "TEXT DEFAULT 'time'",
-        "target_value": "REAL",
-        "mandatory": "INTEGER DEFAULT 1",
-        "manual_override": "INTEGER DEFAULT 0",
-        "override_reason": "TEXT",
-        "matched_activity_date": "TEXT",
-        "matched_activity_name": "TEXT",
-        "actual_value": "REAL",
-        "evaluated_at": "TEXT",
-        "match_score": "REAL",
-        "match_reason": "TEXT",
-    },
-    "activities": {
-        "is_extra": "INTEGER DEFAULT 0",
-        "is_aborted": "INTEGER DEFAULT 0",
-        "matched_planned_run_id": "INTEGER",
-    },
-}
 SAFE_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+BUSY_TIMEOUT_MS = 5000
 
 
 def get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(settings.DATABASE_PATH)
+    conn = sqlite3.connect(settings.DATABASE_PATH, timeout=BUSY_TIMEOUT_MS / 1000)
     conn.row_factory = sqlite3.Row
+    # Per-connection settings (SQLite does not persist these).
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
     return conn
 
 
+# ---- migrations ------------------------------------------------------------
+#
+# The schema version is stored in SQLite's ``PRAGMA user_version``. SCHEMA_SQL
+# above creates the current tables on a fresh database; migrations bring older
+# databases up to date. Every migration must be idempotent, because a fresh
+# database already contains its changes. To change the schema: update
+# SCHEMA_SQL if needed, append a function to MIGRATIONS, never edit old ones.
+
+# Columns that older databases may lack: (table, column, definition).
+_COLUMNS_ADDED_IN_V1 = [
+    ("planned_runs", "target_type", "TEXT DEFAULT 'time'"),
+    ("planned_runs", "target_value", "REAL"),
+    ("planned_runs", "mandatory", "INTEGER DEFAULT 1"),
+    ("planned_runs", "manual_override", "INTEGER DEFAULT 0"),
+    ("planned_runs", "override_reason", "TEXT"),
+    ("planned_runs", "matched_activity_date", "TEXT"),
+    ("planned_runs", "matched_activity_name", "TEXT"),
+    ("planned_runs", "actual_value", "REAL"),
+    ("planned_runs", "evaluated_at", "TEXT"),
+    ("planned_runs", "match_score", "REAL"),
+    ("planned_runs", "match_reason", "TEXT"),
+    ("activities", "is_extra", "INTEGER DEFAULT 0"),
+    ("activities", "is_aborted", "INTEGER DEFAULT 0"),
+    ("activities", "matched_planned_run_id", "INTEGER"),
+]
+
+
 def column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
-    if table not in ALLOWED_MIGRATION_COLUMNS:
-        raise ValueError(f"Unsupported table for migration: {table}")
     if not SAFE_IDENTIFIER_RE.match(table):
         raise ValueError(f"Unsafe table identifier: {table}")
     rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
     return any(row["name"] == column for row in rows)
 
 
-def ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
-    expected_definition = ALLOWED_MIGRATION_COLUMNS.get(table, {}).get(column)
-    if expected_definition != definition:
-        raise ValueError(f"Unsupported column migration: {table}.{column}")
+def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    return (
+        conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)).fetchone()
+        is not None
+    )
+
+
+def _add_column_if_missing(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    # Identifiers and definitions come only from the constant lists in this file.
+    if not (SAFE_IDENTIFIER_RE.match(table) and SAFE_IDENTIFIER_RE.match(column)):
+        raise ValueError(f"Unsafe identifier: {table}.{column}")
     if not column_exists(conn, table, column):
-        # table/column/definition are constrained by ALLOWED_MIGRATION_COLUMNS and SAFE_IDENTIFIER_RE.
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def _migration_1_add_missing_columns(conn: sqlite3.Connection) -> None:
+    for table, column, definition in _COLUMNS_ADDED_IN_V1:
+        _add_column_if_missing(conn, table, column, definition)
+
+
+def _migration_2_add_indexes(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        CREATE INDEX IF NOT EXISTS idx_activities_start_date
+            ON activities(start_date);
+        CREATE INDEX IF NOT EXISTS idx_activities_matched_planned_run_id
+            ON activities(matched_planned_run_id);
+        CREATE INDEX IF NOT EXISTS idx_planned_runs_planned_date
+            ON planned_runs(planned_date);
+        CREATE INDEX IF NOT EXISTS idx_planned_runs_matched_activity_id
+            ON planned_runs(matched_activity_id);
+        CREATE INDEX IF NOT EXISTS idx_webhook_events_lookup
+            ON webhook_events(object_type, object_id, aspect_type, event_time);
+        """
+    )
+
+
+def _migration_3_clear_dangling_activity_refs(conn: sqlite3.Connection) -> None:
+    """Foreign keys are enforced from now on; drop references to activities that no longer exist."""
+    conn.execute(
+        """
+        UPDATE planned_runs
+        SET
+            matched_activity_id = NULL,
+            matched_activity_date = NULL,
+            matched_activity_name = NULL,
+            actual_value = NULL,
+            match_score = NULL,
+            match_reason = NULL
+        WHERE matched_activity_id IS NOT NULL
+          AND matched_activity_id NOT IN (SELECT id FROM activities)
+        """
+    )
+    if _table_exists(conn, "derived_metrics"):
+        conn.execute("DELETE FROM derived_metrics WHERE activity_id NOT IN (SELECT id FROM activities)")
+
+
+def _migration_4_add_start_date_local(conn: sqlite3.Connection) -> None:
+    """Strava's local start time, used for all calendar logic. Backfilled from the stored raw JSON."""
+    _add_column_if_missing(conn, "activities", "start_date_local", "TEXT")
+    rows = conn.execute(
+        "SELECT id, raw_json FROM activities WHERE start_date_local IS NULL"
+    ).fetchall()
+    updates = []
+    for row in rows:
+        try:
+            local = json.loads(row["raw_json"]).get("start_date_local")
+        except (TypeError, ValueError, AttributeError):
+            local = None
+        if local:
+            updates.append((local, row["id"]))
+    conn.executemany("UPDATE activities SET start_date_local = ? WHERE id = ?", updates)
+
+
+def _migration_5_sync_mandatory_from_optional(conn: sqlite3.Connection) -> None:
+    """`mandatory` becomes the single source of truth.
+
+    Older code edited only `optional`, so where both are set `optional` is the newer value.
+    """
+    conn.execute(
+        "UPDATE planned_runs SET mandatory = CASE WHEN optional = 1 THEN 0 ELSE 1 END "
+        "WHERE optional IS NOT NULL"
+    )
+
+
+def _migration_6_drop_derived_metrics(conn: sqlite3.Connection) -> None:
+    """Never populated or read."""
+    conn.execute("DROP TABLE IF EXISTS derived_metrics")
+
+
+MIGRATIONS = [
+    _migration_1_add_missing_columns,
+    _migration_2_add_indexes,
+    _migration_3_clear_dangling_activity_refs,
+    _migration_4_add_start_date_local,
+    _migration_5_sync_mandatory_from_optional,
+    _migration_6_drop_derived_metrics,
+]
+SCHEMA_VERSION = len(MIGRATIONS)
+
+
+def get_schema_version(conn: sqlite3.Connection) -> int:
+    return conn.execute("PRAGMA user_version").fetchone()[0]
 
 
 def migrate_db() -> None:
     conn = get_conn()
     try:
-        ensure_column(conn, "planned_runs", "target_type", "TEXT DEFAULT 'time'")
-        ensure_column(conn, "planned_runs", "target_value", "REAL")
-        ensure_column(conn, "planned_runs", "mandatory", "INTEGER DEFAULT 1")
-        ensure_column(conn, "planned_runs", "manual_override", "INTEGER DEFAULT 0")
-        ensure_column(conn, "planned_runs", "override_reason", "TEXT")
-        ensure_column(conn, "planned_runs", "matched_activity_date", "TEXT")
-        ensure_column(conn, "planned_runs", "matched_activity_name", "TEXT")
-        ensure_column(conn, "planned_runs", "actual_value", "REAL")
-        ensure_column(conn, "planned_runs", "evaluated_at", "TEXT")
-        ensure_column(conn, "planned_runs", "match_score", "REAL")
-        ensure_column(conn, "planned_runs", "match_reason", "TEXT")
-
-        ensure_column(conn, "activities", "is_extra", "INTEGER DEFAULT 0")
-        ensure_column(conn, "activities", "is_aborted", "INTEGER DEFAULT 0")
-        ensure_column(conn, "activities", "matched_planned_run_id", "INTEGER")
-
-        conn.commit()
+        version = get_schema_version(conn)
+        if version > SCHEMA_VERSION:
+            raise RuntimeError(
+                f"Database schema version {version} is newer than this app supports ({SCHEMA_VERSION})"
+            )
+        for number, migration in enumerate(MIGRATIONS, start=1):
+            if number <= version:
+                continue
+            migration(conn)
+            conn.execute(f"PRAGMA user_version = {number}")
+            conn.commit()
     finally:
         conn.close()
 
@@ -161,6 +248,9 @@ def migrate_db() -> None:
 def init_db() -> None:
     conn = get_conn()
     try:
+        # WAL lets readers and the webhook writer work at the same time. The mode is
+        # stored in the database file, so setting it once is enough.
+        conn.execute("PRAGMA journal_mode = WAL")
         conn.executescript(SCHEMA_SQL)
         conn.commit()
     finally:

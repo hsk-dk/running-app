@@ -71,7 +71,6 @@ export const api = {
   // Admin / drift
   getAdminStatus: () => getJson("/admin/status"),
   runIngest: () => getJson("/admin/ingest", { method: "POST" }),
-  runMetrics: () => getJson("/admin/rebuild-metrics", { method: "POST" }),
   runPlanEval: () => getJson("/admin/recalculate-plan", { method: "POST" }),
 
   // AI suggestions

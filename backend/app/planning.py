@@ -1,43 +1,23 @@
 from app.db import get_conn
-from app.matching import (
+from app.errors import NotFoundError
+from app.repositories import activities as activity_repo
+from app.repositories import planned_runs as plan_repo
+from app.domain.runs import actual_value as compute_actual_value
+from app.domain.runs import is_mandatory
+from app.domain.statuses import (
+    STATUS_FLYTTET,
     STATUS_PLANLAGT,
     STATUS_SPRUNGET_OVER,
-    STATUS_FLYTTET,
-    evaluate_planned_runs,
+    compute_status,
 )
+from app.matching import evaluate_planned_runs
 
 
 def rebuild_activity_links():
     conn = get_conn()
     try:
-        conn.execute(
-            """
-            UPDATE activities
-            SET
-                matched_planned_run_id = NULL,
-                is_extra = 1
-            """
-        )
-
-        conn.execute(
-            """
-            UPDATE activities
-            SET
-                matched_planned_run_id = (
-                    SELECT p.id
-                    FROM planned_runs p
-                    WHERE p.matched_activity_id = activities.id
-                    LIMIT 1
-                ),
-                is_extra = 0
-            WHERE EXISTS (
-                SELECT 1
-                FROM planned_runs p
-                WHERE p.matched_activity_id = activities.id
-            )
-            """
-        )
-
+        activity_repo.mark_all_extra(conn)
+        activity_repo.link_from_planned_runs(conn)
         conn.commit()
         return {"ok": True}
     finally:
@@ -77,8 +57,8 @@ def _serialize_planned_run(row):
         "session_type": row["session_type"],
         "target_type": row["target_type"] or "time",
         "target_value": row["target_value"],
-        "mandatory": bool(row["mandatory"]),
-        "optional": not bool(row["mandatory"]),
+        "mandatory": is_mandatory(row),
+        "optional": not is_mandatory(row),
         "notes": row["notes"],
         "status": row["status"] or STATUS_PLANLAGT,
         "manual_override": bool(row["manual_override"]),
@@ -98,14 +78,7 @@ def _serialize_planned_run(row):
 def list_planned_runs():
     conn = get_conn()
     try:
-        rows = conn.execute(
-            """
-            SELECT *
-            FROM planned_runs
-            ORDER BY planned_date, id
-            """
-        ).fetchall()
-        return [_serialize_planned_run(r) for r in rows]
+        return [_serialize_planned_run(r) for r in plan_repo.list_all(conn)]
     finally:
         conn.close()
 
@@ -119,156 +92,63 @@ def add_planned_run(data: dict):
         if target_value is None:
             target_value = data.get("target_minutes")
 
-        mandatory = int(not bool(data.get("optional", False)))
-
-        cur = conn.execute(
-            """
-            INSERT INTO planned_runs (
-                planned_date,
-                session_type,
-                target_minutes,
-                optional,
-                notes,
-                status,
-                target_type,
-                target_value,
-                mandatory,
-                manual_override,
-                match_score,
-                match_reason
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL)
-            """,
-            (
-                data["planned_date"],
-                data["session_type"],
-                data.get("target_minutes"),
-                int(data.get("optional", False)),
-                data.get("notes"),
-                STATUS_PLANLAGT,
-                target_type,
-                target_value,
-                mandatory,
-            ),
+        plan_id = plan_repo.insert(
+            conn,
+            planned_date=data["planned_date"],
+            session_type=data["session_type"],
+            target_minutes=data.get("target_minutes"),
+            optional=int(data.get("optional", False)),
+            notes=data.get("notes"),
+            status=STATUS_PLANLAGT,
+            target_type=target_type,
+            target_value=target_value,
+            mandatory=int(not bool(data.get("optional", False))),
         )
         conn.commit()
-
-        row = conn.execute(
-            "SELECT * FROM planned_runs WHERE id = ?",
-            (cur.lastrowid,),
-        ).fetchone()
-        return _serialize_planned_run(row)
+        return _serialize_planned_run(plan_repo.get(conn, plan_id))
     finally:
         conn.close()
+
+
+def _require_plan(conn, planned_run_id: int):
+    row = plan_repo.get(conn, planned_run_id)
+    if row is None:
+        raise NotFoundError(f"Planned run {planned_run_id} not found")
+    return row
+
+
+def _manual_status(planned_run_id: int, status: str, reason: str):
+    conn = get_conn()
+    try:
+        _require_plan(conn, planned_run_id)
+        plan_repo.set_manual_status(conn, planned_run_id, status, reason)
+        activity_repo.clear_links_for_plan(conn, planned_run_id)
+        conn.commit()
+    finally:
+        conn.close()
+
+    return evaluate_and_sync()
 
 
 def mark_planned_run_skipped(planned_run_id: int):
-    conn = get_conn()
-    try:
-        conn.execute(
-            """
-            UPDATE planned_runs
-            SET
-                status = ?,
-                manual_override = 1,
-                override_reason = 'manuelt sprunget over',
-                matched_activity_id = NULL,
-                matched_activity_date = NULL,
-                matched_activity_name = NULL,
-                actual_value = NULL,
-                match_score = NULL,
-                match_reason = NULL,
-                evaluated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """,
-            (STATUS_SPRUNGET_OVER, planned_run_id),
-        )
-        conn.execute(
-            """
-            UPDATE activities
-            SET matched_planned_run_id = NULL
-            WHERE matched_planned_run_id = ?
-            """,
-            (planned_run_id,),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-
-    return evaluate_and_sync()
+    return _manual_status(planned_run_id, STATUS_SPRUNGET_OVER, "manuelt sprunget over")
 
 
 def mark_planned_run_rescheduled(planned_run_id: int):
-    conn = get_conn()
-    try:
-        conn.execute(
-            """
-            UPDATE planned_runs
-            SET
-                status = ?,
-                manual_override = 1,
-                override_reason = 'manuelt flyttet',
-                matched_activity_id = NULL,
-                matched_activity_date = NULL,
-                matched_activity_name = NULL,
-                actual_value = NULL,
-                match_score = NULL,
-                match_reason = NULL,
-                evaluated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """,
-            (STATUS_FLYTTET, planned_run_id),
-        )
-        conn.execute(
-            """
-            UPDATE activities
-            SET matched_planned_run_id = NULL
-            WHERE matched_planned_run_id = ?
-            """,
-            (planned_run_id,),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-
-    return evaluate_and_sync()
+    return _manual_status(planned_run_id, STATUS_FLYTTET, "manuelt flyttet")
 
 
 def clear_planned_run_match(planned_run_id: int):
     conn = get_conn()
     try:
-        row = conn.execute(
-            "SELECT matched_activity_id FROM planned_runs WHERE id = ?",
-            (planned_run_id,),
-        ).fetchone()
+        row = _require_plan(conn, planned_run_id)
+        matched_activity_id = row["matched_activity_id"]
 
-        conn.execute(
-            """
-            UPDATE planned_runs
-            SET
-                status = ?,
-                manual_override = 1,
-                override_reason = 'match fjernet manuelt',
-                matched_activity_id = NULL,
-                matched_activity_date = NULL,
-                matched_activity_name = NULL,
-                actual_value = NULL,
-                match_score = NULL,
-                match_reason = NULL,
-                evaluated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """,
-            (STATUS_PLANLAGT, planned_run_id),
+        plan_repo.set_manual_status(
+            conn, planned_run_id, STATUS_PLANLAGT, "match fjernet manuelt"
         )
-
-        if row and row["matched_activity_id"]:
-            conn.execute(
-                """
-                UPDATE activities
-                SET matched_planned_run_id = NULL
-                WHERE id = ?
-                """,
-                (row["matched_activity_id"],),
-            )
+        if matched_activity_id:
+            activity_repo.clear_link_for_activity(conn, matched_activity_id)
 
         conn.commit()
     finally:
@@ -280,86 +160,28 @@ def clear_planned_run_match(planned_run_id: int):
 def match_activity_to_planned_run(planned_run_id: int, activity_id: int):
     conn = get_conn()
     try:
-        activity = conn.execute(
-            """
-            SELECT *
-            FROM activities
-            WHERE id = ?
-            """,
-            (activity_id,),
-        ).fetchone()
+        planned = _require_plan(conn, planned_run_id)
+        activity = activity_repo.get(conn, activity_id)
+        if activity is None:
+            raise NotFoundError(f"Activity {activity_id} not found")
 
-        planned = conn.execute(
-            """
-            SELECT *
-            FROM planned_runs
-            WHERE id = ?
-            """,
-            (planned_run_id,),
-        ).fetchone()
-
-        if not activity or not planned:
-            raise ValueError("Planned run or activity not found")
-
-        target_type = planned["target_type"] or "time"
-        actual_value = (
-            float(activity["distance_m"] or 0.0) / 1000.0
-            if target_type == "distance"
-            else float(activity["moving_time_s"] or 0.0) / 60.0
+        actual_value = compute_actual_value(
+            planned["target_type"], activity["distance_m"], activity["moving_time_s"]
         )
+        status = compute_status(planned["target_value"], actual_value)
 
-        target_value = planned["target_value"] or 0.0
-        ratio = actual_value / float(target_value) if target_value else 0.0
-        if ratio >= 0.9:
-            status = "gennemført"
-        elif ratio >= 0.5:
-            status = "forkortet"
-        else:
-            status = "sprunget over"
-
-        conn.execute(
-            "UPDATE activities SET matched_planned_run_id = NULL WHERE matched_planned_run_id = ?",
-            (planned_run_id,),
+        activity_repo.clear_links_for_plan(conn, planned_run_id)
+        plan_repo.clear_matched_activity_id(conn, activity_id)
+        plan_repo.set_manual_match(
+            conn,
+            planned_run_id,
+            activity_id=activity_id,
+            activity_date=str(activity["start_date"])[:10],
+            activity_name=activity["name"],
+            actual_value=actual_value,
+            status=status,
         )
-        conn.execute(
-            "UPDATE planned_runs SET matched_activity_id = NULL WHERE matched_activity_id = ?",
-            (activity_id,),
-        )
-
-        conn.execute(
-            """
-            UPDATE planned_runs
-            SET
-                matched_activity_id = ?,
-                matched_activity_date = ?,
-                matched_activity_name = ?,
-                actual_value = ?,
-                status = ?,
-                manual_override = 1,
-                override_reason = 'match valgt manuelt',
-                match_score = 0,
-                match_reason = 'manuelt valgt match',
-                evaluated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """,
-            (
-                activity_id,
-                str(activity["start_date"])[:10],
-                activity["name"],
-                actual_value,
-                status,
-                planned_run_id,
-            ),
-        )
-
-        conn.execute(
-            """
-            UPDATE activities
-            SET matched_planned_run_id = ?, is_extra = 0
-            WHERE id = ?
-            """,
-            (planned_run_id, activity_id),
-        )
+        activity_repo.set_matched_plan(conn, activity_id, planned_run_id, is_extra=0)
 
         conn.commit()
     finally:
@@ -371,32 +193,16 @@ def match_activity_to_planned_run(planned_run_id: int, activity_id: int):
 def update_planned_run(planned_run_id: int, data: dict):
     conn = get_conn()
     try:
-        conn.execute(
-            """
-            UPDATE planned_runs
-            SET
-                planned_date = ?,
-                session_type = ?,
-                target_type = ?,
-                target_value = ?,
-                optional = ?,
-                notes = ?,
-                manual_override = 1,
-                override_reason = 'manuelt redigeret',
-                match_score = NULL,
-                match_reason = NULL,
-                evaluated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """,
-            (
-                data["planned_date"],
-                data["session_type"],
-                data["target_type"],
-                data["target_value"],
-                int(data.get("optional", False)),
-                data.get("notes"),
-                planned_run_id,
-            ),
+        _require_plan(conn, planned_run_id)
+        plan_repo.update_from_edit(
+            conn,
+            planned_run_id,
+            planned_date=data["planned_date"],
+            session_type=data["session_type"],
+            target_type=data["target_type"],
+            target_value=data["target_value"],
+            optional=int(data.get("optional", False)),
+            notes=data.get("notes"),
         )
         conn.commit()
     finally:
@@ -408,18 +214,9 @@ def update_planned_run(planned_run_id: int, data: dict):
 def delete_planned_run(planned_run_id: int):
     conn = get_conn()
     try:
-        conn.execute(
-            """
-            UPDATE activities
-            SET matched_planned_run_id = NULL
-            WHERE matched_planned_run_id = ?
-            """,
-            (planned_run_id,),
-        )
-        conn.execute(
-            "DELETE FROM planned_runs WHERE id = ?",
-            (planned_run_id,),
-        )
+        _require_plan(conn, planned_run_id)
+        activity_repo.clear_links_for_plan(conn, planned_run_id)
+        plan_repo.delete(conn, planned_run_id)
         conn.commit()
     finally:
         conn.close()

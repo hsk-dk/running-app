@@ -5,94 +5,23 @@ import json
 
 from app.db import get_conn
 from app.strava import StravaClient
-from app.admin_status import set_state, clear_last_error
+from app.admin_status import clear_last_error, get_state, set_state
+from app.repositories import activities as activity_repo, planned_runs
 
 
 def get_last_synced_start_date():
-    conn = get_conn()
-    try:
-        row = conn.execute(
-            "SELECT value FROM sync_state WHERE key = 'last_synced_start_date'"
-        ).fetchone()
-        return row["value"] if row else None
-    finally:
-        conn.close()
+    state = get_state("last_synced_start_date")
+    return state["value"] if state else None
 
 
 def set_last_synced_start_date(value: str):
-    conn = get_conn()
-    try:
-        conn.execute(
-            """
-            INSERT INTO sync_state (key, value, updated_at)
-            VALUES ('last_synced_start_date', ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-            """,
-            (value,),
-        )
-        conn.commit()
-    finally:
-        conn.close()
+    set_state("last_synced_start_date", value)
 
 
 def upsert_activity(activity: dict):
     conn = get_conn()
     try:
-        conn.execute(
-            """
-            INSERT INTO activities (
-                id,
-                name,
-                sport_type,
-                start_date,
-                timezone_name,
-                distance_m,
-                moving_time_s,
-                elapsed_time_s,
-                total_elevation_gain,
-                average_speed,
-                max_speed,
-                average_heartrate,
-                max_heartrate,
-                average_cadence,
-                raw_json,
-                updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(id) DO UPDATE SET
-                name = excluded.name,
-                sport_type = excluded.sport_type,
-                start_date = excluded.start_date,
-                timezone_name = excluded.timezone_name,
-                distance_m = excluded.distance_m,
-                moving_time_s = excluded.moving_time_s,
-                elapsed_time_s = excluded.elapsed_time_s,
-                total_elevation_gain = excluded.total_elevation_gain,
-                average_speed = excluded.average_speed,
-                max_speed = excluded.max_speed,
-                average_heartrate = excluded.average_heartrate,
-                max_heartrate = excluded.max_heartrate,
-                average_cadence = excluded.average_cadence,
-                raw_json = excluded.raw_json,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (
-                activity["id"],
-                activity.get("name"),
-                activity.get("sport_type"),
-                activity.get("start_date"),
-                activity.get("timezone"),
-                activity.get("distance"),
-                activity.get("moving_time"),
-                activity.get("elapsed_time"),
-                activity.get("total_elevation_gain"),
-                activity.get("average_speed"),
-                activity.get("max_speed"),
-                activity.get("average_heartrate"),
-                activity.get("max_heartrate"),
-                activity.get("average_cadence"),
-                json.dumps(activity, ensure_ascii=False),
-            ),
-        )
+        activity_repo.upsert(conn, activity)
         conn.commit()
     finally:
         conn.close()
@@ -159,3 +88,31 @@ def ingest_latest_window(hours_back: int = 72):
     set_state("last_ingest_result", json.dumps(result, ensure_ascii=False))
     clear_last_error()
     return result
+
+
+def ingest_single_activity(activity_id: int) -> dict:
+    """Fetch one activity from Strava and upsert it (used by webhook create/update events)."""
+    client = StravaClient()
+    activity = client.get_activity(activity_id)
+
+    if activity is None:
+        return {"upserted": 0, "reason": "not_found"}
+    if activity.get("sport_type") != "Run":
+        return {"upserted": 0, "reason": "not_a_run"}
+
+    upsert_activity(activity)
+    set_state("last_sync_at", datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
+    clear_last_error()
+    return {"upserted": 1, "activity_id": int(activity_id)}
+
+
+def delete_activity(activity_id: int) -> dict:
+    """Remove a locally stored activity and any plan links pointing at it."""
+    conn = get_conn()
+    try:
+        planned_runs.unmatch_activity(conn, activity_id)
+        deleted = activity_repo.delete(conn, activity_id)
+        conn.commit()
+        return {"deleted": deleted}
+    finally:
+        conn.close()

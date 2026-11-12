@@ -8,6 +8,9 @@ import requests
 
 from app.config import settings
 from app.db import get_conn
+from app.domain import timeutil
+from app.repositories import activities as activity_repo
+from app.repositories import planned_runs as plan_repo
 
 logger = logging.getLogger(__name__)
 
@@ -15,27 +18,12 @@ _OLLAMA_TIMEOUT = 120
 
 
 def _get_recent_activities(weeks: int = 6) -> list[dict]:
-    cutoff = datetime.now() - timedelta(weeks=weeks)
+    cutoff = timeutil.local_now().replace(tzinfo=None) - timedelta(weeks=weeks)
     cutoff_str = cutoff.strftime("%Y-%m-%dT00:00:00")
 
     conn = get_conn()
     try:
-        rows = conn.execute(
-            """
-            SELECT
-                start_date,
-                name,
-                distance_m,
-                moving_time_s,
-                average_heartrate,
-                total_elevation_gain
-            FROM activities
-            WHERE sport_type = 'Run'
-              AND start_date >= ?
-            ORDER BY start_date
-            """,
-            (cutoff_str,),
-        ).fetchall()
+        rows = activity_repo.list_runs_since(conn, cutoff_str)
 
         result = []
         for row in rows:
@@ -96,21 +84,12 @@ def _get_weekly_summary(activities: list[dict]) -> list[dict]:
 
 
 def _get_current_planned_runs() -> list[dict]:
-    today = date.today()
+    today = timeutil.today()
     three_weeks = today + timedelta(weeks=3)
 
     conn = get_conn()
     try:
-        rows = conn.execute(
-            """
-            SELECT planned_date, session_type, target_type, target_value,
-                   mandatory, status, notes
-            FROM planned_runs
-            WHERE planned_date BETWEEN ? AND ?
-            ORDER BY planned_date
-            """,
-            (today.isoformat(), three_weeks.isoformat()),
-        ).fetchall()
+        rows = plan_repo.list_between(conn, today.isoformat(), three_weeks.isoformat())
 
         return [
             {
@@ -129,7 +108,7 @@ def _get_current_planned_runs() -> list[dict]:
 
 
 def _next_monday() -> date:
-    today = date.today()
+    today = timeutil.today()
     days_ahead = 7 - today.weekday()
     return today + timedelta(days=days_ahead)
 
