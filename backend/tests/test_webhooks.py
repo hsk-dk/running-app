@@ -5,18 +5,12 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture()
-def client(tmp_path, monkeypatch):
-    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "test.db"))
-    monkeypatch.setenv("STRAVA_ATHLETE_ID", "")
-
-    import app.config
-    import app.db
+def client(db, monkeypatch):
     import app.ingest
     import app.webhooks
     import app.main
 
-    importlib.reload(app.config)
-    for mod in (app.db, app.ingest, app.webhooks, app.main):
+    for mod in (app.ingest, app.webhooks, app.main):
         importlib.reload(mod)
 
     class FakeStrava:
@@ -32,7 +26,7 @@ def client(tmp_path, monkeypatch):
             }
 
     monkeypatch.setattr(app.ingest, "StravaClient", FakeStrava)
-    return TestClient(app.main.app), app.db.get_conn
+    return TestClient(app.main.app), db.get_conn
 
 
 EVENT = {
