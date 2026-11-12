@@ -97,6 +97,23 @@ class ActivityDetailOut(ActivityOut):
     route: str | None
 
 
+class FamilyActivityOut(BaseModel):
+    """A run as other family members see it: no heart rate and no plan details."""
+
+    id: int
+    date: str | None
+    name: str | None
+    distance_km: float
+    duration_min: float
+
+
+class FamilyActivityDetailOut(FamilyActivityOut):
+    start_time_local: str | None
+    elevation_gain_m: float | None
+    avg_pace_s_per_km: float | None
+    route: str | None
+
+
 class MonthlyVolumeOut(BaseModel):
     month: str
     km: float

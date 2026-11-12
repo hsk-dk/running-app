@@ -62,8 +62,10 @@ def test_all_shares_recent_runs_without_heart_rate_and_the_route(family):
 
     runs = family.get(f"/api/family/{ANNA}/activities", headers=ADMIN).json()
     assert {r["id"] for r in runs} == {2, 3}
+    assert all("avg_hr" not in r and "matched_planned_run_id" not in r for r in runs)
     detail = family.get(f"/api/family/{ANNA}/activities/2", headers=ADMIN).json()
     assert detail["route"] is not None and detail["name"] == "Annas løb"
+    assert not {"avg_hr", "max_hr", "matched_planned_run_id", "is_extra"} & set(detail)
 
 
 def test_you_always_see_all_of_yourself(family):
