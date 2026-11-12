@@ -5,6 +5,7 @@ Routers call these; these call repositories (SQL) and `app.domain` (pure rules).
 from . import (
     admin_service,
     ai_service,
+    family_service,
     planning_service,
     reporting_service,
     strava_service,
@@ -16,6 +17,7 @@ from . import (
 __all__ = [
     "admin_service",
     "ai_service",
+    "family_service",
     "planning_service",
     "reporting_service",
     "strava_service",

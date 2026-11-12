@@ -5,44 +5,10 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.auth_helpers import ADMIN, FAMILY, OUTSIDER, patch_settings
 from tests.conftest import add_activity, add_plan, connect_strava
 
-PROXY_IP = "10.0.0.5"
-ADMIN = {"x-authentik-uid": "u-henrik", "x-authentik-username": "henrik", "x-authentik-name": "Henrik", "x-authentik-groups": "homelab-admins|homelab-family"}
-FAMILY = {"x-authentik-uid": "u-anna", "x-authentik-username": "anna", "x-authentik-name": "Anna", "x-authentik-groups": "homelab-family"}
-OUTSIDER = {"x-authentik-uid": "u-x", "x-authentik-username": "x", "x-authentik-groups": "something-else"}
-
-
-def _patch_settings(monkeypatch, **values):
-    import app.services.strava_service as strava_service
-    import app.services.user_service as user_service
-    import app.strava as strava_module
-
-    for module in (user_service, strava_service, strava_module):
-        for key, value in values.items():
-            monkeypatch.setattr(module.settings, key, value)
-
-
-class FromAddress:
-    """Makes every request look like it comes from `host` (TestClient always says 'testclient')."""
-
-    def __init__(self, app, host):
-        self.app, self.host = app, host
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] == "http":
-            scope = {**scope, "client": (self.host, 50000)}
-        await self.app(scope, receive, send)
-
-
-@pytest.fixture()
-def proxy(db, monkeypatch):
-    """The app in proxy mode, called from a trusted address."""
-    import app.main
-
-    importlib.reload(app.main)
-    _patch_settings(monkeypatch, AUTH_MODE="proxy", TRUSTED_PROXIES=["10.0.0.0/8"], AUTH_OWNER_USERNAME="")
-    return TestClient(FromAddress(app.main.app, PROXY_IP), follow_redirects=False)
+_patch_settings = patch_settings
 
 
 @pytest.fixture()

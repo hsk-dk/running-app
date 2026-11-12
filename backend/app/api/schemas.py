@@ -158,3 +158,37 @@ class MeUpdate(BaseModel):
 
 class ConnectOut(BaseModel):
     url: str
+
+
+class FamilyRunOut(BaseModel):
+    id: int
+    date: str | None
+    name: str | None
+    distance_km: float
+    duration_min: float
+
+
+class FamilyWeekOut(BaseModel):
+    done: int
+    total: int
+    open: int
+
+
+class FamilyMemberOut(BaseModel):
+    user_id: int
+    name: str
+    is_me: bool
+    level: Literal["private", "overview", "all"]
+    shared: bool
+    strava_connected: bool
+    week: FamilyWeekOut | None
+    month_km: float | None
+    month_runs: int | None
+    streak_weeks: int | None
+    recent_runs: list[FamilyRunOut] | None
+
+
+class FamilyOut(BaseModel):
+    members: list[FamilyMemberOut]
+    total_km_this_month: float
+    sharing_enabled: bool
