@@ -31,3 +31,5 @@ data/
 .idea/
 *.swp
 *.swo
+
+.pytest_cache/
