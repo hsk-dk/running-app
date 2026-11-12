@@ -6,12 +6,10 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture()
 def client(db, monkeypatch):
-    import app.ingest
-    import app.webhooks
     import app.main
+    import app.services.sync_service as sync_service
 
-    for mod in (app.ingest, app.webhooks, app.main):
-        importlib.reload(mod)
+    importlib.reload(app.main)
 
     class FakeStrava:
         def get_activity(self, activity_id):
@@ -25,7 +23,7 @@ def client(db, monkeypatch):
                 "elapsed_time": 1500,
             }
 
-    monkeypatch.setattr(app.ingest, "StravaClient", FakeStrava)
+    monkeypatch.setattr(sync_service, "StravaClient", FakeStrava)
     return TestClient(app.main.app), db.get_conn
 
 
@@ -77,21 +75,21 @@ def test_delete_removes_activity(client):
 
 def test_owner_mismatch_ignored(client, monkeypatch):
     c, get_conn = client
-    import app.webhooks
+    import app.services.webhook_service as webhook_service
 
-    monkeypatch.setattr(app.webhooks.settings, "STRAVA_ATHLETE_ID", "999")
+    monkeypatch.setattr(webhook_service.settings, "STRAVA_ATHLETE_ID", "999")
     c.post("/api/webhooks/strava", json=EVENT)
     assert _ids(get_conn) == []
 
 
 def test_failure_leaves_event_unprocessed_and_sets_error(client, monkeypatch):
     c, get_conn = client
-    import app.webhooks
+    import app.services.webhook_service as webhook_service
 
     def boom(_):
         raise RuntimeError("strava down")
 
-    monkeypatch.setattr(app.webhooks, "ingest_single_activity", boom)
+    monkeypatch.setattr(webhook_service, "ingest_single_activity", boom)
     assert c.post("/api/webhooks/strava", json=EVENT).status_code == 200
     assert _events(get_conn) == (1, 0)
     assert "strava down" in c.get("/api/admin/status").json()["last_error"]["value"]

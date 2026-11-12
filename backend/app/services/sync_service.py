@@ -1,12 +1,33 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import json
+from datetime import datetime, timedelta, timezone
 
 from app.db import get_conn
+from app.repositories import activities as activity_repo
+from app.repositories import planned_runs, sync_state
 from app.strava import StravaClient
-from app.admin_status import clear_last_error, get_state, set_state
-from app.repositories import activities as activity_repo, planned_runs
+
+
+def set_state(key: str, value: str) -> None:
+    conn = get_conn()
+    try:
+        sync_state.upsert(conn, key, value)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_state(key: str):
+    conn = get_conn()
+    try:
+        return sync_state.get(conn, key)
+    finally:
+        conn.close()
+
+
+def clear_last_error() -> None:
+    set_state("last_error", "")
 
 
 def get_last_synced_start_date():

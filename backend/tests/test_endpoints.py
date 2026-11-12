@@ -9,14 +9,9 @@ from tests.conftest import add_activity, add_plan
 
 @pytest.fixture()
 def client(db):
-    import app.matching, app.metrics, app.planning, app.ai_suggestions, app.admin_status
-    import app.services.planning_service, app.main
+    import app.main
 
-    for mod in (
-        app.matching, app.metrics, app.planning, app.ai_suggestions,
-        app.admin_status, app.services.planning_service, app.main,
-    ):
-        importlib.reload(mod)
+    importlib.reload(app.main)
     return TestClient(app.main.app)
 
 
@@ -89,7 +84,7 @@ def test_admin_status_and_health(client):
 
 
 def test_ai_context_queries(db):
-    import app.ai_suggestions as ai
+    import app.services.ai_service as ai
 
     today = date.today()
     add_activity(db, 1, f"{today.isoformat()}T08:00:00Z", distance_m=8000, moving_time_s=2400)

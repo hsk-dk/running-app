@@ -1,3 +1,14 @@
-from . import admin_service, ai_service, planning_service, reporting_service, webhook_service
+"""Application services: workflows and domain orchestration.
 
-__all__ = ["admin_service", "ai_service", "planning_service", "reporting_service", "webhook_service"]
+Routers call these; these call repositories (SQL) and `app.domain` (pure rules).
+"""
+from . import admin_service, ai_service, planning_service, reporting_service, sync_service, webhook_service
+
+__all__ = [
+    "admin_service",
+    "ai_service",
+    "planning_service",
+    "reporting_service",
+    "sync_service",
+    "webhook_service",
+]
