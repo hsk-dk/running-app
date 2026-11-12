@@ -97,6 +97,6 @@ def test_failure_leaves_event_unprocessed_and_sets_error(client, monkeypatch):
     assert "strava down" in c.get("/api/admin/status").json()["last_error"]["value"]
 
 
-def test_invalid_body_returns_400(client):
+def test_invalid_body_returns_422(client):
     c, _ = client
-    assert c.post("/api/webhooks/strava", json=[1, 2]).status_code == 400
+    assert c.post("/api/webhooks/strava", json=[1, 2]).status_code == 422

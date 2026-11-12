@@ -1,5 +1,6 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 
+from app.api.schemas import StravaWebhookEvent
 from app.services import webhook_service
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
@@ -18,14 +19,8 @@ def verify(
 
 
 @router.post("/strava")
-async def receive(request: Request, background_tasks: BackgroundTasks):
-    try:
-        payload = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
-    if not isinstance(payload, dict):
-        raise HTTPException(status_code=400, detail="Invalid payload")
-
+def receive(event: StravaWebhookEvent, background_tasks: BackgroundTasks):
+    payload = event.model_dump(exclude_unset=True)
     result = webhook_service.receive_event(payload)
     if result["needs_processing"]:
         background_tasks.add_task(webhook_service.process_stored_event, result["event_id"], payload)

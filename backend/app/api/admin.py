@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
+from app.api.schemas import HealthOut
 from app.services import admin_service
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -11,7 +12,7 @@ def status():
 
 
 @router.post("/ingest")
-def ingest(pages: int = 3):
+def ingest(pages: int = Query(3, ge=1, le=20)):
     return admin_service.run_ingest(pages=pages)
 
 
@@ -30,6 +31,6 @@ def rebuild_links():
     return admin_service.rebuild_links()
 
 
-@router.get("/health")
+@router.get("/health", response_model=HealthOut)
 def health():
     return admin_service.get_health()

@@ -69,13 +69,18 @@ def test_webhook_verify_requires_query_params(client):
 
 def test_webhook_rejects_invalid_json(client):
     r = client.post("/api/webhooks/strava", content="not json", headers={"content-type": "application/json"})
-    assert r.status_code == 400
+    assert r.status_code == 422
+
+
+def test_webhook_accepts_partial_and_extra_fields(client):
+    r = client.post("/api/webhooks/strava", json={"object_type": "athlete", "something_new": 1})
+    assert r.status_code == 200 and r.json()["stored"] is True
 
 
 def test_match_activity_requires_activity_id(client):
     r = client.post("/api/planning/1/match-activity", json={})
-    assert r.status_code == 400
-    assert r.json()["detail"] == "activity_id is required"
+    assert r.status_code == 422
+    assert "activity_id" in r.json()["detail"]
 
 
 def test_ingest_failure_is_recorded_and_raised(client, monkeypatch):
@@ -88,3 +93,100 @@ def test_ingest_failure_is_recorded_and_raised(client, monkeypatch):
     with pytest.raises(RuntimeError):
         TestClient(client.app, raise_server_exceptions=True).post("/api/admin/ingest")
     assert "strava down" in client.get("/api/admin/status").json()["last_error"]["value"]
+
+
+# ---- validation (422) and not found (404) ---------------------------------
+
+VALID = {"planned_date": "2100-01-01", "session_type": "easy", "target_type": "time", "target_value": 30}
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"planned_date": "not-a-date"},
+        {"planned_date": ""},
+        {"session_type": "  "},
+        {"target_type": "swim"},
+        {"target_value": -5},
+        {"target_value": "abc"},
+    ],
+)
+def test_create_rejects_invalid_input(client, patch):
+    r = client.post("/api/planning", json={**VALID, **patch})
+    assert r.status_code == 422
+    assert isinstance(r.json()["detail"], str)  # frontend prints it verbatim
+
+
+def test_create_rejects_missing_required_fields(client):
+    r = client.post("/api/planning", json={"session_type": "easy"})
+    assert r.status_code == 422
+    assert "planned_date" in r.json()["detail"]
+
+
+def test_create_accepts_ai_style_payload(client):
+    r = client.post(
+        "/api/planning",
+        json={**VALID, "target_value": 0, "optional": True, "notes": None, "extra": "ignored"},
+    )
+    assert r.status_code == 200
+    assert r.json()["mandatory"] is False
+
+
+def test_create_accepts_datetime_string(client):
+    assert client.post("/api/planning", json={**VALID, "planned_date": "2100-01-01T07:30:00"}).status_code == 200
+
+
+def test_update_requires_target_fields(client):
+    created = client.post("/api/planning", json=VALID).json()
+    r = client.put(f"/api/planning/{created['id']}", json={"planned_date": "2100-01-02", "session_type": "easy"})
+    assert r.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "method, path, body",
+    [
+        ("put", "/api/planning/999", VALID),
+        ("delete", "/api/planning/999", None),
+        ("post", "/api/planning/999/mark-skipped", None),
+        ("post", "/api/planning/999/mark-rescheduled", None),
+        ("post", "/api/planning/999/clear-match", None),
+        ("post", "/api/planning/999/match-activity", {"activity_id": 1}),
+    ],
+)
+def test_unknown_plan_returns_404(client, method, path, body):
+    r = getattr(client, method)(path, **({"json": body} if body is not None else {}))
+    assert r.status_code == 404
+    assert "999" in r.json()["detail"]
+
+
+def test_match_unknown_activity_returns_404(client):
+    created = client.post("/api/planning", json=VALID).json()
+    r = client.post(f"/api/planning/{created['id']}/match-activity", json={"activity_id": 12345})
+    assert r.status_code == 404
+    assert "12345" in r.json()["detail"]
+
+
+@pytest.mark.parametrize("value", [0, -1, 501, "x"])
+def test_activities_limit_is_bounded(client, value):
+    assert client.get("/api/activities", params={"limit": value}).status_code == 422
+
+
+def test_activities_limit_accepts_valid(client):
+    assert client.get("/api/activities", params={"limit": 500}).status_code == 200
+
+
+def test_ingest_pages_is_bounded(client):
+    assert client.post("/api/admin/ingest", params={"pages": 999}).status_code == 422
+
+
+def test_unhandled_error_is_logged_and_hides_details(client, monkeypatch):
+    import app.services.planning_service as planning_service
+
+    def boom():
+        raise RuntimeError("secret internals")
+
+    monkeypatch.setattr(planning_service, "list_planned_runs", boom)
+    c = TestClient(client.app, raise_server_exceptions=False)
+    r = c.get("/api/planning")
+    assert r.status_code == 500
+    assert r.json() == {"detail": "Internal server error"}

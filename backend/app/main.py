@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
+from app.api.errors import register_exception_handlers
 from app.config import settings
 from app.db import init_db
 from app.services import planning_service
@@ -26,4 +27,5 @@ def health():
     return {"ok": True}
 
 
+register_exception_handlers(app)
 app.include_router(api_router)

@@ -1,4 +1,5 @@
 from app.db import get_conn
+from app.errors import NotFoundError
 from app.repositories import activities as activity_repo
 from app.repositories import planned_runs as plan_repo
 from app.matching import (
@@ -106,9 +107,17 @@ def add_planned_run(data: dict):
         conn.close()
 
 
+def _require_plan(conn, planned_run_id: int):
+    row = plan_repo.get(conn, planned_run_id)
+    if row is None:
+        raise NotFoundError(f"Planned run {planned_run_id} not found")
+    return row
+
+
 def _manual_status(planned_run_id: int, status: str, reason: str):
     conn = get_conn()
     try:
+        _require_plan(conn, planned_run_id)
         plan_repo.set_manual_status(conn, planned_run_id, status, reason)
         activity_repo.clear_links_for_plan(conn, planned_run_id)
         conn.commit()
@@ -129,8 +138,8 @@ def mark_planned_run_rescheduled(planned_run_id: int):
 def clear_planned_run_match(planned_run_id: int):
     conn = get_conn()
     try:
-        row = plan_repo.get(conn, planned_run_id)
-        matched_activity_id = row["matched_activity_id"] if row else None
+        row = _require_plan(conn, planned_run_id)
+        matched_activity_id = row["matched_activity_id"]
 
         plan_repo.set_manual_status(
             conn, planned_run_id, STATUS_PLANLAGT, "match fjernet manuelt"
@@ -148,11 +157,10 @@ def clear_planned_run_match(planned_run_id: int):
 def match_activity_to_planned_run(planned_run_id: int, activity_id: int):
     conn = get_conn()
     try:
+        planned = _require_plan(conn, planned_run_id)
         activity = activity_repo.get(conn, activity_id)
-        planned = plan_repo.get(conn, planned_run_id)
-
-        if not activity or not planned:
-            raise ValueError("Planned run or activity not found")
+        if activity is None:
+            raise NotFoundError(f"Activity {activity_id} not found")
 
         target_type = planned["target_type"] or "time"
         actual_value = (
@@ -193,6 +201,7 @@ def match_activity_to_planned_run(planned_run_id: int, activity_id: int):
 def update_planned_run(planned_run_id: int, data: dict):
     conn = get_conn()
     try:
+        _require_plan(conn, planned_run_id)
         plan_repo.update_from_edit(
             conn,
             planned_run_id,
@@ -213,6 +222,7 @@ def update_planned_run(planned_run_id: int, data: dict):
 def delete_planned_run(planned_run_id: int):
     conn = get_conn()
     try:
+        _require_plan(conn, planned_run_id)
         activity_repo.clear_links_for_plan(conn, planned_run_id)
         plan_repo.delete(conn, planned_run_id)
         conn.commit()
