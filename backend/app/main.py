@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -7,11 +9,15 @@ from app.config import settings
 from app.db import init_db
 from app.services import planning_service
 
-# TODO(#15): move startup work into a FastAPI lifespan handler.
-init_db()
-planning_service.rebuild_activity_links()
 
-app = FastAPI(title="Running")
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    planning_service.rebuild_activity_links()
+    yield
+
+
+app = FastAPI(title="Running", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

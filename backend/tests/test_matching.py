@@ -139,11 +139,11 @@ def test_non_run_activities_are_ignored(db, matching):
 
 
 def test_manual_override_is_kept_and_activity_reserved(db, matching):
+    add_activity(db, 1, f"{D}T08:00:00Z")
     manual = add_plan(
         db, D, target_value=30, status="gennemført", manual_override=1, matched_activity_id=1
     )
     auto = add_plan(db, D, target_value=30)
-    add_activity(db, 1, f"{D}T08:00:00Z")
 
     matching.evaluate_planned_runs()
 
