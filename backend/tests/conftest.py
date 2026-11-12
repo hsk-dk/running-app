@@ -23,7 +23,7 @@ def db(tmp_path, monkeypatch):
     return app.db
 
 
-def add_activity(db, id, start_date, distance_m=5000, moving_time_s=1800, name="Run", sport_type="Run"):
+def add_activity(db, id, start_date, distance_m=5000, moving_time_s=1800, name="Run", sport_type="Run", raw=None):
     conn = db.get_conn()
     try:
         conn.execute(
@@ -31,7 +31,7 @@ def add_activity(db, id, start_date, distance_m=5000, moving_time_s=1800, name="
             INSERT INTO activities (id, name, sport_type, start_date, distance_m, moving_time_s, raw_json)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (id, name, sport_type, start_date, distance_m, moving_time_s, json.dumps({})),
+            (id, name, sport_type, start_date, distance_m, moving_time_s, json.dumps(raw if raw is not None else {})),
         )
         conn.commit()
     finally:

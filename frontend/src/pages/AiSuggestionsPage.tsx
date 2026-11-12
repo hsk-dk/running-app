@@ -2,9 +2,9 @@ import { useState } from "react";
 import { api } from "../api";
 
 const cardStyle: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
+  background: "var(--color-surface)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-large)",
   padding: 16,
 };
 
@@ -12,9 +12,9 @@ const primaryButtonStyle: React.CSSProperties = {
   padding: "10px 20px",
   borderRadius: 6,
   border: "1px solid transparent",
-  background: "linear-gradient(to bottom right, #9dc0ff, #446ea8)",
-  color: "white",
-  boxShadow: "0 6px 16px rgba(0,0,0,0.18)",
+  background: "var(--color-action-strong)",
+  color: "var(--color-on-action)",
+  boxShadow: "var(--shadow-small)",
   cursor: "pointer",
   fontSize: 14,
   fontWeight: 500,
@@ -23,9 +23,9 @@ const primaryButtonStyle: React.CSSProperties = {
 const secondaryButtonStyle: React.CSSProperties = {
   padding: "8px 16px",
   borderRadius: 6,
-  border: "1px solid #d1d5db",
-  background: "#ffffff",
-  color: "#374151",
+  border: "1px solid var(--color-border-control)",
+  background: "var(--color-surface)",
+  color: "var(--color-text)",
   cursor: "pointer",
   fontSize: 13,
   fontWeight: 500,
@@ -156,7 +156,7 @@ export default function AiSuggestionsPage({
     result.suggestions.every((_, i) => addedIds.has(i));
 
   return (
-    <div style={{ display: "grid", gap: 24 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
       <section
         style={{
           display: "flex",
@@ -167,10 +167,10 @@ export default function AiSuggestionsPage({
         }}
       >
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#243140" }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>
             AI Træningsforslag
           </div>
-          <div style={{ fontSize: 14, color: "#425061" }}>
+          <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
             Generér næste uges træningsplan baseret på din Strava-historik via
             lokal AI (Ollama) eller cloud LLM.
           </div>
@@ -200,7 +200,7 @@ export default function AiSuggestionsPage({
       )}
 
       {loading && (
-        <section style={{ ...cardStyle, color: "#64748b", fontSize: 14 }}>
+        <section style={{ ...cardStyle, color: "var(--color-text-muted)", fontSize: 14 }}>
           AI analyserer din træningshistorik og genererer forslag… Dette kan
           tage op til et minut.
         </section>
@@ -272,11 +272,11 @@ export default function AiSuggestionsPage({
           {result.summary && (
             <section style={cardStyle}>
               <div
-                style={{ fontWeight: 600, color: "#374151", marginBottom: 8 }}
+                style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 8 }}
               >
                 Coaching-kommentar
               </div>
-              <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.7 }}>
+              <div style={{ fontSize: 14, color: "var(--color-text)", lineHeight: 1.7 }}>
                 {result.summary}
               </div>
               {result.model && (
@@ -308,7 +308,7 @@ export default function AiSuggestionsPage({
                 }}
               >
                 <div
-                  style={{ fontWeight: 600, color: "#374151", fontSize: 15 }}
+                  style={{ fontWeight: 600, color: "var(--color-text)", fontSize: 15 }}
                 >
                   Foreslåede træninger ({result.suggestions.length})
                 </div>
@@ -351,7 +351,7 @@ export default function AiSuggestionsPage({
                         <span
                           style={{
                             fontWeight: 700,
-                            color: "#243140",
+                            color: "var(--color-text)",
                             fontSize: 15,
                           }}
                         >
@@ -402,7 +402,7 @@ export default function AiSuggestionsPage({
                         )}
                       </div>
 
-                      <div style={{ fontSize: 14, color: "#374151" }}>
+                      <div style={{ fontSize: 14, color: "var(--color-text)" }}>
                         <strong>Mål:</strong>{" "}
                         {targetLabel(s.target_type, s.target_value)}
                       </div>
@@ -411,7 +411,7 @@ export default function AiSuggestionsPage({
                         <div
                           style={{
                             fontSize: 13,
-                            color: "#64748b",
+                            color: "var(--color-text-muted)",
                             marginTop: 4,
                             fontStyle: "italic",
                           }}
@@ -441,7 +441,7 @@ export default function AiSuggestionsPage({
           )}
 
           {result.suggestions.length === 0 && (
-            <section style={{ ...cardStyle, color: "#64748b", fontSize: 14 }}>
+            <section style={{ ...cardStyle, color: "var(--color-text-muted)", fontSize: 14 }}>
               AI returnerede ingen forslag. Prøv at synkronisere Strava-data
               og prøv igen.
             </section>
@@ -450,7 +450,7 @@ export default function AiSuggestionsPage({
       )}
 
       {!result && !loading && (
-        <section style={{ ...cardStyle, color: "#64748b", fontSize: 14 }}>
+        <section style={{ ...cardStyle, color: "var(--color-text-muted)", fontSize: 14 }}>
           Klik <strong>Generér forslag</strong> for at lade AI analysere din
           træningshistorik og foreslå næste uges plan.
           <br />

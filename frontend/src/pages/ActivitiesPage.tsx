@@ -1,18 +1,19 @@
 import { useMemo, useState } from "react";
+import ActivityDetail from "../components/ActivityDetail";
 
 const cardStyle: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
+  background: "var(--color-surface)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-large)",
   padding: 16,
 };
 
 const filterButtonStyle: React.CSSProperties = {
   padding: "8px 12px",
   borderRadius: 6,
-  border: "1px solid #d1d5db",
-  background: "#ffffff",
-  color: "#6b7280",
+  border: "1px solid var(--color-border-control)",
+  background: "var(--color-surface)",
+  color: "var(--color-text-muted)",
   cursor: "pointer",
   fontSize: 13,
   fontWeight: 500,
@@ -20,9 +21,10 @@ const filterButtonStyle: React.CSSProperties = {
 
 const activeFilterButtonStyle: React.CSSProperties = {
   ...filterButtonStyle,
-  background: "#eef2ff",
-  border: "1px solid #c7d2fe",
-  color: "#4338ca",
+  background: "var(--color-action-strong)",
+  border: "1px solid var(--color-action-strong)",
+  color: "var(--color-on-action)",
+  fontWeight: 700,
 };
 
 function formatDate(value?: string) {
@@ -64,9 +66,9 @@ function statusTone(status: string) {
     return { bg: "#fef2f2", border: "#fecaca", color: "#991b1b" };
   }
   if (status === "Manuel") {
-    return { bg: "#f8fafc", border: "#cbd5e1", color: "#475569" };
+    return { bg: "var(--color-surface-muted)", border: "#cbd5e1", color: "var(--color-text-muted)" };
   }
-  return { bg: "#f8fafc", border: "#e2e8f0", color: "#475569" };
+  return { bg: "var(--color-surface-muted)", border: "#e2e8f0", color: "var(--color-text-muted)" };
 }
 
 function StatusBadge({ value }: { value: string }) {
@@ -103,6 +105,7 @@ export default function ActivitiesPage({
   error: string | null;
 }) {
   const [filter, setFilter] = useState<FilterKey>("alle");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const plannedRunById = useMemo(() => {
     const map = new Map<number, any>();
@@ -171,13 +174,17 @@ export default function ActivitiesPage({
   ];
 
   return (
-    <div style={{ display: "grid", gap: 24 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
       <section>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "#243140" }}>Løb</div>
-        <div style={{ fontSize: 14, color: "#425061" }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>Løb</div>
+        <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
           Oversigt over synkroniserede aktiviteter og deres relation til planen.
         </div>
       </section>
+
+      {selectedId !== null && (
+        <ActivityDetail activityId={selectedId} onClose={() => setSelectedId(null)} />
+      )}
 
       <section style={cardStyle}>
         <div
@@ -190,7 +197,7 @@ export default function ActivitiesPage({
             marginBottom: 12,
           }}
         >
-          <div style={{ fontWeight: 600, color: "#374151" }}>Aktiviteter</div>
+          <div style={{ fontWeight: 600, color: "var(--color-text)" }}>Aktiviteter</div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {filters.map((f) => (
@@ -213,7 +220,7 @@ export default function ActivitiesPage({
             flexWrap: "wrap",
             marginBottom: 14,
             fontSize: 13,
-            color: "#64748b",
+            color: "var(--color-text-muted)",
           }}
         >
           <span>{counts.total} i alt</span>
@@ -225,73 +232,89 @@ export default function ActivitiesPage({
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
-              <tr style={{ textAlign: "left", color: "#6b7280" }}>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #e5e7eb" }}>
+              <tr style={{ textAlign: "left", color: "var(--color-text-muted)" }}>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
                   Dato
                 </th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
                   Navn
                 </th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
                   Km
                 </th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
                   Min
                 </th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
                   Puls
                 </th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
                   Plan
                 </th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
                   Uge
                 </th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #e5e7eb" }}>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
                   Status
+                </th>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
+                  Rute
                 </th>
               </tr>
             </thead>
             <tbody>
               {filteredActivities.map((a) => (
                 <tr key={a.id}>
-                  <td style={{ padding: "10px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     {formatDate(a.date)}
                   </td>
-                  <td style={{ padding: "10px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     {a.name}
                   </td>
-                  <td style={{ padding: "10px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     {a.distance_km}
                   </td>
-                  <td style={{ padding: "10px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     {a.duration_min}
                   </td>
-                  <td style={{ padding: "10px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     {a.avg_hr ?? "-"}
                   </td>
-                  <td style={{ padding: "10px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     {a.matchedPlan ? (
                       <div style={{ display: "grid", gap: 2 }}>
-                        <span style={{ color: "#243140", fontWeight: 600 }}>
+                        <span style={{ color: "var(--color-text)", fontWeight: 600 }}>
                           {a.matchedPlan.session_type}
                         </span>
-                        <span style={{ fontSize: 12, color: "#64748b" }}>
+                        <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
                           {formatDate(a.matchedPlan.planned_date)}
                         </span>
                       </div>
                     ) : (
-                      <span style={{ color: "#94a3b8" }}>-</span>
+                      <span style={{ color: "var(--color-text-muted)" }}>-</span>
                     )}
                   </td>
-                  <td style={{ padding: "10px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     {a.weekKey || "-"}
                   </td>
-                  <td style={{ padding: "10px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                       <StatusBadge value={a.derivedStatus} />
                       {a.matchedPlan?.manual_override ? <StatusBadge value="Manuel" /> : null}
                     </div>
+                  </td>
+                  <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
+                    <button
+                      type="button"
+                      className="u-btn u-btn--secondary"
+                      aria-label={`Vis rute for ${a.name ?? "løb"} den ${formatDate(a.date)}`}
+                      onClick={() => {
+                        setSelectedId(a.id);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                    >
+                      Vis
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -299,12 +322,12 @@ export default function ActivitiesPage({
               {filteredActivities.length === 0 && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     style={{
                       padding: "18px 8px",
-                      color: "#64748b",
+                      color: "var(--color-text-muted)",
                       textAlign: "center",
-                      borderBottom: "1px solid #f1f5f9",
+                      borderBottom: "1px solid var(--color-surface-muted)",
                     }}
                   >
                     Ingen aktiviteter matcher det valgte filter.

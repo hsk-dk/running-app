@@ -1,4 +1,3 @@
-import importlib
 from datetime import date
 
 import pytest
@@ -8,10 +7,15 @@ from tests.conftest import add_activity, add_plan, get_activity, get_plan
 
 @pytest.fixture()
 def matching(db):
-    import app.matching
+    from types import SimpleNamespace
 
-    importlib.reload(app.matching)
-    return app.matching
+    import app.services.planning_service as planning_service
+    import app.services.reporting_service as reporting_service
+
+    return SimpleNamespace(
+        evaluate_planned_runs=planning_service.evaluate_planned_runs,
+        get_weekly_consistency=reporting_service.weekly_consistency,
+    )
 
 
 # Dates far in the past so "no match" means the window has expired.

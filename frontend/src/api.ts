@@ -25,7 +25,8 @@ export const api = {
   getMonthlyVolume: () => getJson("/metrics/monthly-volume"),
 
   // Activities
-  getActivities: () => getJson("/activities"),
+  getActivities: (limit = 500) => getJson(`/activities?limit=${limit}`),
+  getActivity: (id: number) => getJson(`/activities/${id}`),
 
   // Planning
   getPlannedRuns: () => getJson("/planning"),

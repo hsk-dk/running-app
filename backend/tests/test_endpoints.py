@@ -9,14 +9,9 @@ from tests.conftest import add_activity, add_plan
 
 @pytest.fixture()
 def client(db):
-    import app.matching, app.metrics, app.planning, app.ai_suggestions, app.admin_status
-    import app.services.planning_service, app.main
+    import app.main
 
-    for mod in (
-        app.matching, app.metrics, app.planning, app.ai_suggestions,
-        app.admin_status, app.services.planning_service, app.main,
-    ):
-        importlib.reload(mod)
+    importlib.reload(app.main)
     return TestClient(app.main.app)
 
 
@@ -89,7 +84,7 @@ def test_admin_status_and_health(client):
 
 
 def test_ai_context_queries(db):
-    import app.ai_suggestions as ai
+    import app.services.ai_service as ai
 
     today = date.today()
     add_activity(db, 1, f"{today.isoformat()}T08:00:00Z", distance_m=8000, moving_time_s=2400)
@@ -187,3 +182,45 @@ def test_editing_optional_updates_mandatory(client, db):
     )
     assert client.get("/api/planning").json()[0]["mandatory"] is True
     assert len(client.get("/api/planning/weekly-consistency").json()) == 1
+
+
+# ---- activity detail with route ---------------------------------------------------
+
+POLYLINE = "_p~iF~ps|U_ulLnnqC_mqNvxq`@"  # the example from Google's polyline documentation
+
+
+def test_activity_detail_includes_route_and_pace(client, db):
+    add_activity(
+        db, 7, "2020-03-10T08:00:00Z", distance_m=10000, moving_time_s=3300, name="Søndagstur",
+        raw={"map": {"summary_polyline": POLYLINE}},
+    )
+    r = client.get("/api/activities/7")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["route"] == POLYLINE
+    assert body["avg_pace_s_per_km"] == 330.0
+    assert (body["distance_km"], body["duration_min"], body["name"]) == (10.0, 55.0, "Søndagstur")
+
+
+@pytest.mark.parametrize("raw", [{}, {"map": None}, {"map": {"summary_polyline": ""}}, {"map": {"summary_polyline": None}}])
+def test_activity_detail_route_is_none_without_gps(client, db, raw):
+    add_activity(db, 8, "2020-03-10T08:00:00Z", raw=raw)
+    assert client.get("/api/activities/8").json()["route"] is None
+
+
+def test_activity_detail_survives_broken_raw_json(client, db):
+    add_activity(db, 9, "2020-03-10T08:00:00Z")
+    conn = db.get_conn()
+    try:
+        conn.execute("UPDATE activities SET raw_json = 'not json' WHERE id = 9")
+        conn.commit()
+    finally:
+        conn.close()
+    r = client.get("/api/activities/9")
+    assert r.status_code == 200 and r.json()["route"] is None
+
+
+def test_activity_detail_404_for_unknown_and_non_runs(client, db):
+    add_activity(db, 10, "2020-03-10T08:00:00Z", sport_type="Ride")
+    assert client.get("/api/activities/999").status_code == 404
+    assert client.get("/api/activities/10").status_code == 404

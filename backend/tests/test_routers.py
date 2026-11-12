@@ -22,6 +22,7 @@ def test_route_table_is_unchanged(client):
     assert routes >= {
         ("GET", "/api/health"),
         ("GET", "/api/activities"),
+        ("GET", "/api/activities/{activity_id}"),
         ("GET", "/api/metrics/summary"),
         ("GET", "/api/metrics/monthly-volume"),
         ("GET", "/api/planning"),
@@ -50,18 +51,18 @@ def test_rebuild_metrics_endpoint_is_gone(client):
 
 
 def test_webhook_verify_accepts_correct_token(client, monkeypatch):
-    import app.webhooks
+    import app.services.webhook_service as webhook_service
 
-    monkeypatch.setattr(app.webhooks.settings, "STRAVA_VERIFY_TOKEN", "secret")
+    monkeypatch.setattr(webhook_service.settings, "STRAVA_VERIFY_TOKEN", "secret")
     params = {"hub.mode": "subscribe", "hub.verify_token": "secret", "hub.challenge": "abc"}
     r = client.get("/api/webhooks/strava", params=params)
     assert r.status_code == 200 and r.json() == {"hub.challenge": "abc"}
 
 
 def test_webhook_verify_rejects_wrong_token(client, monkeypatch):
-    import app.webhooks
+    import app.services.webhook_service as webhook_service
 
-    monkeypatch.setattr(app.webhooks.settings, "STRAVA_VERIFY_TOKEN", "secret")
+    monkeypatch.setattr(webhook_service.settings, "STRAVA_VERIFY_TOKEN", "secret")
     params = {"hub.mode": "subscribe", "hub.verify_token": "nope", "hub.challenge": "abc"}
     assert client.get("/api/webhooks/strava", params=params).status_code == 403
 

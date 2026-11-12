@@ -1,3 +1,4 @@
+import NowHero from "../components/NowHero";
 import {
   AreaChart,
   Area,
@@ -9,9 +10,9 @@ import {
 } from "recharts";
 
 const cardStyle: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
+  background: "var(--color-surface)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-large)",
   padding: 16,
 };
 
@@ -62,7 +63,7 @@ function metricTone(status: string) {
     return { bg: "#fef2f2", border: "#fecaca", color: "#991b1b" };
   }
   if (status === "planlagt") {
-    return { bg: "#f8fafc", border: "#cbd5e1", color: "#475569" };
+    return { bg: "var(--color-surface-muted)", border: "#cbd5e1", color: "var(--color-text-muted)" };
   }
   if (status === "flyttet") {
     return { bg: "#eef2ff", border: "#c7d2fe", color: "#4338ca" };
@@ -70,7 +71,7 @@ function metricTone(status: string) {
   if (status === "valgfri") {
     return { bg: "#faf5ff", border: "#e9d5ff", color: "#7c3aed" };
   }
-  return { bg: "#f8fafc", border: "#e2e8f0", color: "#475569" };
+  return { bg: "var(--color-surface-muted)", border: "#e2e8f0", color: "var(--color-text-muted)" };
 }
 
 function StatusBadge({ value }: { value: string }) {
@@ -94,6 +95,10 @@ function StatusBadge({ value }: { value: string }) {
   );
 }
 
+function fmtNum(value: number, decimals: number) {
+  return value.toLocaleString("da-DK", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
 function changeText(
   current: number | null | undefined,
   previous: number | null | undefined,
@@ -101,10 +106,10 @@ function changeText(
   decimals = 0
 ) {
   if (current == null) return "Ingen data";
-  if (previous == null) return `Denne måned: ${current.toFixed(decimals)} ${unit}`;
+  if (previous == null) return `Denne måned: ${fmtNum(current, decimals)} ${unit}`;
   const diff = current - previous;
   const sign = diff > 0 ? "+" : "";
-  return `${sign}${diff.toFixed(decimals)} ${unit} vs. sidste måned`;
+  return `${sign}${fmtNum(diff, decimals)} ${unit} vs. sidste måned`;
 }
 
 function hrChangeText(
@@ -115,7 +120,7 @@ function hrChangeText(
   if (previous == null) return "Ingen sammenligning endnu";
   const diff = current - previous;
   const sign = diff > 0 ? "+" : "";
-  return `${sign}${diff.toFixed(1)} bpm vs. sidste måned`;
+  return `${sign}${fmtNum(diff, 1)} bpm vs. sidste måned`;
 }
 
 function SummaryCard({
@@ -134,14 +139,14 @@ function SummaryCard({
           fontSize: 12,
           textTransform: "uppercase",
           letterSpacing: "0.05em",
-          color: "#6b7280",
+          color: "var(--color-text-muted)",
           marginBottom: 6,
         }}
       >
         {title}
       </div>
-      <div style={{ fontSize: 28, fontWeight: 700, color: "#1e40af" }}>{value}</div>
-      <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>{subtitle}</div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: "var(--color-text)" }}>{value}</div>
+      <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 4 }}>{subtitle}</div>
     </div>
   );
 }
@@ -151,12 +156,14 @@ export default function OverviewPage({
   monthlyVolume,
   weeklyConsistency,
   plannedRuns,
+  activities,
   error,
 }: {
   summary: any;
   monthlyVolume: any[];
   weeklyConsistency: any[];
   plannedRuns: any[];
+  activities: any[];
   loading: boolean;
   onRunAction: (action: "ingest" | "plan") => void;
   error: string | null;
@@ -207,13 +214,13 @@ export default function OverviewPage({
     .slice(0, 3);
 
   return (
-    <div style={{ display: "grid", gap: 24 }}>
-      <section>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "#243140" }}>Overblik</div>
-        <div style={{ fontSize: 14, color: "#425061" }}>
-          Hurtig status på løb, plan og konsistens.
-        </div>
-      </section>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
+      <NowHero
+        summary={summary}
+        plannedRuns={plannedRuns}
+        activities={activities}
+        monthlyVolume={monthlyVolume}
+      />
 
       {error && (
         <section
@@ -228,10 +235,14 @@ export default function OverviewPage({
         </section>
       )}
 
+      <h2 className="u-h2" style={{ marginBottom: -8 }}>
+        Detaljer
+      </h2>
+
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 11rem), 1fr))",
           gap: 16,
         }}
       >
@@ -242,12 +253,12 @@ export default function OverviewPage({
         />
         <SummaryCard
           title="Km denne måned"
-          value={summary?.km_this_month ?? 0}
+          value={fmtNum(Number(summary?.km_this_month ?? 0), 1)}
           subtitle={changeText(summary?.km_this_month, summary?.km_prev_month, "km", 1)}
         />
         <SummaryCard
           title="Gns. puls denne måned"
-          value={summary?.avg_hr_this_month ?? "-"}
+          value={summary?.avg_hr_this_month == null ? "-" : fmtNum(Number(summary.avg_hr_this_month), 1)}
           subtitle={hrChangeText(summary?.avg_hr_this_month, summary?.avg_hr_prev_month)}
         />
         <SummaryCard
@@ -260,27 +271,27 @@ export default function OverviewPage({
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(280px, 360px) minmax(280px, 360px) minmax(0, 1fr)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 15rem), 1fr))",
           gap: 16,
         }}
       >
         <div style={cardStyle}>
-          <div style={{ marginBottom: 8, fontWeight: 600, color: "#374151" }}>Denne uge</div>
+          <div style={{ marginBottom: 8, fontWeight: 600, color: "var(--color-text)" }}>Denne uge</div>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
             <StatusBadge value={currentWeekScore} />
-            <span style={{ fontSize: 13, color: "#64748b" }}>{currentWeekKey}</span>
+            <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{currentWeekKey}</span>
           </div>
 
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#243140", marginBottom: 4 }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text)", marginBottom: 4 }}>
             {currentWeekCompleted}/{currentWeekRelevant.length}
           </div>
 
-          <div style={{ fontSize: 14, color: "#64748b", marginBottom: 10 }}>
+          <div style={{ fontSize: 14, color: "var(--color-text-muted)", marginBottom: 10 }}>
             aktuelle obligatoriske pas gennemført
           </div>
 
-          <div style={{ display: "grid", gap: 6, fontSize: 13, color: "#64748b" }}>
+          <div style={{ display: "grid", gap: 6, fontSize: 13, color: "var(--color-text-muted)" }}>
             <div>Forkortede pas: {currentWeekShortened}</div>
             <div>Afventende obligatoriske pas: {currentWeekAwaiting}</div>
             <div>Valgfrie pas denne uge: {currentWeekRuns.filter((p: any) => p.optional).length}</div>
@@ -288,16 +299,16 @@ export default function OverviewPage({
         </div>
 
         <div style={cardStyle}>
-          <div style={{ marginBottom: 8, fontWeight: 600, color: "#374151" }}>
+          <div style={{ marginBottom: 8, fontWeight: 600, color: "var(--color-text)" }}>
             Næste planlagte træning
           </div>
 
           {nextPlanned ? (
             <div style={{ display: "grid", gap: 8 }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#243140" }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text)" }}>
                 {nextPlanned.display_target}
               </div>
-              <div style={{ fontSize: 14, color: "#64748b" }}>
+              <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
                 {formatDate(nextPlanned.planned_date)} · {nextPlanned.session_type}
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -305,21 +316,21 @@ export default function OverviewPage({
                 {nextPlanned.optional ? <StatusBadge value="valgfri" /> : null}
               </div>
               {nextPlanned.notes ? (
-                <div style={{ fontSize: 13, color: "#64748b" }}>{nextPlanned.notes}</div>
+                <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{nextPlanned.notes}</div>
               ) : null}
             </div>
           ) : (
-            <div style={{ color: "#64748b" }}>Ingen planlagte træninger.</div>
+            <div style={{ color: "var(--color-text-muted)" }}>Ingen planlagte træninger.</div>
           )}
         </div>
 
         <div style={cardStyle}>
-          <div style={{ marginBottom: 8, fontWeight: 600, color: "#374151" }}>
+          <div style={{ marginBottom: 8, fontWeight: 600, color: "var(--color-text)" }}>
             Kommende plan
           </div>
 
           {upcomingRuns.length === 0 ? (
-            <div style={{ color: "#64748b" }}>Ingen kommende træninger.</div>
+            <div style={{ color: "var(--color-text-muted)" }}>Ingen kommende træninger.</div>
           ) : (
             <div style={{ display: "grid", gap: 8 }}>
               {upcomingRuns.map((run: any) => (
@@ -327,17 +338,18 @@ export default function OverviewPage({
                   key={run.id}
                   style={{
                     display: "flex",
+                    flexWrap: "wrap",
                     justifyContent: "space-between",
                     gap: 12,
                     paddingBottom: 8,
-                    borderBottom: "1px solid #f1f5f9",
+                    borderBottom: "1px solid var(--color-surface-muted)",
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: 600, color: "#243140" }}>
+                    <div style={{ fontWeight: 600, color: "var(--color-text)" }}>
                       {formatDate(run.planned_date)}
                     </div>
-                    <div style={{ fontSize: 13, color: "#64748b" }}>
+                    <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
                       {run.session_type} · {run.display_target}
                     </div>
                   </div>
@@ -351,15 +363,9 @@ export default function OverviewPage({
         </div>
       </section>
 
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 2fr) minmax(320px, 1fr)",
-          gap: 16,
-        }}
-      >
+      <section className="app-split">
         <div style={cardStyle}>
-          <div style={{ marginBottom: 12, fontWeight: 600, color: "#374151" }}>
+          <div style={{ marginBottom: 12, fontWeight: 600, color: "var(--color-text)" }}>
             Månedlig distance
           </div>
           <div style={{ width: "100%", height: 280 }}>
@@ -372,8 +378,8 @@ export default function OverviewPage({
                 <Area
                   type="monotone"
                   dataKey="km"
-                  stroke="#446ea8"
-                  fill="#9dc0ff"
+                  stroke="var(--data-1)"
+                  fill="var(--data-fill)"
                   fillOpacity={0.22}
                 />
               </AreaChart>
@@ -382,17 +388,17 @@ export default function OverviewPage({
         </div>
 
         <div style={cardStyle}>
-          <div style={{ marginBottom: 12, fontWeight: 600, color: "#374151" }}>
+          <div style={{ marginBottom: 12, fontWeight: 600, color: "var(--color-text)" }}>
             Seneste planmatch
           </div>
 
           {latestMatched ? (
             <div style={{ display: "grid", gap: 10 }}>
               <div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "#243140" }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)" }}>
                   {latestMatched.matched_activity_name}
                 </div>
-                <div style={{ fontSize: 14, color: "#64748b" }}>
+                <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
                   {formatDate(latestMatched.planned_date)} · {latestMatched.session_type}
                 </div>
               </div>
@@ -411,7 +417,7 @@ export default function OverviewPage({
               </div>
             </div>
           ) : (
-            <div style={{ color: "#64748b" }}>Ingen match endnu.</div>
+            <div style={{ color: "var(--color-text-muted)" }}>Ingen match endnu.</div>
           )}
         </div>
       </section>
@@ -423,10 +429,10 @@ export default function OverviewPage({
           gap: 8,
         }}
       >
-        <div style={{ fontWeight: 600, color: "#374151" }}>Ugekonsistens</div>
+        <div style={{ fontWeight: 600, color: "var(--color-text)" }}>Ugekonsistens</div>
 
         {weeklyConsistency.length === 0 ? (
-          <div style={{ color: "#64748b", fontSize: 14 }}>
+          <div style={{ color: "var(--color-text-muted)", fontSize: 14 }}>
             Ingen planlagte træninger endnu.
           </div>
         ) : (
@@ -440,13 +446,13 @@ export default function OverviewPage({
                 alignItems: "center",
                 padding: 12,
                 borderRadius: 8,
-                background: "#f9fafb",
-                border: "1px solid #e5e7eb",
+                background: "var(--color-surface-muted)",
+                border: "1px solid var(--color-border)",
               }}
             >
               <div>
                 <div style={{ fontWeight: 600 }}>{week.week}</div>
-                <div style={{ fontSize: 13, color: "#64748b" }}>
+                <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
                   {week.completed}/{week.relevant_runs} relevante obligatoriske pas
                 </div>
               </div>
