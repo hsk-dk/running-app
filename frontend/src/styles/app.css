@@ -33,3 +33,26 @@ button.u-header__link[aria-current='page'] { border-bottom-color: var(--color-on
 .app-main { padding-bottom: var(--space-6); }
 .app-main:focus { outline: none; }
 .app-footer { text-align: center; margin-top: var(--space-4); color: var(--color-text-muted); font-size: var(--text-xs); }
+
+/* Text colour for "shortened" status. Not in useful-design yet (candidate for the next minor version). */
+:root { --text-warn: #92400e; }
+
+/* "Nu": a sentence, the week as a ring, and the next run and month. */
+.now {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(11rem, 15rem) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: center;
+}
+.now__eyebrow { margin: 0 0 var(--space-1); font-size: var(--text-xs); font-weight: var(--weight-bold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted); }
+.now__notes { display: grid; gap: var(--space-1); margin-top: var(--space-3); color: var(--color-text-muted); }
+.now__notes p { margin: 0; }
+.now__ring { display: flex; justify-content: center; }
+.now__side { display: grid; gap: var(--space-3); min-width: 0; }
+@media (max-width: 48rem) {
+  .now { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Two columns that stack on small screens. */
+.app-split { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--space-4); }
+@media (max-width: 48rem) { .app-split { grid-template-columns: minmax(0, 1fr); } }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api";
+import WeekPlanChart from "../components/WeekPlanChart";
 
 const cardStyle: React.CSSProperties = {
   background: "var(--color-surface)",
@@ -560,7 +561,7 @@ export default function PlanPage({
   ];
 
 return (
-    <div style={{ display: "grid", gap: 24 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
       <section
         style={{
           display: "flex",
@@ -599,37 +600,15 @@ return (
         </section>
       )}
 
-      <section
-        style={{
-          ...cardStyle,
-          display: "grid",
-          gridTemplateColumns: "minmax(220px, 280px) 1fr",
-          gap: 16,
-          alignItems: "start",
-        }}
-      >
-        <div>
-          <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 8 }}>
-            Denne uge
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <StatusBadge value={currentWeek.score} />
-            <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{currentWeek.weekKey}</span>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontSize: 14, color: "var(--color-text)" }}>
-            {currentWeek.completed}/{currentWeek.relevantNow} aktuelle obligatoriske pas gennemført
-          </div>
-          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-            {currentWeek.awaiting} obligatoriske pas afventer stadig og tæller ikke negativt endnu.
-          </div>
-          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-            Valgfrie træninger vises i planen, men påvirker ikke ugefarven negativt.
-          </div>
-        </div>
-        </section>
+      <WeekPlanChart
+        plannedRuns={plannedRuns}
+        activities={activities}
+        badge={<StatusBadge value={currentWeek.score} />}
+      />
+      <p className="u-card__meta" style={{ marginTop: -8 }}>
+        {currentWeek.awaiting} obligatoriske pas afventer stadig og tæller ikke negativt endnu. Valgfrie
+        træninger vises i planen, men påvirker ikke ugefarven negativt.
+      </p>
 
       <section>
         <div style={cardStyle}>

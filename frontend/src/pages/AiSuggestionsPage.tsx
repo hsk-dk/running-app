@@ -156,7 +156,7 @@ export default function AiSuggestionsPage({
     result.suggestions.every((_, i) => addedIds.has(i));
 
   return (
-    <div style={{ display: "grid", gap: 24 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
       <section
         style={{
           display: "flex",

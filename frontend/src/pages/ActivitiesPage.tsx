@@ -172,7 +172,7 @@ export default function ActivitiesPage({
   ];
 
   return (
-    <div style={{ display: "grid", gap: 24 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
       <section>
         <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>Løb</div>
         <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>

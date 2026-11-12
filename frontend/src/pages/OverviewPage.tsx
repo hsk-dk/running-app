@@ -1,3 +1,4 @@
+import NowHero from "../components/NowHero";
 import {
   AreaChart,
   Area,
@@ -94,6 +95,10 @@ function StatusBadge({ value }: { value: string }) {
   );
 }
 
+function fmtNum(value: number, decimals: number) {
+  return value.toLocaleString("da-DK", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
 function changeText(
   current: number | null | undefined,
   previous: number | null | undefined,
@@ -101,10 +106,10 @@ function changeText(
   decimals = 0
 ) {
   if (current == null) return "Ingen data";
-  if (previous == null) return `Denne måned: ${current.toFixed(decimals)} ${unit}`;
+  if (previous == null) return `Denne måned: ${fmtNum(current, decimals)} ${unit}`;
   const diff = current - previous;
   const sign = diff > 0 ? "+" : "";
-  return `${sign}${diff.toFixed(decimals)} ${unit} vs. sidste måned`;
+  return `${sign}${fmtNum(diff, decimals)} ${unit} vs. sidste måned`;
 }
 
 function hrChangeText(
@@ -115,7 +120,7 @@ function hrChangeText(
   if (previous == null) return "Ingen sammenligning endnu";
   const diff = current - previous;
   const sign = diff > 0 ? "+" : "";
-  return `${sign}${diff.toFixed(1)} bpm vs. sidste måned`;
+  return `${sign}${fmtNum(diff, 1)} bpm vs. sidste måned`;
 }
 
 function SummaryCard({
@@ -151,12 +156,14 @@ export default function OverviewPage({
   monthlyVolume,
   weeklyConsistency,
   plannedRuns,
+  activities,
   error,
 }: {
   summary: any;
   monthlyVolume: any[];
   weeklyConsistency: any[];
   plannedRuns: any[];
+  activities: any[];
   loading: boolean;
   onRunAction: (action: "ingest" | "plan") => void;
   error: string | null;
@@ -207,13 +214,13 @@ export default function OverviewPage({
     .slice(0, 3);
 
   return (
-    <div style={{ display: "grid", gap: 24 }}>
-      <section>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>Overblik</div>
-        <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
-          Hurtig status på løb, plan og konsistens.
-        </div>
-      </section>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
+      <NowHero
+        summary={summary}
+        plannedRuns={plannedRuns}
+        activities={activities}
+        monthlyVolume={monthlyVolume}
+      />
 
       {error && (
         <section
@@ -228,10 +235,14 @@ export default function OverviewPage({
         </section>
       )}
 
+      <h2 className="u-h2" style={{ marginBottom: -8 }}>
+        Detaljer
+      </h2>
+
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 11rem), 1fr))",
           gap: 16,
         }}
       >
@@ -242,12 +253,12 @@ export default function OverviewPage({
         />
         <SummaryCard
           title="Km denne måned"
-          value={summary?.km_this_month ?? 0}
+          value={fmtNum(Number(summary?.km_this_month ?? 0), 1)}
           subtitle={changeText(summary?.km_this_month, summary?.km_prev_month, "km", 1)}
         />
         <SummaryCard
           title="Gns. puls denne måned"
-          value={summary?.avg_hr_this_month ?? "-"}
+          value={summary?.avg_hr_this_month == null ? "-" : fmtNum(Number(summary.avg_hr_this_month), 1)}
           subtitle={hrChangeText(summary?.avg_hr_this_month, summary?.avg_hr_prev_month)}
         />
         <SummaryCard
@@ -260,7 +271,7 @@ export default function OverviewPage({
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(280px, 360px) minmax(280px, 360px) minmax(0, 1fr)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 15rem), 1fr))",
           gap: 16,
         }}
       >
@@ -352,13 +363,7 @@ export default function OverviewPage({
         </div>
       </section>
 
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 2fr) minmax(320px, 1fr)",
-          gap: 16,
-        }}
-      >
+      <section className="app-split">
         <div style={cardStyle}>
           <div style={{ marginBottom: 12, fontWeight: 600, color: "var(--color-text)" }}>
             Månedlig distance

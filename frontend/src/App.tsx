@@ -130,6 +130,7 @@ export default function App() {
             monthlyVolume={monthlyVolume}
             weeklyConsistency={weeklyConsistency}
             plannedRuns={plannedRuns}
+            activities={activities}
           />
         );
       case "plan":
@@ -176,7 +177,7 @@ export default function App() {
           <nav className="u-header__nav" aria-label="Hovednavigation">
             <NavItem
               active={page === "overview"}
-              label="Overblik"
+              label="Nu"
               onClick={() => setPage("overview")}
             />
             <NavItem

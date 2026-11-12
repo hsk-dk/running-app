@@ -92,7 +92,7 @@ export default function AdminPage({
   const lastWebhookMeta = adminStatus?.last_webhook;
 
   return (
-    <div style={{ display: "grid", gap: 24 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
       <section
         style={{
           display: "flex",
