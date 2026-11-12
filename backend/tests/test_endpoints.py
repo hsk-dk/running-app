@@ -23,7 +23,7 @@ def client(db):
 def test_planning_crud_roundtrip(client):
     created = client.post(
         "/api/planning",
-        json={"planned_date": "2999-01-01", "session_type": "easy", "target_type": "time", "target_value": 40},
+        json={"planned_date": "2100-01-01", "session_type": "easy", "target_type": "time", "target_value": 40},
     ).json()
     assert created["status"] == "planlagt"
     assert [p["id"] for p in client.get("/api/planning").json()] == [created["id"]]
@@ -31,7 +31,7 @@ def test_planning_crud_roundtrip(client):
     client.put(
         f"/api/planning/{created['id']}",
         json={
-            "planned_date": "2999-01-02", "session_type": "long",
+            "planned_date": "2100-01-02", "session_type": "long",
             "target_type": "distance", "target_value": 15,
         },
     )

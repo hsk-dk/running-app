@@ -69,7 +69,7 @@ def test_old_unmatched_plan_is_skipped(db, matching):
 
 
 def test_future_unmatched_plan_stays_planned(db, matching):
-    plan = add_plan(db, "2999-01-01")
+    plan = add_plan(db, "2100-01-01")
 
     matching.evaluate_planned_runs()
 
@@ -228,9 +228,9 @@ def test_consistency_ignores_optional_runs(db, matching):
 
 
 def test_consistency_future_planned_does_not_count(db, matching):
-    add_plan(db, "2999-01-05", status="planlagt")
+    add_plan(db, "2100-01-05", status="planlagt")
 
-    w = _week(matching.get_weekly_consistency(), key="2999-W01")
+    w = _week(matching.get_weekly_consistency(), key="2100-W01")
 
     assert w["relevant_runs"] == 0
     assert w["score"] == "Grøn"

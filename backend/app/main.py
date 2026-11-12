@@ -1,16 +1,12 @@
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api import api_router
 from app.config import settings
-from app.db import init_db, get_conn
-from app.ingest import ingest_recent
-from app.metrics import rebuild_metrics, get_summary, get_monthly_volume, get_activities
-from app.matching import get_weekly_consistency
-from app.admin_status import get_admin_status, set_state
-from app.ai_suggestions import generate_suggestions
-from app.repositories import activities as activity_repo
-from app.services import planning_service, webhook_service
+from app.db import init_db
+from app.services import planning_service
 
+# TODO(#15): move startup work into a FastAPI lifespan handler.
 init_db()
 planning_service.rebuild_activity_links()
 
@@ -30,146 +26,4 @@ def health():
     return {"ok": True}
 
 
-@app.get("/api/activities")
-def api_activities(limit: int = 100):
-    return get_activities(limit=limit)
-
-
-@app.get("/api/metrics/summary")
-def api_summary():
-    return get_summary()
-
-
-@app.get("/api/metrics/monthly-volume")
-def api_monthly_volume():
-    return get_monthly_volume()
-
-
-@app.get("/api/planning")
-def api_planning():
-    return planning_service.list_planned_runs()
-
-
-@app.get("/api/planning/weekly-consistency")
-def api_weekly_consistency():
-    return get_weekly_consistency(tolerance_days=1)
-
-
-@app.post("/api/planning")
-def api_add_planned_run(payload: dict):
-    return planning_service.add_planned_run(payload)
-
-
-@app.post("/api/planning/evaluate")
-def api_evaluate_planning():
-    return planning_service.evaluate_and_sync()
-
-
-@app.post("/api/planning/{planned_run_id}/mark-skipped")
-def api_mark_skipped(planned_run_id: int):
-    return planning_service.mark_planned_run_skipped(planned_run_id)
-
-
-@app.post("/api/planning/{planned_run_id}/mark-rescheduled")
-def api_mark_rescheduled(planned_run_id: int):
-    return planning_service.mark_planned_run_rescheduled(planned_run_id)
-
-
-@app.post("/api/planning/{planned_run_id}/clear-match")
-def api_clear_match(planned_run_id: int):
-    return planning_service.clear_planned_run_match(planned_run_id)
-
-
-@app.post("/api/planning/{planned_run_id}/match-activity")
-async def api_match_activity(planned_run_id: int, request: Request):
-    payload = await request.json()
-    activity_id = payload.get("activity_id")
-    if not activity_id:
-        raise HTTPException(status_code=400, detail="activity_id is required")
-    return planning_service.match_activity_to_planned_run(planned_run_id, int(activity_id))
-
-
-@app.put("/api/planning/{planned_run_id}")
-async def api_update_planned_run(planned_run_id: int, request: Request):
-    payload = await request.json()
-    return planning_service.update_planned_run(planned_run_id, payload)
-
-
-@app.delete("/api/planning/{planned_run_id}")
-def api_delete_planned_run(planned_run_id: int):
-    return planning_service.delete_planned_run(planned_run_id)
-
-
-@app.get("/api/ai/suggestions")
-def api_ai_suggestions():
-    return generate_suggestions()
-
-
-@app.get("/api/admin/status")
-def api_admin_status():
-    return get_admin_status()
-
-
-@app.post("/api/admin/ingest")
-def api_ingest(pages: int = 3):
-    try:
-        return ingest_recent(pages=pages)
-    except Exception as exc:
-        set_state("last_error", str(exc))
-        raise
-
-
-@app.post("/api/admin/rebuild-metrics")
-def api_rebuild_metrics():
-    return rebuild_metrics()
-
-
-@app.post("/api/admin/recalculate-plan")
-def api_recalculate_plan():
-    return planning_service.evaluate_and_sync()
-
-
-@app.post("/api/admin/rebuild-links")
-def api_rebuild_links():
-    return planning_service.rebuild_activity_links()
-
-
-@app.get("/api/admin/health")
-def api_health():
-    conn = get_conn()
-    try:
-        mismatch = activity_repo.count_link_mismatches(conn)
-    finally:
-        conn.close()
-
-    return {
-        "ok": mismatch == 0,
-        "mismatch_count": mismatch,
-    }
-
-
-@app.get("/api/webhooks/strava")
-def strava_webhook_verify(
-    hub_mode: str = Query(alias="hub.mode"),
-    hub_verify_token: str = Query(alias="hub.verify_token"),
-    hub_challenge: str = Query(alias="hub.challenge"),
-):
-    result = webhook_service.verify_subscription(hub_mode, hub_verify_token, hub_challenge)
-    if result is None:
-        raise HTTPException(status_code=403, detail="Webhook verification failed")
-    return result
-
-
-@app.post("/api/webhooks/strava")
-async def strava_webhook_event(request: Request, background_tasks: BackgroundTasks):
-    try:
-        payload = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
-    if not isinstance(payload, dict):
-        raise HTTPException(status_code=400, detail="Invalid payload")
-
-    result = webhook_service.receive_event(payload)
-    if result["needs_processing"]:
-        background_tasks.add_task(webhook_service.process_stored_event, result["event_id"], payload)
-    return {"stored": result["stored"], "duplicate": result["duplicate"]}
+app.include_router(api_router)
