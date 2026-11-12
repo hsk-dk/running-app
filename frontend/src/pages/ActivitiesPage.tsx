@@ -99,7 +99,7 @@ export default function ActivitiesPage({
   activities: any[];
   plannedRuns: any[];
   loading: boolean;
-  onRunAction: (action: "ingest" | "metrics" | "plan") => void;
+  onRunAction: (action: "ingest" | "plan") => void;
   error: string | null;
 }) {
   const [filter, setFilter] = useState<FilterKey>("alle");

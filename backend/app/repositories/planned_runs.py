@@ -63,6 +63,7 @@ def update_from_edit(
     optional: int,
     notes,
 ) -> None:
+    # `mandatory` is the source of truth; `optional` is kept in sync for old readers.
     conn.execute(
         """
         UPDATE planned_runs
@@ -72,6 +73,7 @@ def update_from_edit(
             target_type = ?,
             target_value = ?,
             optional = ?,
+            mandatory = ?,
             notes = ?,
             manual_override = 1,
             override_reason = 'manuelt redigeret',
@@ -80,7 +82,7 @@ def update_from_edit(
             evaluated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         """,
-        (planned_date, session_type, target_type, target_value, optional, notes, plan_id),
+        (planned_date, session_type, target_type, target_value, optional, int(not optional), notes, plan_id),
     )
 
 

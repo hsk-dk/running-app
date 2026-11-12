@@ -37,13 +37,16 @@ def test_route_table_is_unchanged(client):
         ("GET", "/api/ai/suggestions"),
         ("GET", "/api/admin/status"),
         ("POST", "/api/admin/ingest"),
-        ("POST", "/api/admin/rebuild-metrics"),
         ("POST", "/api/admin/recalculate-plan"),
         ("POST", "/api/admin/rebuild-links"),
         ("GET", "/api/admin/health"),
         ("GET", "/api/webhooks/strava"),
         ("POST", "/api/webhooks/strava"),
     }
+
+
+def test_rebuild_metrics_endpoint_is_gone(client):
+    assert client.post("/api/admin/rebuild-metrics").status_code in (404, 405)
 
 
 def test_webhook_verify_accepts_correct_token(client, monkeypatch):

@@ -1,4 +1,5 @@
 import importlib
+from datetime import date
 
 import pytest
 
@@ -234,3 +235,86 @@ def test_consistency_future_planned_does_not_count(db, matching):
 
     assert w["relevant_runs"] == 0
     assert w["score"] == "Grøn"
+
+
+# ---- local calendar dates and time zones ---------------------------------------
+
+def _add_local(db, id, utc, local, **kw):
+    import json
+
+    conn = db.get_conn()
+    try:
+        conn.execute(
+            """INSERT INTO activities (id, name, sport_type, start_date, start_date_local,
+                                       distance_m, moving_time_s, raw_json)
+               VALUES (?, 'Run', 'Run', ?, ?, ?, ?, ?)""",
+            (id, utc, local, kw.get("distance_m", 5000), kw.get("moving_time_s", 1800), json.dumps({})),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_run_after_local_midnight_matches_on_local_date(db, matching):
+    # 23:30 UTC the evening before is 00:30 local: the local date is the planned date (0 days away)
+    plan = add_plan(db, D)
+    _add_local(db, 1, "2020-03-09T23:30:00Z", "2020-03-10T00:30:00Z")
+
+    matching.evaluate_planned_runs()
+
+    p = get_plan(db, plan)
+    assert p["matched_activity_id"] == 1
+    assert "0 dag(e)" in p["match_reason"]
+    assert p["matched_activity_date"] == "2020-03-10"
+
+
+def test_whole_last_tolerance_day_is_inside_window(db, matching):
+    # Planned Tue, run late Wed evening: one calendar day away, so inside tolerance=1
+    plan = add_plan(db, D)
+    _add_local(db, 1, "2020-03-11T21:30:00Z", "2020-03-11T22:30:00Z")
+
+    matching.evaluate_planned_runs()
+
+    assert get_plan(db, plan)["matched_activity_id"] == 1
+
+
+def test_two_calendar_days_away_is_outside_window(db, matching):
+    plan = add_plan(db, D)
+    _add_local(db, 1, "2020-03-12T00:10:00Z", "2020-03-12T01:10:00Z")
+
+    matching.evaluate_planned_runs()
+
+    assert get_plan(db, plan)["matched_activity_id"] is None
+
+
+def test_plan_stays_open_through_last_tolerance_day(db, matching, monkeypatch):
+    from app.domain import timeutil
+
+    plan = add_plan(db, D)
+    monkeypatch.setattr(timeutil, "today", lambda: date(2020, 3, 11))
+    matching.evaluate_planned_runs()
+    assert get_plan(db, plan)["status"] == "planlagt"
+
+    monkeypatch.setattr(timeutil, "today", lambda: date(2020, 3, 12))
+    matching.evaluate_planned_runs()
+    assert get_plan(db, plan)["status"] == "sprunget over"
+
+
+def test_invalid_plan_date_does_not_break_evaluation(db, matching):
+    bad = add_plan(db, "not-a-date")
+    good = add_plan(db, D)
+    add_activity(db, 1, f"{D}T08:00:00Z")
+
+    matching.evaluate_planned_runs()
+
+    assert get_plan(db, good)["matched_activity_id"] == 1
+    assert get_plan(db, bad)["matched_activity_id"] is None
+
+
+def test_planned_datetime_string_uses_date_part(db, matching):
+    plan = add_plan(db, f"{D}T23:59:00")
+    add_activity(db, 1, f"{D}T08:00:00Z")
+
+    matching.evaluate_planned_runs()
+
+    assert get_plan(db, plan)["matched_activity_id"] == 1

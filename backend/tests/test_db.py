@@ -88,9 +88,13 @@ CREATE TABLE derived_metrics (
     activity_id INTEGER PRIMARY KEY, start_date TEXT NOT NULL, year INTEGER NOT NULL,
     month_key TEXT NOT NULL, iso_week_key TEXT NOT NULL
 );
-INSERT INTO activities (id, sport_type, start_date, raw_json) VALUES (1, 'Run', '2020-03-10T08:00:00Z', '{}');
-INSERT INTO planned_runs (planned_date, session_type, matched_activity_id) VALUES ('2020-03-10', 'easy', 1);
-INSERT INTO planned_runs (planned_date, session_type, matched_activity_id) VALUES ('2020-03-11', 'easy', 999);
+INSERT INTO activities (id, sport_type, start_date, raw_json)
+    VALUES (1, 'Run', '2020-03-10T23:30:00Z', '{"start_date_local": "2020-03-11T00:30:00Z"}');
+INSERT INTO activities (id, sport_type, start_date, raw_json) VALUES (2, 'Run', '2020-03-12T08:00:00Z', '{}');
+INSERT INTO planned_runs (planned_date, session_type, matched_activity_id, optional)
+    VALUES ('2020-03-10', 'easy', 1, 0);
+INSERT INTO planned_runs (planned_date, session_type, matched_activity_id, optional)
+    VALUES ('2020-03-11', 'easy', 999, 1);
 INSERT INTO derived_metrics VALUES (999, '2020-01-01', 2020, '2020-01', '2020-W01');
 """
 
@@ -120,8 +124,17 @@ def test_legacy_database_is_upgraded(tmp_path, monkeypatch):
 
         plans = conn.execute("SELECT matched_activity_id FROM planned_runs ORDER BY id").fetchall()
         assert [p[0] for p in plans] == [1, None]  # valid link kept, dangling link cleared
-        assert conn.execute("SELECT COUNT(*) FROM derived_metrics").fetchone()[0] == 0
-        assert conn.execute("SELECT COUNT(*) FROM activities").fetchone()[0] == 1
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        assert "derived_metrics" not in tables
+        assert conn.execute("SELECT COUNT(*) FROM activities").fetchone()[0] == 2
+
+        # local start time is backfilled from raw_json where Strava provided it
+        local = {r["id"]: r["start_date_local"] for r in conn.execute("SELECT id, start_date_local FROM activities")}
+        assert local == {1: "2020-03-11T00:30:00Z", 2: None}
+
+        # `mandatory` follows `optional`, the value older code actually edited
+        mandatory = [r[0] for r in conn.execute("SELECT mandatory FROM planned_runs ORDER BY id")]
+        assert mandatory == [1, 0]
     finally:
         conn.close()
 

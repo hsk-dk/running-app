@@ -8,15 +8,16 @@ def upsert(conn: sqlite3.Connection, activity: dict) -> None:
     conn.execute(
         """
         INSERT INTO activities (
-            id, name, sport_type, start_date, timezone_name, distance_m,
+            id, name, sport_type, start_date, start_date_local, timezone_name, distance_m,
             moving_time_s, elapsed_time_s, total_elevation_gain, average_speed,
             max_speed, average_heartrate, max_heartrate, average_cadence,
             raw_json, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(id) DO UPDATE SET
             name = excluded.name,
             sport_type = excluded.sport_type,
             start_date = excluded.start_date,
+            start_date_local = excluded.start_date_local,
             timezone_name = excluded.timezone_name,
             distance_m = excluded.distance_m,
             moving_time_s = excluded.moving_time_s,
@@ -35,6 +36,7 @@ def upsert(conn: sqlite3.Connection, activity: dict) -> None:
             activity.get("name"),
             activity.get("sport_type"),
             activity.get("start_date"),
+            activity.get("start_date_local"),
             activity.get("timezone"),
             activity.get("distance"),
             activity.get("moving_time"),
@@ -55,7 +57,6 @@ def get(conn: sqlite3.Connection, activity_id: int) -> sqlite3.Row | None:
 
 
 def delete(conn: sqlite3.Connection, activity_id: int) -> int:
-    conn.execute("DELETE FROM derived_metrics WHERE activity_id = ?", (activity_id,))
     return conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,)).rowcount
 
 
@@ -69,7 +70,7 @@ def list_runs(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 def list_recent_runs(conn: sqlite3.Connection, limit: int) -> list[sqlite3.Row]:
     return conn.execute(
         """
-        SELECT id, name, start_date, distance_m, moving_time_s,
+        SELECT id, name, start_date, start_date_local, distance_m, moving_time_s,
                average_heartrate, is_extra, matched_planned_run_id
         FROM activities
         WHERE sport_type = 'Run'
@@ -83,7 +84,7 @@ def list_recent_runs(conn: sqlite3.Connection, limit: int) -> list[sqlite3.Row]:
 def list_runs_since(conn: sqlite3.Connection, cutoff: str) -> list[sqlite3.Row]:
     return conn.execute(
         """
-        SELECT start_date, name, distance_m, moving_time_s,
+        SELECT start_date, start_date_local, name, distance_m, moving_time_s,
                average_heartrate, total_elevation_gain
         FROM activities
         WHERE sport_type = 'Run' AND start_date >= ?
@@ -96,7 +97,7 @@ def list_runs_since(conn: sqlite3.Connection, cutoff: str) -> list[sqlite3.Row]:
 def list_runs_for_metrics(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return conn.execute(
         """
-        SELECT id, name, sport_type, start_date, distance_m, moving_time_s,
+        SELECT id, name, sport_type, start_date, start_date_local, distance_m, moving_time_s,
                average_heartrate, is_extra, matched_planned_run_id
         FROM activities
         WHERE sport_type = 'Run'

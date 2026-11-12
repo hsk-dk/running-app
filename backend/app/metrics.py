@@ -1,48 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-import sqlite3
-
-import pandas as pd
+from collections import defaultdict
+from datetime import date
 
 from app.db import get_conn
+from app.domain import timeutil, weekly
+from app.domain.runs import is_mandatory
+from app.domain.statuses import STATUS_PLANLAGT
 from app.repositories import activities as activity_repo
 from app.repositories import planned_runs as plan_repo
-
-
-STATUS_PLANLAGT = "planlagt"
-STATUS_GENNEMFORT = "gennemført"
-STATUS_FORKORTET = "forkortet"
-
-
-def _parse_dt(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        return pd.to_datetime(value, utc=True).tz_convert(None).to_pydatetime()
-    except Exception:
-        try:
-            return pd.to_datetime(value).to_pydatetime()
-        except Exception:
-            return None
-
-
-def _month_bounds(now: datetime) -> tuple[datetime, datetime, datetime, datetime]:
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    prev_month_end = month_start - timedelta(seconds=1)
-    prev_month_start = prev_month_end.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    next_month_start = (month_start + pd.offsets.MonthBegin(1)).to_pydatetime()
-    return month_start, next_month_start, prev_month_start, month_start
-
-
-def _iso_week_key(value: datetime) -> str:
-    iso = value.isocalendar()
-    return f"{iso.year}-W{iso.week:02d}"
-
-
-def _is_awaiting(planned_date: datetime, tolerance_days: int = 1) -> bool:
-    deadline = planned_date + timedelta(days=tolerance_days)
-    return datetime.now() <= deadline
 
 
 def _safe_pct_change(current: float | int | None, previous: float | int | None) -> float | None:
@@ -53,105 +19,51 @@ def _safe_pct_change(current: float | int | None, previous: float | int | None) 
     return round(((current - previous) / previous) * 100, 1)
 
 
-def rebuild_metrics():
-    # Placeholder for MVP compatibility.
-    return {"ok": True}
+def _previous_month(year: int, month: int) -> tuple[int, int]:
+    return (year - 1, 12) if month == 1 else (year, month - 1)
+
+
+def _month_stats(rows: list) -> tuple[int, float, float | None]:
+    runs = len(rows)
+    km = round(sum(float(r["distance_m"] or 0) for r in rows) / 1000.0, 2)
+    hrs = [float(r["average_heartrate"]) for r in rows if r["average_heartrate"] is not None]
+    avg_hr = round(sum(hrs) / len(hrs), 1) if hrs else None
+    return runs, km, avg_hr
+
+
+def _current_week_summary(conn, today: date) -> dict:
+    current_week = weekly.iso_week_key(today)
+    plans = []
+    for row in plan_repo.list_all(conn):
+        if not is_mandatory(row):
+            continue
+        try:
+            planned_date = timeutil.parse_planned_date(row["planned_date"])
+        except ValueError:
+            continue
+        if weekly.iso_week_key(planned_date) == current_week:
+            plans.append((planned_date, row["status"] or STATUS_PLANLAGT))
+    return weekly.summarize(plans, today, tolerance_days=1)
 
 
 def get_summary():
     conn = get_conn()
     try:
-        now = datetime.now()
-        month_start, next_month_start, prev_month_start, prev_month_end_exclusive = _month_bounds(now)
+        today = timeutil.today()
+        month = (today.year, today.month)
+        prev_month = _previous_month(*month)
 
-        activities_df = pd.DataFrame(
-            [dict(r) for r in activity_repo.list_runs_for_metrics(conn)],
-            columns=[
-                "id", "name", "sport_type", "start_date", "distance_m",
-                "moving_time_s", "average_heartrate", "is_extra", "matched_planned_run_id",
-            ],
-        )
+        by_month: dict[tuple[int, int], list] = defaultdict(list)
+        for row in activity_repo.list_runs_for_metrics(conn):
+            run_date = timeutil.activity_local_date(row)
+            if run_date is not None:
+                by_month[(run_date.year, run_date.month)].append(row)
 
-        planned_df = pd.DataFrame(
-            [dict(r) for r in plan_repo.list_all(conn)],
-            columns=[
-                "id", "planned_date", "status", "optional", "mandatory",
-            ],
-        )
+        current_runs, current_km, current_avg_hr = _month_stats(by_month.get(month, []))
+        prev_runs, prev_km, prev_avg_hr = _month_stats(by_month.get(prev_month, []))
 
-        if activities_df.empty:
-            current_runs = 0
-            prev_runs = 0
-            current_km = 0.0
-            prev_km = 0.0
-            current_avg_hr = None
-            prev_avg_hr = None
-        else:
-            activities_df["start_dt"] = pd.to_datetime(activities_df["start_date"], utc=True, errors="coerce")
-            activities_df["start_dt"] = activities_df["start_dt"].dt.tz_convert(None)
-
-            current_mask = (activities_df["start_dt"] >= month_start) & (activities_df["start_dt"] < next_month_start)
-            prev_mask = (activities_df["start_dt"] >= prev_month_start) & (activities_df["start_dt"] < prev_month_end_exclusive)
-
-            current_df = activities_df[current_mask].copy()
-            prev_df = activities_df[prev_mask].copy()
-
-            current_runs = int(len(current_df))
-            prev_runs = int(len(prev_df))
-
-            current_km = round(float(current_df["distance_m"].fillna(0).sum()) / 1000.0, 2)
-            prev_km = round(float(prev_df["distance_m"].fillna(0).sum()) / 1000.0, 2)
-
-            current_hr_series = current_df["average_heartrate"].dropna()
-            prev_hr_series = prev_df["average_heartrate"].dropna()
-
-            current_avg_hr = round(float(current_hr_series.mean()), 1) if not current_hr_series.empty else None
-            prev_avg_hr = round(float(prev_hr_series.mean()), 1) if not prev_hr_series.empty else None
-
-        current_week_key = _iso_week_key(now)
-
-        if planned_df.empty:
-            adherence_pct_current_week = 0
-            current_week_completed = 0
-            current_week_relevant = 0
-            current_week_awaiting = 0
-        else:
-            planned_df["planned_dt"] = pd.to_datetime(planned_df["planned_date"], errors="coerce")
-            planned_df["week_key"] = planned_df["planned_dt"].apply(
-                lambda x: _iso_week_key(x.to_pydatetime()) if pd.notnull(x) else ""
-            )
-
-            week_df = planned_df[planned_df["week_key"] == current_week_key].copy()
-
-            if "optional" in week_df.columns:
-                mandatory_df = week_df[week_df["optional"].fillna(0) != 1].copy()
-            elif "mandatory" in week_df.columns:
-                mandatory_df = week_df[week_df["mandatory"].fillna(1) == 1].copy()
-            else:
-                mandatory_df = week_df.copy()
-
-            def counts_now(row) -> bool:
-                planned_dt = row["planned_dt"]
-                if pd.isnull(planned_dt):
-                    return False
-                if row["status"] != STATUS_PLANLAGT:
-                    return True
-                return not _is_awaiting(planned_dt.to_pydatetime(), tolerance_days=1)
-
-            mandatory_df["counts_now"] = mandatory_df.apply(counts_now, axis=1)
-
-            relevant_df = mandatory_df[mandatory_df["counts_now"] == True].copy()
-            current_week_completed = int((relevant_df["status"] == STATUS_GENNEMFORT).sum())
-            current_week_relevant = int(len(relevant_df))
-            current_week_awaiting = int(
-                ((mandatory_df["status"] == STATUS_PLANLAGT) & (mandatory_df["counts_now"] == False)).sum()
-            )
-
-            adherence_pct_current_week = (
-                int(round((current_week_completed / current_week_relevant) * 100))
-                if current_week_relevant > 0
-                else 0
-            )
+        week = _current_week_summary(conn, today)
+        adherence = weekly.adherence_pct(week)
 
         return {
             "runs_this_month": current_runs,
@@ -167,15 +79,16 @@ def get_summary():
                 if current_avg_hr is not None and prev_avg_hr is not None
                 else None
             ),
-            "adherence_pct_current_week": adherence_pct_current_week,
-            "current_week_completed": current_week_completed,
-            "current_week_relevant": current_week_relevant,
-            "current_week_awaiting": current_week_awaiting,
+            "adherence_pct_current_week": adherence,
+            "current_week_completed": week["completed"],
+            "current_week_shortened": week["shortened"],
+            "current_week_relevant": week["relevant_runs"],
+            "current_week_awaiting": week["awaiting"],
             # backward compatibility
             "total_runs": current_runs,
             "total_km": current_km,
             "avg_hr": current_avg_hr,
-            "adherence_pct": adherence_pct_current_week,
+            "adherence_pct": adherence,
         }
     finally:
         conn.close()
@@ -184,24 +97,16 @@ def get_summary():
 def get_monthly_volume():
     conn = get_conn()
     try:
-        df = pd.DataFrame(
-            [dict(r) for r in activity_repo.list_runs_for_metrics(conn)],
-            columns=["start_date", "distance_m"],
-        )
+        meters_by_month: dict[str, float] = defaultdict(float)
+        for row in activity_repo.list_runs_for_metrics(conn):
+            run_date = timeutil.activity_local_date(row)
+            if run_date is not None:
+                meters_by_month[run_date.strftime("%Y-%m")] += float(row["distance_m"] or 0)
 
-        if df.empty:
-            return []
-
-        df["start_dt"] = pd.to_datetime(df["start_date"], utc=True, errors="coerce")
-        df["start_dt"] = df["start_dt"].dt.tz_convert(None)
-        df["month"] = df["start_dt"].dt.strftime("%Y-%m")
-        result = (
-            df.groupby("month", as_index=False)["distance_m"]
-            .sum()
-            .assign(km=lambda x: (x["distance_m"] / 1000.0).round(2))
-        )
-
-        return result[["month", "km"]].to_dict(orient="records")
+        return [
+            {"month": month, "km": round(meters / 1000.0, 2)}
+            for month, meters in sorted(meters_by_month.items())
+        ]
     finally:
         conn.close()
 
@@ -209,15 +114,13 @@ def get_monthly_volume():
 def get_activities(limit: int = 100):
     conn = get_conn()
     try:
-        rows = activity_repo.list_recent_runs(conn, limit)
-
         data = []
-        for row in rows:
-            start_dt = _parse_dt(row["start_date"])
+        for row in activity_repo.list_recent_runs(conn, limit):
+            run_date = timeutil.activity_local_date(row)
             data.append(
                 {
                     "id": row["id"],
-                    "date": start_dt.strftime("%Y-%m-%d") if start_dt else None,
+                    "date": run_date.isoformat() if run_date else None,
                     "name": row["name"],
                     "distance_km": round(float(row["distance_m"] or 0) / 1000.0, 2),
                     "duration_min": round(float(row["moving_time_s"] or 0) / 60.0, 1),

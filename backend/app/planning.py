@@ -2,12 +2,15 @@ from app.db import get_conn
 from app.errors import NotFoundError
 from app.repositories import activities as activity_repo
 from app.repositories import planned_runs as plan_repo
-from app.matching import (
+from app.domain.runs import actual_value as compute_actual_value
+from app.domain.runs import is_mandatory
+from app.domain.statuses import (
+    STATUS_FLYTTET,
     STATUS_PLANLAGT,
     STATUS_SPRUNGET_OVER,
-    STATUS_FLYTTET,
-    evaluate_planned_runs,
+    compute_status,
 )
+from app.matching import evaluate_planned_runs
 
 
 def rebuild_activity_links():
@@ -54,8 +57,8 @@ def _serialize_planned_run(row):
         "session_type": row["session_type"],
         "target_type": row["target_type"] or "time",
         "target_value": row["target_value"],
-        "mandatory": bool(row["mandatory"]),
-        "optional": not bool(row["mandatory"]),
+        "mandatory": is_mandatory(row),
+        "optional": not is_mandatory(row),
         "notes": row["notes"],
         "status": row["status"] or STATUS_PLANLAGT,
         "manual_override": bool(row["manual_override"]),
@@ -162,21 +165,10 @@ def match_activity_to_planned_run(planned_run_id: int, activity_id: int):
         if activity is None:
             raise NotFoundError(f"Activity {activity_id} not found")
 
-        target_type = planned["target_type"] or "time"
-        actual_value = (
-            float(activity["distance_m"] or 0.0) / 1000.0
-            if target_type == "distance"
-            else float(activity["moving_time_s"] or 0.0) / 60.0
+        actual_value = compute_actual_value(
+            planned["target_type"], activity["distance_m"], activity["moving_time_s"]
         )
-
-        target_value = planned["target_value"] or 0.0
-        ratio = actual_value / float(target_value) if target_value else 0.0
-        if ratio >= 0.9:
-            status = "gennemført"
-        elif ratio >= 0.5:
-            status = "forkortet"
-        else:
-            status = "sprunget over"
+        status = compute_status(planned["target_value"], actual_value)
 
         activity_repo.clear_links_for_plan(conn, planned_run_id)
         plan_repo.clear_matched_activity_id(conn, activity_id)

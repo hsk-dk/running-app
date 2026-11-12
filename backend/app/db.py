@@ -1,3 +1,4 @@
+import json
 import re
 import sqlite3
 from app.config import settings
@@ -9,6 +10,7 @@ CREATE TABLE IF NOT EXISTS activities (
     name TEXT,
     sport_type TEXT,
     start_date TEXT,
+    start_date_local TEXT,
     timezone_name TEXT,
     distance_m REAL,
     moving_time_s INTEGER,
@@ -25,21 +27,6 @@ CREATE TABLE IF NOT EXISTS activities (
     matched_planned_run_id INTEGER,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS derived_metrics (
-    activity_id INTEGER PRIMARY KEY,
-    start_date TEXT NOT NULL,
-    year INTEGER NOT NULL,
-    month_key TEXT NOT NULL,
-    iso_week_key TEXT NOT NULL,
-    distance_km REAL,
-    moving_minutes REAL,
-    pace_sec_per_km REAL,
-    average_heartrate REAL,
-    hr_efficiency REAL,
-    easy_aerobic_flag INTEGER,
-    FOREIGN KEY (activity_id) REFERENCES activities(id)
 );
 
 CREATE TABLE IF NOT EXISTS planned_runs (
@@ -135,6 +122,13 @@ def column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
     return any(row["name"] == column for row in rows)
 
 
+def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    return (
+        conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)).fetchone()
+        is not None
+    )
+
+
 def _add_column_if_missing(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
     # Identifiers and definitions come only from the constant lists in this file.
     if not (SAFE_IDENTIFIER_RE.match(table) and SAFE_IDENTIFIER_RE.match(column)):
@@ -181,13 +175,50 @@ def _migration_3_clear_dangling_activity_refs(conn: sqlite3.Connection) -> None:
           AND matched_activity_id NOT IN (SELECT id FROM activities)
         """
     )
-    conn.execute("DELETE FROM derived_metrics WHERE activity_id NOT IN (SELECT id FROM activities)")
+    if _table_exists(conn, "derived_metrics"):
+        conn.execute("DELETE FROM derived_metrics WHERE activity_id NOT IN (SELECT id FROM activities)")
+
+
+def _migration_4_add_start_date_local(conn: sqlite3.Connection) -> None:
+    """Strava's local start time, used for all calendar logic. Backfilled from the stored raw JSON."""
+    _add_column_if_missing(conn, "activities", "start_date_local", "TEXT")
+    rows = conn.execute(
+        "SELECT id, raw_json FROM activities WHERE start_date_local IS NULL"
+    ).fetchall()
+    updates = []
+    for row in rows:
+        try:
+            local = json.loads(row["raw_json"]).get("start_date_local")
+        except (TypeError, ValueError, AttributeError):
+            local = None
+        if local:
+            updates.append((local, row["id"]))
+    conn.executemany("UPDATE activities SET start_date_local = ? WHERE id = ?", updates)
+
+
+def _migration_5_sync_mandatory_from_optional(conn: sqlite3.Connection) -> None:
+    """`mandatory` becomes the single source of truth.
+
+    Older code edited only `optional`, so where both are set `optional` is the newer value.
+    """
+    conn.execute(
+        "UPDATE planned_runs SET mandatory = CASE WHEN optional = 1 THEN 0 ELSE 1 END "
+        "WHERE optional IS NOT NULL"
+    )
+
+
+def _migration_6_drop_derived_metrics(conn: sqlite3.Connection) -> None:
+    """Never populated or read."""
+    conn.execute("DROP TABLE IF EXISTS derived_metrics")
 
 
 MIGRATIONS = [
     _migration_1_add_missing_columns,
     _migration_2_add_indexes,
     _migration_3_clear_dangling_activity_refs,
+    _migration_4_add_start_date_local,
+    _migration_5_sync_mandatory_from_optional,
+    _migration_6_drop_derived_metrics,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

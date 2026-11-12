@@ -16,11 +16,6 @@ def ingest(pages: int = Query(3, ge=1, le=20)):
     return admin_service.run_ingest(pages=pages)
 
 
-@router.post("/rebuild-metrics")
-def rebuild_metrics():
-    return admin_service.run_rebuild_metrics()
-
-
 @router.post("/recalculate-plan")
 def recalculate_plan():
     return admin_service.recalculate_plan()

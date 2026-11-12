@@ -158,7 +158,7 @@ export default function OverviewPage({
   weeklyConsistency: any[];
   plannedRuns: any[];
   loading: boolean;
-  onRunAction: (action: "ingest" | "metrics" | "plan") => void;
+  onRunAction: (action: "ingest" | "plan") => void;
   error: string | null;
 }) {
   const currentWeekKey = getCurrentIsoWeekKey();

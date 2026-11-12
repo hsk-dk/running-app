@@ -315,7 +315,7 @@ export default function PlanPage({
   }) => Promise<void>;
     onPlanningChanged: () => Promise<void>;
   loading: boolean;
-  onRunAction: (action: "ingest" | "metrics" | "plan") => void;
+  onRunAction: (action: "ingest" | "plan") => void;
   error: string | null;
 }) {
   const [form, setForm] = useState({

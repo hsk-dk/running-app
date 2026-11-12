@@ -167,12 +167,11 @@ export default function App() {
     loadAll();
   }, []);
 
-  async function handleAction(action: "ingest" | "metrics" | "plan") {
+  async function handleAction(action: "ingest" | "plan") {
     setLoading(true);
     setError(null);
     try {
       if (action === "ingest") await api.runIngest();
-      if (action === "metrics") await api.runMetrics();
       if (action === "plan") await api.evaluatePlanning();
       await loadAll();
     } catch (e: any) {

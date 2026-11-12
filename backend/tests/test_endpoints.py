@@ -98,3 +98,92 @@ def test_ai_context_queries(db):
     runs = ai._get_recent_activities(weeks=2)
     assert [r["distance_km"] for r in runs] == [8.0]
     assert len(ai._get_current_planned_runs()) == 1
+
+
+# ---- sprint 5: local dates, partial credit, single mandatory flag ----------------
+
+def _set_today(monkeypatch, day):
+    from app.domain import timeutil
+
+    monkeypatch.setattr(timeutil, "today", lambda: day)
+
+
+def _add_local(db, id, utc, local, distance_m=10000):
+    import json
+
+    conn = db.get_conn()
+    try:
+        conn.execute(
+            """INSERT INTO activities (id, name, sport_type, start_date, start_date_local,
+                                       distance_m, moving_time_s, raw_json)
+               VALUES (?, 'Run', 'Run', ?, ?, ?, 3000, ?)""",
+            (id, utc, local, distance_m, json.dumps({})),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_month_is_decided_by_local_date(client, db, monkeypatch):
+    _set_today(monkeypatch, date(2020, 3, 15))
+    # 23:30 UTC on 29 Feb is 00:30 on 1 March locally: it belongs to March
+    _add_local(db, 1, "2020-02-29T23:30:00Z", "2020-03-01T00:30:00Z", distance_m=10000)
+    _add_local(db, 2, "2020-02-20T08:00:00Z", "2020-02-20T09:00:00Z", distance_m=5000)
+
+    summary = client.get("/api/metrics/summary").json()
+    assert (summary["runs_this_month"], summary["km_this_month"]) == (1, 10.0)
+    assert (summary["runs_prev_month"], summary["km_prev_month"]) == (1, 5.0)
+    assert client.get("/api/metrics/monthly-volume").json() == [
+        {"month": "2020-02", "km": 5.0},
+        {"month": "2020-03", "km": 10.0},
+    ]
+    assert client.get("/api/activities").json()[0]["date"] == "2020-03-01"
+
+
+def test_previous_month_wraps_over_new_year(client, db, monkeypatch):
+    _set_today(monkeypatch, date(2020, 1, 15))
+    _add_local(db, 1, "2019-12-20T08:00:00Z", "2019-12-20T09:00:00Z")
+
+    assert client.get("/api/metrics/summary").json()["runs_prev_month"] == 1
+
+
+def test_adherence_gives_partial_credit_and_matches_consistency(client, db, monkeypatch):
+    _set_today(monkeypatch, date(2020, 3, 12))  # Thursday, ISO week 2020-W11
+    add_plan(db, "2020-03-09", status="gennemført")
+    add_plan(db, "2020-03-10", status="forkortet")
+    add_plan(db, "2020-03-12", status="planlagt")  # still open
+    add_plan(db, "2020-03-11", status="sprunget over", mandatory=0)  # optional: ignored
+
+    summary = client.get("/api/metrics/summary").json()
+    assert summary["adherence_pct_current_week"] == 75
+    assert (summary["current_week_completed"], summary["current_week_shortened"]) == (1, 1)
+    assert (summary["current_week_relevant"], summary["current_week_awaiting"]) == (2, 1)
+
+    week = next(w for w in client.get("/api/planning/weekly-consistency").json() if w["week"] == "2020-W11")
+    assert (week["completed"], week["shortened"], week["relevant_runs"]) == (1, 1, 2)
+    assert week["score"] == "Gul"
+
+
+def test_editing_optional_updates_mandatory(client, db):
+    plan = add_plan(db, "2100-01-05", mandatory=1)
+    client.put(
+        f"/api/planning/{plan}",
+        json={
+            "planned_date": "2100-01-05", "session_type": "easy",
+            "target_type": "time", "target_value": 30, "optional": True,
+        },
+    )
+    row = client.get("/api/planning").json()[0]
+    assert (row["mandatory"], row["optional"]) == (False, True)
+    # optional runs do not count towards consistency
+    assert client.get("/api/planning/weekly-consistency").json() == []
+
+    client.put(
+        f"/api/planning/{plan}",
+        json={
+            "planned_date": "2100-01-05", "session_type": "easy",
+            "target_type": "time", "target_value": 30, "optional": False,
+        },
+    )
+    assert client.get("/api/planning").json()[0]["mandatory"] is True
+    assert len(client.get("/api/planning/weekly-consistency").json()) == 1

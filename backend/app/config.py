@@ -6,6 +6,7 @@ load_dotenv()
 
 class Settings:
     APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost")
+    APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Europe/Copenhagen")
     DATABASE_PATH = os.getenv("DATABASE_PATH", "/data/running.db")
     CORS_ORIGINS = [x.strip() for x in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")]
 

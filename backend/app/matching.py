@@ -1,51 +1,24 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import logging
 import sqlite3
-
-import pandas as pd
+from datetime import date
 
 from app.db import get_conn
+from app.domain import timeutil, weekly
+from app.domain.runs import actual_value as compute_actual_value
+from app.domain.runs import is_mandatory
+from app.domain.statuses import (
+    STATUS_FORKORTET,
+    STATUS_GENNEMFORT,
+    STATUS_PLANLAGT,
+    STATUS_SPRUNGET_OVER,
+    compute_status,
+)
 from app.repositories import activities as activity_repo
 from app.repositories import planned_runs as plan_repo
 
-
-STATUS_PLANLAGT = "planlagt"
-STATUS_GENNEMFORT = "gennemført"
-STATUS_FORKORTET = "forkortet"
-STATUS_SPRUNGET_OVER = "sprunget over"
-STATUS_FLYTTET = "flyttet"
-STATUS_EKSTRA = "ekstra"
-
-
-def _parse_dt(value: str) -> datetime:
-    return pd.to_datetime(value, utc=True).tz_convert(None).to_pydatetime()
-
-
-def _planned_dt(value: str) -> datetime:
-    return pd.to_datetime(value).to_pydatetime()
-
-
-def _compute_actual_value(planned_row: sqlite3.Row, activity_row: sqlite3.Row) -> float:
-    target_type = planned_row["target_type"] or "time"
-    if target_type == "distance":
-        return float(activity_row["distance_m"] or 0.0) / 1000.0
-    return float(activity_row["moving_time_s"] or 0.0) / 60.0
-
-
-def _compute_ratio(target_value: float | None, actual_value: float) -> float:
-    if not target_value or target_value <= 0:
-        return 0.0
-    return actual_value / float(target_value)
-
-
-def _compute_status(target_value: float | None, actual_value: float) -> str:
-    ratio = _compute_ratio(target_value, actual_value)
-    if ratio >= 0.9:
-        return STATUS_GENNEMFORT
-    if ratio >= 0.5:
-        return STATUS_FORKORTET
-    return STATUS_SPRUNGET_OVER
+logger = logging.getLogger(__name__)
 
 
 def _reset_auto_matches(conn: sqlite3.Connection) -> None:
@@ -60,31 +33,26 @@ def _reset_auto_matches(conn: sqlite3.Connection) -> None:
 def _candidate_score(
     planned_row: sqlite3.Row,
     activity_row: sqlite3.Row,
-    planned_date: datetime,
-    activity_date: datetime,
+    planned_date: date,
+    activity_date: date,
 ) -> tuple[tuple[float, float, int, str, int], float, str]:
-    day_diff = abs((activity_date.date() - planned_date.date()).days)
+    day_diff = abs((activity_date - planned_date).days)
 
     target_value = planned_row["target_value"]
-    actual_value = _compute_actual_value(planned_row, activity_row)
+    actual_value = compute_actual_value(
+        planned_row["target_type"], activity_row["distance_m"], activity_row["moving_time_s"]
+    )
 
     if target_value is not None and float(target_value) > 0:
         value_diff = abs(actual_value - float(target_value))
     else:
         value_diff = 9999.0
 
-    session_type = (planned_row["session_type"] or "").lower()
     long_penalty = 0
     long_reason = ""
-
-    if session_type == "long":
-        if planned_row["target_type"] == "distance":
-            activity_amount = float(activity_row["distance_m"] or 0.0) / 1000.0
-        else:
-            activity_amount = float(activity_row["moving_time_s"] or 0.0) / 60.0
-
+    if (planned_row["session_type"] or "").lower() == "long":
         target_amount = float(target_value or 0.0)
-        if target_amount > 0 and activity_amount < (target_amount * 0.8):
+        if target_amount > 0 and actual_value < (target_amount * 0.8):
             long_penalty = 50
             long_reason = " + straf for kort langtur"
 
@@ -99,27 +67,34 @@ def _candidate_score(
     flat_score = float(day_diff * 1000) + float(value_diff * 10) + float(long_penalty)
 
     if target_value is not None and float(target_value) > 0:
+        unit = "km" if planned_row["target_type"] == "distance" else "min"
         reason = (
             f"Valgt pga. datoafstand {day_diff} dag(e) og målafvigelse "
-            f"{round(value_diff, 2)} "
-            f"{'km' if (planned_row['target_type'] == 'distance') else 'min'}"
-            f"{long_reason}"
-         )
+            f"{round(value_diff, 2)} {unit}{long_reason}"
+        )
     else:
         reason = f"datoafstand={day_diff} dag(e), intet måltal{long_reason}"
 
     return score_tuple, flat_score, reason
 
+
 def evaluate_planned_runs(tolerance_days: int = 1):
+    """Match plans to activities by local calendar date (within tolerance_days) and target."""
     conn = get_conn()
     try:
         _reset_auto_matches(conn)
 
         planned_rows = plan_repo.list_all(conn)
         activity_rows = activity_repo.list_runs(conn)
+        today = timeutil.today()
+
+        dated_activities = []
+        for activity in activity_rows:
+            activity_date = timeutil.activity_local_date(activity)
+            if activity_date is not None:
+                dated_activities.append((activity, activity_date))
 
         used_activity_ids: set[int] = set()
-
         for p in planned_rows:
             if p["manual_override"] and p["matched_activity_id"]:
                 used_activity_ids.add(int(p["matched_activity_id"]))
@@ -128,52 +103,46 @@ def evaluate_planned_runs(tolerance_days: int = 1):
             if planned["manual_override"]:
                 continue
 
-            planned_date = _planned_dt(planned["planned_date"])
-            window_start = planned_date - timedelta(days=tolerance_days)
-            window_end = planned_date + timedelta(days=tolerance_days)
+            try:
+                planned_date = timeutil.parse_planned_date(planned["planned_date"])
+            except ValueError:
+                logger.warning("Plan %s has an invalid date %r; skipped", planned["id"], planned["planned_date"])
+                continue
 
             candidates = []
-            for activity in activity_rows:
-                activity_id = int(activity["id"])
-                if activity_id in used_activity_ids:
+            for activity, activity_date in dated_activities:
+                if int(activity["id"]) in used_activity_ids:
                     continue
-
-                activity_date = _parse_dt(activity["start_date"])
-                if window_start <= activity_date <= window_end:
+                if abs((activity_date - planned_date).days) <= tolerance_days:
                     score_tuple, flat_score, reason = _candidate_score(
                         planned, activity, planned_date, activity_date
                     )
                     candidates.append((activity, score_tuple, flat_score, reason))
 
             if not candidates:
-                now = datetime.now()
-                window_deadline = planned_date + timedelta(days=tolerance_days)
-
                 status = (
-                    STATUS_SPRUNGET_OVER
-                    if now > window_deadline
-                    else STATUS_PLANLAGT
+                    STATUS_PLANLAGT
+                    if weekly.window_open(planned_date, today, tolerance_days)
+                    else STATUS_SPRUNGET_OVER
                 )
-
                 plan_repo.set_status(conn, planned["id"], status)
                 continue
 
             candidates.sort(key=lambda item: item[1])
             best, _, best_flat_score, best_reason = candidates[0]
-
             used_activity_ids.add(int(best["id"]))
 
-            actual_value = _compute_actual_value(planned, best)
-            status = _compute_status(planned["target_value"], actual_value)
-
+            actual_value = compute_actual_value(
+                planned["target_type"], best["distance_m"], best["moving_time_s"]
+            )
             plan_repo.set_auto_match(
                 conn,
                 planned["id"],
                 activity_id=best["id"],
-                activity_date=str(best["start_date"])[:10],
+                activity_date=timeutil.activity_local_date(best).isoformat(),
                 activity_name=best["name"],
                 actual_value=actual_value,
-                status=status,
+                status=compute_status(planned["target_value"], actual_value),
                 score=best_flat_score,
                 reason=best_reason,
             )
@@ -190,59 +159,32 @@ def evaluate_planned_runs(tolerance_days: int = 1):
 def get_weekly_consistency(tolerance_days: int = 1):
     conn = get_conn()
     try:
-        df = pd.DataFrame(
-            [dict(r) for r in plan_repo.list_all(conn)],
-            columns=["planned_date", "mandatory", "status"],
-        )
-
-        if df.empty:
-            return []
-
-        now = datetime.now()
-        df["planned_date"] = pd.to_datetime(df["planned_date"])
-        df["window_end"] = df["planned_date"] + pd.to_timedelta(tolerance_days, unit="D")
-        df["counts_now"] = df.apply(
-            lambda row: row["status"] != STATUS_PLANLAGT or row["window_end"] < pd.Timestamp(now),
-            axis=1,
-        )
-
-        iso = df["planned_date"].dt.isocalendar()
-        df["week"] = iso["year"].astype(str) + "-W" + iso["week"].astype(str).str.zfill(2)
-
-        mandatory = df[df["mandatory"] == 1].copy()
-        rows = []
-
-        for week, g in mandatory.groupby("week"):
-            relevant = g[g["counts_now"] == True]
-
-            if relevant.empty:
-                score = "Grøn"
-                completed = 0
-                shortened = 0
-                total = 0
-            else:
-                completed = int((relevant["status"] == STATUS_GENNEMFORT).sum())
-                shortened = int((relevant["status"] == STATUS_FORKORTET).sum())
-                total = int(len(relevant))
-
-                if total > 0 and completed == total:
-                    score = "Grøn"
-                elif completed + shortened > 0:
-                    score = "Gul"
-                else:
-                    score = "Rød"
-
-            rows.append(
-                {
-                    "week": week,
-                    "mandatory_runs": int(len(g)),
-                    "relevant_runs": total,
-                    "completed": completed,
-                    "shortened": shortened,
-                    "score": score,
-                }
+        weeks: dict[str, list[tuple[date, str]]] = {}
+        for row in plan_repo.list_all(conn):
+            if not is_mandatory(row):
+                continue
+            try:
+                planned_date = timeutil.parse_planned_date(row["planned_date"])
+            except ValueError:
+                continue
+            weeks.setdefault(weekly.iso_week_key(planned_date), []).append(
+                (planned_date, row["status"] or STATUS_PLANLAGT)
             )
 
-        return rows
+        today = timeutil.today()
+        result = []
+        for week in sorted(weeks):
+            summary = weekly.summarize(weeks[week], today, tolerance_days)
+            result.append(
+                {
+                    "week": week,
+                    "mandatory_runs": summary["mandatory_runs"],
+                    "relevant_runs": summary["relevant_runs"],
+                    "completed": summary["completed"],
+                    "shortened": summary["shortened"],
+                    "score": weekly.score(summary),
+                }
+            )
+        return result
     finally:
         conn.close()

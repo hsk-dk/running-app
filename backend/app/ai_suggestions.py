@@ -8,6 +8,7 @@ import requests
 
 from app.config import settings
 from app.db import get_conn
+from app.domain import timeutil
 from app.repositories import activities as activity_repo
 from app.repositories import planned_runs as plan_repo
 
@@ -17,7 +18,7 @@ _OLLAMA_TIMEOUT = 120
 
 
 def _get_recent_activities(weeks: int = 6) -> list[dict]:
-    cutoff = datetime.now() - timedelta(weeks=weeks)
+    cutoff = timeutil.local_now().replace(tzinfo=None) - timedelta(weeks=weeks)
     cutoff_str = cutoff.strftime("%Y-%m-%dT00:00:00")
 
     conn = get_conn()
@@ -83,7 +84,7 @@ def _get_weekly_summary(activities: list[dict]) -> list[dict]:
 
 
 def _get_current_planned_runs() -> list[dict]:
-    today = date.today()
+    today = timeutil.today()
     three_weeks = today + timedelta(weeks=3)
 
     conn = get_conn()
@@ -107,7 +108,7 @@ def _get_current_planned_runs() -> list[dict]:
 
 
 def _next_monday() -> date:
-    today = date.today()
+    today = timeutil.today()
     days_ahead = 7 - today.weekday()
     return today + timedelta(days=days_ahead)
 
