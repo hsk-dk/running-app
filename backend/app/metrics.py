@@ -6,6 +6,8 @@ import sqlite3
 import pandas as pd
 
 from app.db import get_conn
+from app.repositories import activities as activity_repo
+from app.repositories import planned_runs as plan_repo
 
 
 STATUS_PLANLAGT = "planlagt"
@@ -62,37 +64,19 @@ def get_summary():
         now = datetime.now()
         month_start, next_month_start, prev_month_start, prev_month_end_exclusive = _month_bounds(now)
 
-        activities_df = pd.read_sql_query(
-            """
-            SELECT
-                id,
-                name,
-                sport_type,
-                start_date,
-                distance_m,
-                moving_time_s,
-                average_heartrate,
-                is_extra,
-                matched_planned_run_id
-            FROM activities
-            WHERE sport_type = 'Run'
-            ORDER BY start_date
-            """,
-            conn,
+        activities_df = pd.DataFrame(
+            [dict(r) for r in activity_repo.list_runs_for_metrics(conn)],
+            columns=[
+                "id", "name", "sport_type", "start_date", "distance_m",
+                "moving_time_s", "average_heartrate", "is_extra", "matched_planned_run_id",
+            ],
         )
 
-        planned_df = pd.read_sql_query(
-            """
-            SELECT
-                id,
-                planned_date,
-                status,
-                optional,
-                mandatory
-            FROM planned_runs
-            ORDER BY planned_date
-            """,
-            conn,
+        planned_df = pd.DataFrame(
+            [dict(r) for r in plan_repo.list_all(conn)],
+            columns=[
+                "id", "planned_date", "status", "optional", "mandatory",
+            ],
         )
 
         if activities_df.empty:
@@ -200,16 +184,9 @@ def get_summary():
 def get_monthly_volume():
     conn = get_conn()
     try:
-        df = pd.read_sql_query(
-            """
-            SELECT
-                start_date,
-                distance_m
-            FROM activities
-            WHERE sport_type = 'Run'
-            ORDER BY start_date
-            """,
-            conn,
+        df = pd.DataFrame(
+            [dict(r) for r in activity_repo.list_runs_for_metrics(conn)],
+            columns=["start_date", "distance_m"],
         )
 
         if df.empty:
@@ -232,24 +209,7 @@ def get_monthly_volume():
 def get_activities(limit: int = 100):
     conn = get_conn()
     try:
-        rows = conn.execute(
-            """
-            SELECT
-                id,
-                name,
-                start_date,
-                distance_m,
-                moving_time_s,
-                average_heartrate,
-                is_extra,
-                matched_planned_run_id
-            FROM activities
-            WHERE sport_type = 'Run'
-            ORDER BY start_date DESC, id DESC
-            LIMIT ?
-            """,
-            (limit,),
-        ).fetchall()
+        rows = activity_repo.list_recent_runs(conn, limit)
 
         data = []
         for row in rows:

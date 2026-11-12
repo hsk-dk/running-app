@@ -6,6 +6,8 @@ import sqlite3
 import pandas as pd
 
 from app.db import get_conn
+from app.repositories import activities as activity_repo
+from app.repositories import planned_runs as plan_repo
 
 
 STATUS_PLANLAGT = "planlagt"
@@ -47,41 +49,12 @@ def _compute_status(target_value: float | None, actual_value: float) -> str:
 
 
 def _reset_auto_matches(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        """
-        UPDATE planned_runs
-        SET
-            matched_activity_id = NULL,
-            matched_activity_date = NULL,
-            matched_activity_name = NULL,
-            actual_value = NULL,
-            match_score = NULL,
-            match_reason = NULL,
-            evaluated_at = CURRENT_TIMESTAMP,
-            status = CASE
-                WHEN status IN (?, ?, ?, ?)
-                THEN ?
-                ELSE status
-            END
-        WHERE COALESCE(manual_override, 0) = 0
-        """,
-        (
-            STATUS_GENNEMFORT,
-            STATUS_FORKORTET,
-            STATUS_SPRUNGET_OVER,
-            STATUS_PLANLAGT,
-            STATUS_PLANLAGT,
-        ),
+    plan_repo.reset_auto_matches(
+        conn,
+        (STATUS_GENNEMFORT, STATUS_FORKORTET, STATUS_SPRUNGET_OVER, STATUS_PLANLAGT),
+        STATUS_PLANLAGT,
     )
-
-    conn.execute(
-        """
-        UPDATE activities
-        SET
-            matched_planned_run_id = NULL,
-            is_extra = 0
-        """
-    )
+    activity_repo.reset_links(conn)
 
 
 def _candidate_score(
@@ -142,22 +115,8 @@ def evaluate_planned_runs(tolerance_days: int = 1):
     try:
         _reset_auto_matches(conn)
 
-        planned_rows = conn.execute(
-            """
-            SELECT *
-            FROM planned_runs
-            ORDER BY planned_date, id
-            """
-        ).fetchall()
-
-        activity_rows = conn.execute(
-            """
-            SELECT *
-            FROM activities
-            WHERE sport_type = 'Run'
-            ORDER BY start_date, id
-            """
-        ).fetchall()
+        planned_rows = plan_repo.list_all(conn)
+        activity_rows = activity_repo.list_runs(conn)
 
         used_activity_ids: set[int] = set()
 
@@ -196,16 +155,7 @@ def evaluate_planned_runs(tolerance_days: int = 1):
                     else STATUS_PLANLAGT
                 )
 
-                conn.execute(
-                    """
-                    UPDATE planned_runs
-                    SET
-                        status = ?,
-                        evaluated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                    """,
-                    (status, planned["id"]),
-                )
+                plan_repo.set_status(conn, planned["id"], status)
                 continue
 
             candidates.sort(key=lambda item: item[1])
@@ -216,51 +166,20 @@ def evaluate_planned_runs(tolerance_days: int = 1):
             actual_value = _compute_actual_value(planned, best)
             status = _compute_status(planned["target_value"], actual_value)
 
-            conn.execute(
-                 """
-                 UPDATE planned_runs
-                 SET
-                     matched_activity_id = ?,
-                     matched_activity_date = ?,
-                     matched_activity_name = ?,
-                     actual_value = ?,
-                     status = ?,
-                     match_score = ?,
-                     match_reason = ?,
-                     evaluated_at = CURRENT_TIMESTAMP
-                 WHERE id = ?
-                 """,
-                 (
-                     best["id"],
-                     str(best["start_date"])[:10],
-                     best["name"],
-                     actual_value,
-                     status,
-                     best_flat_score,
-                     best_reason,
-                     planned["id"],
-                 ),
-              )
-
-            conn.execute(
-                """
-                UPDATE activities
-                SET matched_planned_run_id = ?
-                WHERE id = ?
-                """,
-                (planned["id"], best["id"]),
+            plan_repo.set_auto_match(
+                conn,
+                planned["id"],
+                activity_id=best["id"],
+                activity_date=str(best["start_date"])[:10],
+                activity_name=best["name"],
+                actual_value=actual_value,
+                status=status,
+                score=best_flat_score,
+                reason=best_reason,
             )
+            activity_repo.set_matched_plan(conn, best["id"], planned["id"])
 
-        conn.execute(
-            """
-            UPDATE activities
-            SET is_extra = CASE
-                WHEN matched_planned_run_id IS NULL THEN 1
-                ELSE 0
-            END
-            WHERE sport_type = 'Run'
-            """
-        )
+        activity_repo.refresh_extra_flags(conn)
 
         conn.commit()
         return {"updated": len(planned_rows)}
@@ -271,13 +190,9 @@ def evaluate_planned_runs(tolerance_days: int = 1):
 def get_weekly_consistency(tolerance_days: int = 1):
     conn = get_conn()
     try:
-        df = pd.read_sql_query(
-            """
-            SELECT planned_date, mandatory, status
-            FROM planned_runs
-            ORDER BY planned_date
-            """,
-            conn,
+        df = pd.DataFrame(
+            [dict(r) for r in plan_repo.list_all(conn)],
+            columns=["planned_date", "mandatory", "status"],
         )
 
         if df.empty:

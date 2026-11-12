@@ -8,6 +8,8 @@ import requests
 
 from app.config import settings
 from app.db import get_conn
+from app.repositories import activities as activity_repo
+from app.repositories import planned_runs as plan_repo
 
 logger = logging.getLogger(__name__)
 
@@ -20,22 +22,7 @@ def _get_recent_activities(weeks: int = 6) -> list[dict]:
 
     conn = get_conn()
     try:
-        rows = conn.execute(
-            """
-            SELECT
-                start_date,
-                name,
-                distance_m,
-                moving_time_s,
-                average_heartrate,
-                total_elevation_gain
-            FROM activities
-            WHERE sport_type = 'Run'
-              AND start_date >= ?
-            ORDER BY start_date
-            """,
-            (cutoff_str,),
-        ).fetchall()
+        rows = activity_repo.list_runs_since(conn, cutoff_str)
 
         result = []
         for row in rows:
@@ -101,16 +88,7 @@ def _get_current_planned_runs() -> list[dict]:
 
     conn = get_conn()
     try:
-        rows = conn.execute(
-            """
-            SELECT planned_date, session_type, target_type, target_value,
-                   mandatory, status, notes
-            FROM planned_runs
-            WHERE planned_date BETWEEN ? AND ?
-            ORDER BY planned_date
-            """,
-            (today.isoformat(), three_weeks.isoformat()),
-        ).fetchall()
+        rows = plan_repo.list_between(conn, today.isoformat(), three_weeks.isoformat())
 
         return [
             {

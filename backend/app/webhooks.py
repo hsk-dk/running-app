@@ -8,6 +8,7 @@ from app.config import settings
 from app.db import get_conn
 from app.ingest import delete_activity, ingest_single_activity
 from app.planning import evaluate_and_sync
+from app.repositories import webhook_events
 
 logger = logging.getLogger(__name__)
 
@@ -39,35 +40,19 @@ def store_event(payload: dict) -> tuple[int, bool, bool]:
     )
     conn = get_conn()
     try:
-        existing = conn.execute(
-            """
-            SELECT id, processed FROM webhook_events
-            WHERE provider = 'strava'
-              AND object_type IS ? AND object_id IS ? AND aspect_type IS ?
-              AND owner_id IS ? AND event_time IS ?
-            ORDER BY id LIMIT 1
-            """,
-            key,
-        ).fetchone()
+        existing = webhook_events.find_duplicate(conn, key)
         if existing:
             return existing["id"], True, bool(existing["processed"])
 
-        cur = conn.execute(
-            """
-            INSERT INTO webhook_events (
-                provider, object_type, object_id, aspect_type,
-                owner_id, subscription_id, event_time, payload_json
-            ) VALUES ('strava', ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                key[0], key[1], key[2], key[3],
-                _text(payload.get("subscription_id")),
-                key[4],
-                json.dumps(payload),
-            ),
+        event_id = webhook_events.insert(
+            conn,
+            key[0], key[1], key[2], key[3],
+            _text(payload.get("subscription_id")),
+            key[4],
+            json.dumps(payload),
         )
         conn.commit()
-        return cur.lastrowid, False, False
+        return event_id, False, False
     finally:
         conn.close()
 
@@ -75,10 +60,7 @@ def store_event(payload: dict) -> tuple[int, bool, bool]:
 def mark_event_processed(event_id: int):
     conn = get_conn()
     try:
-        conn.execute(
-            "UPDATE webhook_events SET processed = 1, processed_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (event_id,),
-        )
+        webhook_events.mark_processed(conn, event_id)
         conn.commit()
     finally:
         conn.close()

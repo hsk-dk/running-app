@@ -5,94 +5,23 @@ import json
 
 from app.db import get_conn
 from app.strava import StravaClient
-from app.admin_status import set_state, clear_last_error
+from app.admin_status import clear_last_error, get_state, set_state
+from app.repositories import activities as activity_repo, planned_runs
 
 
 def get_last_synced_start_date():
-    conn = get_conn()
-    try:
-        row = conn.execute(
-            "SELECT value FROM sync_state WHERE key = 'last_synced_start_date'"
-        ).fetchone()
-        return row["value"] if row else None
-    finally:
-        conn.close()
+    state = get_state("last_synced_start_date")
+    return state["value"] if state else None
 
 
 def set_last_synced_start_date(value: str):
-    conn = get_conn()
-    try:
-        conn.execute(
-            """
-            INSERT INTO sync_state (key, value, updated_at)
-            VALUES ('last_synced_start_date', ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-            """,
-            (value,),
-        )
-        conn.commit()
-    finally:
-        conn.close()
+    set_state("last_synced_start_date", value)
 
 
 def upsert_activity(activity: dict):
     conn = get_conn()
     try:
-        conn.execute(
-            """
-            INSERT INTO activities (
-                id,
-                name,
-                sport_type,
-                start_date,
-                timezone_name,
-                distance_m,
-                moving_time_s,
-                elapsed_time_s,
-                total_elevation_gain,
-                average_speed,
-                max_speed,
-                average_heartrate,
-                max_heartrate,
-                average_cadence,
-                raw_json,
-                updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(id) DO UPDATE SET
-                name = excluded.name,
-                sport_type = excluded.sport_type,
-                start_date = excluded.start_date,
-                timezone_name = excluded.timezone_name,
-                distance_m = excluded.distance_m,
-                moving_time_s = excluded.moving_time_s,
-                elapsed_time_s = excluded.elapsed_time_s,
-                total_elevation_gain = excluded.total_elevation_gain,
-                average_speed = excluded.average_speed,
-                max_speed = excluded.max_speed,
-                average_heartrate = excluded.average_heartrate,
-                max_heartrate = excluded.max_heartrate,
-                average_cadence = excluded.average_cadence,
-                raw_json = excluded.raw_json,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (
-                activity["id"],
-                activity.get("name"),
-                activity.get("sport_type"),
-                activity.get("start_date"),
-                activity.get("timezone"),
-                activity.get("distance"),
-                activity.get("moving_time"),
-                activity.get("elapsed_time"),
-                activity.get("total_elevation_gain"),
-                activity.get("average_speed"),
-                activity.get("max_speed"),
-                activity.get("average_heartrate"),
-                activity.get("max_heartrate"),
-                activity.get("average_cadence"),
-                json.dumps(activity, ensure_ascii=False),
-            ),
-        )
+        activity_repo.upsert(conn, activity)
         conn.commit()
     finally:
         conn.close()
@@ -181,24 +110,9 @@ def delete_activity(activity_id: int) -> dict:
     """Remove a locally stored activity and any plan links pointing at it."""
     conn = get_conn()
     try:
-        conn.execute(
-            """
-            UPDATE planned_runs
-            SET
-                matched_activity_id = NULL,
-                matched_activity_date = NULL,
-                matched_activity_name = NULL,
-                actual_value = NULL,
-                match_score = NULL,
-                match_reason = NULL,
-                evaluated_at = CURRENT_TIMESTAMP
-            WHERE matched_activity_id = ?
-            """,
-            (activity_id,),
-        )
-        conn.execute("DELETE FROM derived_metrics WHERE activity_id = ?", (activity_id,))
-        cur = conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
+        planned_runs.unmatch_activity(conn, activity_id)
+        deleted = activity_repo.delete(conn, activity_id)
         conn.commit()
-        return {"deleted": cur.rowcount}
+        return {"deleted": deleted}
     finally:
         conn.close()

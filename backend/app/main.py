@@ -8,6 +8,7 @@ from app.metrics import rebuild_metrics, get_summary, get_monthly_volume, get_ac
 from app.matching import get_weekly_consistency
 from app.admin_status import get_admin_status, set_state
 from app.ai_suggestions import generate_suggestions
+from app.repositories import activities as activity_repo
 from app.services import planning_service, webhook_service
 
 init_db()
@@ -137,27 +138,14 @@ def api_rebuild_links():
 def api_health():
     conn = get_conn()
     try:
-        mismatch = conn.execute(
-            """
-            SELECT COUNT(*)
-            FROM activities a
-            WHERE
-                (a.matched_planned_run_id IS NULL AND EXISTS (
-                    SELECT 1 FROM planned_runs p WHERE p.matched_activity_id = a.id
-                ))
-                OR
-                (a.matched_planned_run_id IS NOT NULL AND NOT EXISTS (
-                    SELECT 1 FROM planned_runs p WHERE p.id = a.matched_planned_run_id
-                ))
-            """
-        ).fetchone()[0]
-
-        return {
-            "ok": mismatch == 0,
-            "mismatch_count": mismatch,
-        }
+        mismatch = activity_repo.count_link_mismatches(conn)
     finally:
         conn.close()
+
+    return {
+        "ok": mismatch == 0,
+        "mismatch_count": mismatch,
+    }
 
 
 @app.get("/api/webhooks/strava")
