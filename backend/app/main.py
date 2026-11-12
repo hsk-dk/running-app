@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
@@ -173,6 +173,15 @@ def strava_webhook_verify(
 
 
 @app.post("/api/webhooks/strava")
-async def strava_webhook_event(request: Request):
-    payload = await request.json()
-    return webhook_service.process_event(payload)
+async def strava_webhook_event(request: Request, background_tasks: BackgroundTasks):
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Invalid payload")
+
+    result = webhook_service.receive_event(payload)
+    if result["needs_processing"]:
+        background_tasks.add_task(webhook_service.process_stored_event, result["event_id"], payload)
+    return {"stored": result["stored"], "duplicate": result["duplicate"]}

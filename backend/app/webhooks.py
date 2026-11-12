@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import logging
 
+from app.admin_status import set_state
 from app.config import settings
 from app.db import get_conn
-from app.ingest import ingest_latest_window
-from app.metrics import rebuild_metrics
+from app.ingest import delete_activity, ingest_single_activity
 from app.planning import evaluate_and_sync
+
+logger = logging.getLogger(__name__)
 
 
 def verify_subscription(mode: str, token: str, challenge: str):
@@ -17,29 +20,54 @@ def verify_subscription(mode: str, token: str, challenge: str):
     return {"hub.challenge": challenge}
 
 
-def store_event(payload: dict):
+def _text(value):
+    return str(value) if value is not None else None
+
+
+def store_event(payload: dict) -> tuple[int, bool, bool]:
+    """Store an event. Returns (event_id, is_duplicate, already_processed).
+
+    Strava retries deliveries, so an identical event (same object, aspect,
+    owner and event_time) is not stored twice.
+    """
+    key = (
+        _text(payload.get("object_type")),
+        _text(payload.get("object_id")),
+        _text(payload.get("aspect_type")),
+        _text(payload.get("owner_id")),
+        payload.get("event_time"),
+    )
     conn = get_conn()
     try:
+        existing = conn.execute(
+            """
+            SELECT id, processed FROM webhook_events
+            WHERE provider = 'strava'
+              AND object_type IS ? AND object_id IS ? AND aspect_type IS ?
+              AND owner_id IS ? AND event_time IS ?
+            ORDER BY id LIMIT 1
+            """,
+            key,
+        ).fetchone()
+        if existing:
+            return existing["id"], True, bool(existing["processed"])
+
         cur = conn.execute(
             """
             INSERT INTO webhook_events (
                 provider, object_type, object_id, aspect_type,
                 owner_id, subscription_id, event_time, payload_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES ('strava', ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                "strava",
-                payload.get("object_type"),
-                str(payload.get("object_id")) if payload.get("object_id") is not None else None,
-                payload.get("aspect_type"),
-                str(payload.get("owner_id")) if payload.get("owner_id") is not None else None,
-                str(payload.get("subscription_id")) if payload.get("subscription_id") is not None else None,
-                payload.get("event_time"),
+                key[0], key[1], key[2], key[3],
+                _text(payload.get("subscription_id")),
+                key[4],
                 json.dumps(payload),
             ),
         )
         conn.commit()
-        return cur.lastrowid
+        return cur.lastrowid, False, False
     finally:
         conn.close()
 
@@ -48,11 +76,7 @@ def mark_event_processed(event_id: int):
     conn = get_conn()
     try:
         conn.execute(
-            """
-            UPDATE webhook_events
-            SET processed = 1, processed_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """,
+            "UPDATE webhook_events SET processed = 1, processed_at = CURRENT_TIMESTAMP WHERE id = ?",
             (event_id,),
         )
         conn.commit()
@@ -60,39 +84,64 @@ def mark_event_processed(event_id: int):
         conn.close()
 
 
-def process_event(payload: dict):
-    event_id = store_event(payload)
+def receive_event(payload: dict) -> dict:
+    """Fast path: persist the event and decide whether it needs processing.
 
-    owner_id = str(payload.get("owner_id", ""))
-    object_type = payload.get("object_type")
+    Must stay cheap, since Strava expects a reply within ~2 seconds.
+    """
+    event_id, duplicate, processed = store_event(payload)
+    set_state("last_webhook_at", _now_iso())
 
-    if settings.STRAVA_ATHLETE_ID and owner_id and owner_id != settings.STRAVA_ATHLETE_ID:
-        mark_event_processed(event_id)
-        return {
-            "stored": True,
-            "processed": True,
-            "ignored": True,
-            "reason": "owner_mismatch",
-        }
-
-    if object_type == "activity":
-        ingest_result = ingest_latest_window(hours_back=72)
-        metrics_result = rebuild_metrics()
-        planning_result = evaluate_and_sync()
-
-        mark_event_processed(event_id)
-        return {
-            "stored": True,
-            "processed": True,
-            "ingest": ingest_result,
-            "metrics": metrics_result,
-            "planning": planning_result,
-        }
-
-    mark_event_processed(event_id)
+    needs_processing = not processed
     return {
         "stored": True,
-        "processed": True,
-        "ignored": True,
-        "reason": "unsupported_object_type",
+        "duplicate": duplicate,
+        "event_id": event_id,
+        "needs_processing": needs_processing,
     }
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def process_stored_event(event_id: int, payload: dict) -> dict:
+    """Slow path, run in the background. Never raises; failures are recorded."""
+    try:
+        owner_id = str(payload.get("owner_id", ""))
+        object_type = payload.get("object_type")
+        aspect_type = payload.get("aspect_type")
+
+        if settings.STRAVA_ATHLETE_ID and owner_id and owner_id != settings.STRAVA_ATHLETE_ID:
+            mark_event_processed(event_id)
+            return {"ignored": True, "reason": "owner_mismatch"}
+
+        if object_type != "activity":
+            mark_event_processed(event_id)
+            return {"ignored": True, "reason": "unsupported_object_type"}
+
+        object_id = payload.get("object_id")
+        if object_id is None:
+            mark_event_processed(event_id)
+            return {"ignored": True, "reason": "missing_object_id"}
+        activity_id = int(object_id)
+
+        if aspect_type == "delete":
+            activity_result = delete_activity(activity_id)
+        elif aspect_type in ("create", "update"):
+            activity_result = ingest_single_activity(activity_id)
+        else:
+            mark_event_processed(event_id)
+            return {"ignored": True, "reason": "unsupported_aspect_type"}
+
+        planning_result = evaluate_and_sync()
+        mark_event_processed(event_id)
+        set_state("last_error", "")
+        return {"activity": activity_result, "planning": planning_result}
+    except Exception as exc:
+        # Left unprocessed so a Strava retry (or manual replay) can pick it up again.
+        logger.exception("Webhook event %s failed", event_id)
+        set_state("last_error", f"webhook event {event_id}: {exc}")
+        return {"error": str(exc)}

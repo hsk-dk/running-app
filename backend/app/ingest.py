@@ -159,3 +159,46 @@ def ingest_latest_window(hours_back: int = 72):
     set_state("last_ingest_result", json.dumps(result, ensure_ascii=False))
     clear_last_error()
     return result
+
+
+def ingest_single_activity(activity_id: int) -> dict:
+    """Fetch one activity from Strava and upsert it (used by webhook create/update events)."""
+    client = StravaClient()
+    activity = client.get_activity(activity_id)
+
+    if activity is None:
+        return {"upserted": 0, "reason": "not_found"}
+    if activity.get("sport_type") != "Run":
+        return {"upserted": 0, "reason": "not_a_run"}
+
+    upsert_activity(activity)
+    set_state("last_sync_at", datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
+    clear_last_error()
+    return {"upserted": 1, "activity_id": int(activity_id)}
+
+
+def delete_activity(activity_id: int) -> dict:
+    """Remove a locally stored activity and any plan links pointing at it."""
+    conn = get_conn()
+    try:
+        conn.execute(
+            """
+            UPDATE planned_runs
+            SET
+                matched_activity_id = NULL,
+                matched_activity_date = NULL,
+                matched_activity_name = NULL,
+                actual_value = NULL,
+                match_score = NULL,
+                match_reason = NULL,
+                evaluated_at = CURRENT_TIMESTAMP
+            WHERE matched_activity_id = ?
+            """,
+            (activity_id,),
+        )
+        conn.execute("DELETE FROM derived_metrics WHERE activity_id = ?", (activity_id,))
+        cur = conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
+        conn.commit()
+        return {"deleted": cur.rowcount}
+    finally:
+        conn.close()

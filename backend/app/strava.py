@@ -56,6 +56,22 @@ class StravaClient:
 
         return response.json()
 
+    def get_activity(self, activity_id: int):
+        response = requests.get(
+            f"{BASE_URL}/activities/{int(activity_id)}",
+            headers=self.headers(),
+            timeout=30,
+        )
+
+        if response.status_code == 404:
+            return None
+        if not response.ok:
+            raise RuntimeError(
+                f"Strava get_activity failed: {response.status_code} {response.text}"
+            )
+
+        return response.json()
+
     def create_push_subscription(self):
         response = requests.post(
             f"{BASE_URL}/push_subscriptions",
