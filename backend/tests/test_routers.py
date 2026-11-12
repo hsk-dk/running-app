@@ -22,6 +22,7 @@ def test_route_table_is_unchanged(client):
     assert routes >= {
         ("GET", "/api/health"),
         ("GET", "/api/activities"),
+        ("GET", "/api/activities/{activity_id}"),
         ("GET", "/api/metrics/summary"),
         ("GET", "/api/metrics/monthly-volume"),
         ("GET", "/api/planning"),

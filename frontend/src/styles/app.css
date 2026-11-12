@@ -56,3 +56,14 @@ button.u-header__link[aria-current='page'] { border-bottom-color: var(--color-on
 /* Two columns that stack on small screens. */
 .app-split { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--space-4); }
 @media (max-width: 48rem) { .app-split { grid-template-columns: minmax(0, 1fr); } }
+
+/* Toggle buttons that use aria-pressed (the year view's Kilometer / Minutter). */
+.u-btn--secondary[aria-pressed='true'] { color: var(--color-on-action); background: var(--color-action-strong); border-color: var(--color-action-strong); font-weight: var(--weight-bold); }
+
+/* u-tab is built for links; here the tabs are buttons. */
+button.u-tab { font: inherit; font-size: var(--text-sm); cursor: pointer; }
+
+/* A run: route on one side, numbers on the other; stacked on small screens. */
+.detail { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.detail__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-3); }
+@media (max-width: 48rem) { .detail { grid-template-columns: minmax(0, 1fr); } }

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from datetime import date
 
 from app.db import get_conn
+from app.errors import NotFoundError
 from app.domain import timeutil, weekly
 from app.domain.runs import is_mandatory
 from app.domain.statuses import STATUS_PLANLAGT
@@ -130,6 +132,47 @@ def list_activities(limit: int = 100):
                 }
             )
         return data
+    finally:
+        conn.close()
+
+
+def _route_of(raw_json: str | None) -> str | None:
+    """The simplified route Strava sends with every activity summary (absent for treadmill runs)."""
+    try:
+        raw = json.loads(raw_json or "{}")
+    except (TypeError, ValueError):
+        return None
+    summary_map = raw.get("map") if isinstance(raw, dict) else None
+    route = summary_map.get("summary_polyline") if isinstance(summary_map, dict) else None
+    return route or None
+
+
+def get_activity(activity_id: int):
+    conn = get_conn()
+    try:
+        row = activity_repo.get(conn, activity_id)
+        if row is None or row["sport_type"] != "Run":
+            raise NotFoundError(f"Activity {activity_id} not found")
+
+        run_date = timeutil.activity_local_date(row)
+        distance_m = float(row["distance_m"] or 0)
+        moving_s = float(row["moving_time_s"] or 0)
+        local = row["start_date_local"]
+        return {
+            "id": row["id"],
+            "date": run_date.isoformat() if run_date else None,
+            "name": row["name"],
+            "distance_km": round(distance_m / 1000.0, 2),
+            "duration_min": round(moving_s / 60.0, 1),
+            "avg_hr": round(float(row["average_heartrate"]), 1) if row["average_heartrate"] is not None else None,
+            "is_extra": bool(row["is_extra"]),
+            "matched_planned_run_id": row["matched_planned_run_id"],
+            "start_time_local": str(local) if local else None,
+            "elevation_gain_m": round(float(row["total_elevation_gain"]), 0) if row["total_elevation_gain"] is not None else None,
+            "avg_pace_s_per_km": round(moving_s / (distance_m / 1000.0), 1) if distance_m > 0 and moving_s > 0 else None,
+            "max_hr": round(float(row["max_heartrate"]), 1) if row["max_heartrate"] is not None else None,
+            "route": _route_of(row["raw_json"]),
+        }
     finally:
         conn.close()
 

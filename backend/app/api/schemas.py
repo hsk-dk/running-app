@@ -88,6 +88,15 @@ class ActivityOut(BaseModel):
     matched_planned_run_id: int | None
 
 
+class ActivityDetailOut(ActivityOut):
+    start_time_local: str | None
+    elevation_gain_m: float | None
+    avg_pace_s_per_km: float | None
+    max_hr: float | None
+    # Google-encoded polyline of a simplified route from Strava, or None (treadmill, manual entry)
+    route: str | None
+
+
 class MonthlyVolumeOut(BaseModel):
     month: str
     km: float

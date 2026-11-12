@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import ActivityDetail from "../components/ActivityDetail";
 
 const cardStyle: React.CSSProperties = {
   background: "var(--color-surface)",
@@ -104,6 +105,7 @@ export default function ActivitiesPage({
   error: string | null;
 }) {
   const [filter, setFilter] = useState<FilterKey>("alle");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const plannedRunById = useMemo(() => {
     const map = new Map<number, any>();
@@ -180,6 +182,10 @@ export default function ActivitiesPage({
         </div>
       </section>
 
+      {selectedId !== null && (
+        <ActivityDetail activityId={selectedId} onClose={() => setSelectedId(null)} />
+      )}
+
       <section style={cardStyle}>
         <div
           style={{
@@ -251,6 +257,9 @@ export default function ActivitiesPage({
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
                   Status
                 </th>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
+                  Rute
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -282,7 +291,7 @@ export default function ActivitiesPage({
                         </span>
                       </div>
                     ) : (
-                      <span style={{ color: "#94a3b8" }}>-</span>
+                      <span style={{ color: "var(--color-text-muted)" }}>-</span>
                     )}
                   </td>
                   <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
@@ -294,13 +303,26 @@ export default function ActivitiesPage({
                       {a.matchedPlan?.manual_override ? <StatusBadge value="Manuel" /> : null}
                     </div>
                   </td>
+                  <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
+                    <button
+                      type="button"
+                      className="u-btn u-btn--secondary"
+                      aria-label={`Vis rute for ${a.name ?? "løb"} den ${formatDate(a.date)}`}
+                      onClick={() => {
+                        setSelectedId(a.id);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                    >
+                      Vis
+                    </button>
+                  </td>
                 </tr>
               ))}
 
               {filteredActivities.length === 0 && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     style={{
                       padding: "18px 8px",
                       color: "var(--color-text-muted)",

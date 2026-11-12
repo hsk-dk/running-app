@@ -5,8 +5,10 @@ import PlanPage from "./pages/PlanPage";
 import ActivitiesPage from "./pages/ActivitiesPage";
 import AdminPage from "./pages/AdminPage";
 import AiSuggestionsPage from "./pages/AiSuggestionsPage";
+import MorePage from "./pages/MorePage";
+import YearPage from "./pages/YearPage";
 
-type PageKey = "overview" | "plan" | "activities" | "admin" | "ai";
+type PageKey = "overview" | "plan" | "year" | "activities" | "more";
 
 function formatDateTime(value?: string) {
   if (!value) return "-";
@@ -151,12 +153,13 @@ export default function App() {
             plannedRuns={plannedRuns}
           />
         );
-      case "admin":
-        return <AdminPage {...common} adminStatus={adminStatus} />;
-      case "ai":
+      case "year":
+        return <YearPage activities={activities} />;
+      case "more":
         return (
-          <AiSuggestionsPage
-            onPlanningChanged={loadAll}
+          <MorePage
+            admin={<AdminPage {...common} adminStatus={adminStatus} />}
+            ai={<AiSuggestionsPage onPlanningChanged={loadAll} />}
           />
         );
       default:
@@ -186,19 +189,19 @@ export default function App() {
               onClick={() => setPage("plan")}
             />
             <NavItem
+              active={page === "year"}
+              label="År"
+              onClick={() => setPage("year")}
+            />
+            <NavItem
               active={page === "activities"}
               label="Løb"
               onClick={() => setPage("activities")}
             />
             <NavItem
-              active={page === "admin"}
-              label="Admin"
-              onClick={() => setPage("admin")}
-            />
-            <NavItem
-              active={page === "ai"}
-              label="AI Forslag"
-              onClick={() => setPage("ai")}
+              active={page === "more"}
+              label="Mere"
+              onClick={() => setPage("more")}
             />
           </nav>
         </div>
