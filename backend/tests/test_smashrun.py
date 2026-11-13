@@ -58,7 +58,8 @@ def test_connect_says_so_when_smashrun_is_not_configured(sr, monkeypatch):
     client, _, svc = sr
     monkeypatch.setattr(svc.settings, "SMASHRUN_CLIENT_SECRET", "")
     assert client.post("/api/smashrun/connect", headers=ADMIN).status_code == 409
-    assert client.get("/api/me", headers=ADMIN).json()["smashrun"] == {"connected": False, "configured": False}
+    me = client.get("/api/me", headers=ADMIN).json()["smashrun"]
+    assert (me["connected"], me["configured"], me["mode"], me["expires_at"]) == (False, False, None, None)
 
 
 def test_callback_saves_tokens_for_the_person_in_the_state_and_starts_the_first_sync(sr):
@@ -171,3 +172,72 @@ def test_the_client_refreshes_an_expired_token_once_and_reports_the_new_tokens(m
     assert saved[0][:2] == ("refresh", "new")  # Smashrun sends no new refresh token: the old one is kept
     assert sent[0][2]["Authorization"] == "Bearer new" and sent[0][1]["fromDateUTC"] == 5
     assert sent[0][0].endswith("/my/activities/search/extended")
+
+
+# ---- user-level access: a personal token pasted by the person --------------------------------------
+
+TOKEN = "8G12414afgggHgAyCUNwT80CmvO2hzcw5DzY73Y0"
+
+
+def _token_info(monkeypatch, info=None, error=None):
+    import app.services.smashrun_service as svc
+
+    def fake(token):
+        if error:
+            raise error
+        return info
+    monkeypatch.setattr(svc.smashrun, "token_info", fake)
+
+
+def test_a_personal_token_connects_without_an_app_key_and_shows_when_it_runs_out(sr, monkeypatch):
+    client, state, svc = sr
+    monkeypatch.setattr(svc.settings, "SMASHRUN_CLIENT_ID", "")  # no app key on the server at all
+    _token_info(monkeypatch, {"scopes": ["read_activity"], "expires_in": 60 * 24 * 3600})
+    r = client.post("/api/smashrun/token", headers=ADMIN, json={"token": f"  {TOKEN} "})
+    body = r.json()
+    assert r.status_code == 200 and body["connected"] and body["mode"] == "token" and body["expired"] is False
+    assert body["expires_at"] and body["configured"] is False
+    assert "token" not in str(body).lower().replace('"mode": "token"', "").replace("'mode': 'token'", "")
+    assert [a["id"] for a in client.get("/api/activities", headers=ADMIN).json()] == [-900]  # first sync ran
+
+
+def test_a_bad_or_unreadable_token_is_refused_and_nothing_is_saved(sr, monkeypatch):
+    client, _, svc = sr
+    _token_info(monkeypatch, error=svc.smashrun.SmashrunAuthError("Smashrun kender ikke det token."))
+    unknown = client.post("/api/smashrun/token", headers=ADMIN, json={"token": TOKEN})
+    assert unknown.status_code == 409 and "kender ikke" in unknown.json()["detail"]
+    _token_info(monkeypatch, {"scopes": ["write_activity"], "expires_in": 100})
+    assert client.post("/api/smashrun/token", headers=ADMIN, json={"token": TOKEN}).status_code == 409
+    assert client.post("/api/smashrun/token", headers=ADMIN, json={"token": "not a token!"}).status_code == 409
+    assert client.get("/api/me", headers=ADMIN).json()["smashrun"]["connected"] is False
+
+
+def test_an_expired_personal_token_is_reported_and_cannot_refresh(monkeypatch):
+    monkeypatch.setattr(smashrun_module.settings, "SMASHRUN_CLIENT_ID", "cid")
+    client = smashrun_module.SmashrunClient("", "old", 1)  # no refresh token, expired long ago
+    with pytest.raises(smashrun_module.SmashrunAuthError, match="udløbet"):
+        client.search()
+
+
+def test_smashrun_saying_401_is_a_clear_message_not_a_crash(monkeypatch):
+    monkeypatch.setattr(smashrun_module.requests, "get", lambda *a, **k: FakeResponse(status=401))
+    client = smashrun_module.SmashrunClient("", "tok", 9999999999)
+    with pytest.raises(smashrun_module.SmashrunAuthError, match="afviser"):
+        client.search()
+
+
+def test_the_status_marks_an_expired_token_so_the_app_can_warn(sr):
+    client, _, _ = sr
+    import app.db as dbmod
+    c = dbmod.get_conn()
+    c.execute("INSERT INTO smashrun_accounts (user_id, refresh_token, access_token, access_expires_at) VALUES (1, '', 't', 1000)")
+    c.commit(); c.close()
+    s = client.get("/api/smashrun/status", headers=ADMIN).json()
+    assert (s["mode"], s["expired"], s["expires_at"]) == ("token", True, "1970-01-01")
+
+
+def test_an_app_connection_never_shows_an_expiry(sr):
+    client, _, _ = sr
+    client.get("/api/smashrun/callback", params={"code": "c", "state": _link(client)})
+    s = client.get("/api/smashrun/status", headers=ADMIN).json()
+    assert (s["mode"], s["expires_at"], s["expired"]) == ("oauth", None, False)

@@ -15,6 +15,10 @@ BASE_URL = "https://api.smashrun.com/v1"
 SCOPE = "read_activity"
 PAGE_SIZE = 100
 
+class SmashrunAuthError(RuntimeError):
+    """Smashrun no longer accepts the access token (expired or revoked)."""
+
+
 # Called with (refresh_token, access_token, expires_at) whenever new tokens are issued.
 TokenSaver = Callable[[str, str, int], None]
 
@@ -60,6 +64,8 @@ class SmashrunClient:
     def _token(self) -> str:
         if self._access_token and self._expires_at - 60 > time.time():
             return self._access_token
+        if not self._refresh_token:  # a personal token has no refresh token: when it is done, it is done
+            raise SmashrunAuthError("Smashrun-tokenet er udløbet. Indsæt et nyt under Mere → Mig.")
         payload = _token_request({"grant_type": "refresh_token", "refresh_token": self._refresh_token})
         self._access_token = payload["access_token"]
         self._expires_at = payload["expires_at"]
@@ -74,6 +80,8 @@ class SmashrunClient:
         )
         if response.status_code == 404:
             return None
+        if response.status_code in (401, 403):
+            raise SmashrunAuthError("Smashrun afviser adgangen (tokenet er udløbet eller tilbagekaldt). Forbind igen under Mere → Mig.")
         if not response.ok:
             raise RuntimeError(f"Smashrun {path} failed: {response.status_code} {response.text[:200]}")
         return response.json()
@@ -90,3 +98,13 @@ class SmashrunClient:
 
     def splits_km(self, activity_id: int):
         return self._get(f"/my/activities/{int(activity_id)}/splits/km")
+
+
+def token_info(token: str) -> dict:
+    """What Smashrun says about an access token: scopes and seconds left. Raises SmashrunAuthError if it is not valid."""
+    response = requests.get(f"{BASE_URL}/auth/{token}", timeout=30)
+    if response.status_code in (400, 401, 403, 404):
+        raise SmashrunAuthError("Smashrun kender ikke det token. Tjek, at du har kopieret hele tokenet.")
+    if not response.ok:
+        raise RuntimeError(f"Smashrun token check failed: {response.status_code}")
+    return response.json()

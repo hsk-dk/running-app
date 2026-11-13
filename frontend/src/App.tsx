@@ -237,7 +237,7 @@ export default function App() {
       </header>
 
       <main id="indhold" className="u-container app-main" tabIndex={-1}>
-        {me && <SourceBanner me={me} notice={notice} onDismiss={() => setNotice(null)} />}
+        {me && <SourceBanner me={me} notice={notice} onDismiss={() => setNotice(null)} onOpenMe={() => setPage("more")} />}
         <div className="u-panel" style={{ minHeight: 620 }}>
           {renderPage()}
         </div>

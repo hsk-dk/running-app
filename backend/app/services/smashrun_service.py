@@ -58,12 +58,44 @@ def complete_connect(state: str, code: str) -> int:
     return user_id
 
 
+def connect_with_token(user_id: int, token: str) -> int:
+    """User-level access: the person pastes a personal token (from Smashrun's API Explorer) instead of logging in
+    through our own app key. It has no refresh token and runs out after a while."""
+    token = (token or "").strip()
+    if not token or len(token) > 200 or not token.replace("-", "").replace("_", "").isalnum():
+        raise ConflictError("Det ligner ikke et Smashrun-token")
+    try:
+        info = smashrun.token_info(token)
+    except smashrun.SmashrunAuthError as exc:
+        raise ConflictError(str(exc)) from exc
+    if "read_activity" not in (info.get("scopes") or []) and info.get("scopes") is not None:
+        raise ConflictError("Tokenet må ikke læse løb (mangler read_activity)")
+    expires_at = int(time.time()) + int(info.get("expires_in") or 0)
+    conn = get_conn()
+    try:
+        smashrun_accounts.upsert(conn, user_id, "", token, expires_at, " ".join(info.get("scopes") or [smashrun.SCOPE]))
+        conn.commit()
+    finally:
+        conn.close()
+    return user_id
+
+
 def status(user_id: int) -> dict:
     conn = get_conn()
     try:
-        return {"connected": smashrun_accounts.get(conn, user_id) is not None, "configured": configured()}
+        row = smashrun_accounts.get(conn, user_id)
     finally:
         conn.close()
+    token_mode = row is not None and not row["refresh_token"]
+    expires = row["access_expires_at"] if token_mode else None
+    return {
+        "connected": row is not None,
+        "configured": configured(),
+        "mode": None if row is None else ("token" if token_mode else "oauth"),
+        # only a personal token runs out; an app connection renews itself
+        "expires_at": datetime.fromtimestamp(expires, timezone.utc).strftime("%Y-%m-%d") if expires else None,
+        "expired": bool(token_mode and expires and expires < time.time()),
+    }
 
 
 def disconnect(user_id: int) -> dict:

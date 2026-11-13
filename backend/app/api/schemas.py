@@ -176,6 +176,13 @@ class StravaStatusOut(BaseModel):
 class SmashrunStatusOut(BaseModel):
     connected: bool
     configured: bool
+    mode: Literal["oauth", "token"] | None = None
+    expires_at: str | None = None  # only for a personal token
+    expired: bool = False
+
+
+class SmashrunTokenIn(BaseModel):
+    token: str = Field(min_length=1, max_length=200)
 
 
 class MeOut(BaseModel):

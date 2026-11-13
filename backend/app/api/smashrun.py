@@ -2,7 +2,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from fastapi.responses import RedirectResponse
 
 from app.api.deps import current_user
-from app.api.schemas import ConnectOut, SmashrunStatusOut
+from app.api.schemas import ConnectOut, SmashrunStatusOut, SmashrunTokenIn
 from app.config import settings
 from app.services import smashrun_service
 from app.services.user_service import CurrentUser
@@ -19,6 +19,14 @@ def status(user: CurrentUser = Depends(current_user)):
 def connect(user: CurrentUser = Depends(current_user)):
     """Returns the Smashrun page the browser should go to. The user comes back through /callback."""
     return smashrun_service.begin_connect(user.id)
+
+
+@router.post("/token", response_model=SmashrunStatusOut)
+def connect_with_token(body: SmashrunTokenIn, background_tasks: BackgroundTasks, user: CurrentUser = Depends(current_user)):
+    """User-level access: save a personal token the person copied from Smashrun's API Explorer."""
+    smashrun_service.connect_with_token(user.id, body.token)
+    background_tasks.add_task(smashrun_service.after_connect, user.id)
+    return smashrun_service.status(user.id)
 
 
 @router.get("/callback")
