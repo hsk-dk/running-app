@@ -41,44 +41,11 @@ def test_route_table_is_unchanged(client):
         ("POST", "/api/admin/recalculate-plan"),
         ("POST", "/api/admin/rebuild-links"),
         ("GET", "/api/admin/health"),
-        ("GET", "/api/webhooks/strava"),
-        ("POST", "/api/webhooks/strava"),
     }
 
 
 def test_rebuild_metrics_endpoint_is_gone(client):
     assert client.post("/api/admin/rebuild-metrics").status_code in (404, 405)
-
-
-def test_webhook_verify_accepts_correct_token(client, monkeypatch):
-    import app.services.webhook_service as webhook_service
-
-    monkeypatch.setattr(webhook_service.settings, "STRAVA_VERIFY_TOKEN", "secret")
-    params = {"hub.mode": "subscribe", "hub.verify_token": "secret", "hub.challenge": "abc"}
-    r = client.get("/api/webhooks/strava", params=params)
-    assert r.status_code == 200 and r.json() == {"hub.challenge": "abc"}
-
-
-def test_webhook_verify_rejects_wrong_token(client, monkeypatch):
-    import app.services.webhook_service as webhook_service
-
-    monkeypatch.setattr(webhook_service.settings, "STRAVA_VERIFY_TOKEN", "secret")
-    params = {"hub.mode": "subscribe", "hub.verify_token": "nope", "hub.challenge": "abc"}
-    assert client.get("/api/webhooks/strava", params=params).status_code == 403
-
-
-def test_webhook_verify_requires_query_params(client):
-    assert client.get("/api/webhooks/strava").status_code == 422
-
-
-def test_webhook_rejects_invalid_json(client):
-    r = client.post("/api/webhooks/strava", content="not json", headers={"content-type": "application/json"})
-    assert r.status_code == 422
-
-
-def test_webhook_accepts_partial_and_extra_fields(client):
-    r = client.post("/api/webhooks/strava", json={"object_type": "athlete", "something_new": 1})
-    assert r.status_code == 200 and r.json()["stored"] is True
 
 
 def test_match_activity_requires_activity_id(client):
@@ -88,15 +55,23 @@ def test_match_activity_requires_activity_id(client):
 
 
 def test_ingest_failure_is_recorded_and_reported_with_its_reason(client, monkeypatch):
-    import app.services.admin_service as admin_service
+    import app.db as dbmod
+    import app.services.garmin_service as garmin_service
 
-    def boom(user_id, pages):
-        raise RuntimeError("strava down")
+    c = dbmod.get_conn(); c.execute("INSERT INTO garmin_accounts (user_id, api_key) VALUES (1, 'k')"); c.commit(); c.close()
 
-    monkeypatch.setattr(admin_service, "ingest_recent", boom)
+    def boom(user_id, full=False):
+        raise RuntimeError("garmin down")
+
+    monkeypatch.setattr(garmin_service, "ingest_recent", boom)
     r = client.post("/api/admin/ingest")
-    assert r.status_code == 502 and "strava down" in r.json()["detail"]
-    assert "strava down" in client.get("/api/admin/status").json()["last_error"]["value"]
+    assert r.status_code == 502 and "garmin down" in r.json()["detail"]
+    assert "garmin down" in client.get("/api/admin/status").json()["last_error"]["value"]
+
+
+def test_ingest_without_any_connected_source_says_so(client):
+    r = client.post("/api/admin/ingest")
+    assert r.status_code == 409 and "Forbind Garmin" in r.json()["detail"] and r.json()["code"] == "not_connected"
 
 
 # ---- validation (422) and not found (404) ---------------------------------

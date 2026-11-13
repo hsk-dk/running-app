@@ -12,10 +12,7 @@ from . import (
     runna_service,
     smashrun_service,
     splits_service,
-    strava_service,
-    sync_service,
     user_service,
-    webhook_service,
 )
 
 __all__ = [
@@ -28,8 +25,5 @@ __all__ = [
     "runna_service",
     "smashrun_service",
     "splits_service",
-    "strava_service",
-    "sync_service",
     "user_service",
-    "webhook_service",
 ]

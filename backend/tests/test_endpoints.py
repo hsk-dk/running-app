@@ -79,7 +79,7 @@ def test_metrics_empty(client):
 
 def test_admin_status_and_health(client):
     status = client.get("/api/admin/status").json()
-    assert status["webhook_event_count"] == 0
+    assert set(status) == {"last_sync_at", "last_ingest_result", "last_error"}  # nothing about Strava or webhooks any more
     assert client.get("/api/admin/health").json()["ok"] is True
 
 

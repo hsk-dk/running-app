@@ -394,6 +394,14 @@ def _migration_11_garmin(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_activities_garmin ON activities(user_id, garmin_id)")
 
 
+def _migration_12_drop_strava(conn: sqlite3.Connection) -> None:
+    """Strava's API is closed to the app, so its connection is gone: drop the stored Strava tokens and the webhook log.
+    The runs that came from Strava stay (source = 'strava'), with their routes."""
+    conn.execute("DROP TABLE IF EXISTS strava_accounts")
+    conn.execute("DROP TABLE IF EXISTS webhook_events")
+    conn.execute("DELETE FROM sync_state WHERE key = 'last_webhook_at'")
+
+
 MIGRATIONS = [
     _migration_1_add_missing_columns,
     _migration_2_add_indexes,
@@ -406,6 +414,7 @@ MIGRATIONS = [
     _migration_9_sources,
     _migration_10_plan_import,
     _migration_11_garmin,
+    _migration_12_drop_strava,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

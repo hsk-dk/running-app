@@ -5,18 +5,16 @@ import pytest
 
 from app.domain import timeutil
 from tests.auth_helpers import ADMIN, FAMILY, patch_settings
-from tests.conftest import add_activity, add_plan, connect_strava
+from tests.conftest import add_activity, add_plan
 
 ANNA = 2  # the second user to sign in
 
 
 @pytest.fixture()
 def family(proxy, db):
-    """Henrik (admin, user 1) and Anna (user 2), both connected to Strava, with a run each this week."""
+    """Henrik (admin, user 1) and Anna (user 2), with a run each this week."""
     proxy.get("/api/me", headers=ADMIN)
     proxy.get("/api/me", headers=FAMILY)
-    connect_strava(db, user_id=1, athlete_id="11")
-    connect_strava(db, user_id=ANNA, athlete_id="22")
 
     today = timeutil.today()
     monday = today - timedelta(days=today.weekday())
@@ -99,16 +97,30 @@ def test_switching_family_sharing_off_hides_everyone_else(family, monkeypatch):
     assert body["members"][0]["recent_runs"]  # you still see yourself
 
 
-def test_someone_without_strava_is_shared_but_has_no_numbers(family, db):
+def test_a_member_is_shown_with_their_numbers_whatever_source_their_runs_come_from(family, db):
+    """Regression: the family page used to hide everyone without a Strava account, which is nobody once Strava is gone."""
     family.put("/api/me", headers=FAMILY, json={"sharing_level": "all"})
     conn = db.get_conn()
-    try:
-        conn.execute("DELETE FROM strava_accounts WHERE user_id = ?", (ANNA,))
+    try:  # Anna has a Garmin key and no other account at all
+        conn.execute("INSERT INTO garmin_accounts (user_id, api_key) VALUES (?, 'k')", (ANNA,))
         conn.commit()
     finally:
         conn.close()
     anna = _anna(family)
-    assert (anna["shared"], anna["strava_connected"], anna["week"], anna["recent_runs"]) == (True, False, None, None)
+    assert anna["shared"] is True and anna["week"] is not None and anna["month_km"] >= 5 and anna["recent_runs"]
+    assert "strava_connected" not in anna
+
+
+def test_a_member_with_no_runs_yet_is_shown_with_zeros_not_hidden(family, db):
+    family.put("/api/me", headers=FAMILY, json={"sharing_level": "all"})
+    conn = db.get_conn()
+    try:
+        conn.execute("DELETE FROM activities WHERE user_id = ?", (ANNA,))
+        conn.commit()
+    finally:
+        conn.close()
+    anna = _anna(family)
+    assert (anna["shared"], anna["month_km"], anna["month_runs"], anna["recent_runs"]) == (True, 0, 0, [])
 
 
 def test_unknown_member_and_someone_elses_activity_id(family):

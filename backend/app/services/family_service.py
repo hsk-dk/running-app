@@ -9,7 +9,6 @@ from app.domain.statuses import STATUS_FLYTTET
 from app.errors import ForbiddenError
 from app.repositories import activities as activity_repo
 from app.repositories import planned_runs as plan_repo
-from app.repositories import strava_accounts
 from app.services import garmin_service, reporting_service, splits_service, user_service
 from app.services.user_service import CurrentUser
 
@@ -48,21 +47,19 @@ def _member(viewer: CurrentUser, target: CurrentUser) -> dict:
     level = access_level(viewer, target)
     conn = get_conn()
     try:
-        connected = strava_accounts.get(conn, target.id) is not None
         entry = {
             "user_id": target.id,
             "name": target.display_name,
             "is_me": viewer.id == target.id,
             "level": level,
             "shared": level != "private" or viewer.id == target.id,
-            "strava_connected": connected,
             "week": None,
             "month_km": None,
             "month_runs": None,
             "streak_weeks": None,
             "recent_runs": None,
         }
-        if not entry["shared"] or not connected:
+        if not entry["shared"]:
             return entry
 
         today = timeutil.today()

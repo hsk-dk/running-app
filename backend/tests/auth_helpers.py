@@ -19,10 +19,8 @@ class FromAddress:
 
 def patch_settings(monkeypatch, **values):
     import app.services.family_service as family_service
-    import app.services.strava_service as strava_service
     import app.services.user_service as user_service
-    import app.strava as strava_module
 
-    for module in (user_service, strava_service, strava_module, family_service):
+    for module in (user_service, family_service):
         for key, value in values.items():
             monkeypatch.setattr(module.settings, key, value)

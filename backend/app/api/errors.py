@@ -38,7 +38,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(NotConnectedError)
     async def not_connected(_: Request, exc: NotConnectedError):
-        return JSONResponse(status_code=409, content={"detail": str(exc) or "Strava er ikke forbundet", "code": "strava_not_connected"})
+        return JSONResponse(status_code=409, content={"detail": str(exc) or "Ikke forbundet", "code": "not_connected"})
 
     @app.exception_handler(UpstreamError)
     async def upstream(_: Request, exc: UpstreamError):

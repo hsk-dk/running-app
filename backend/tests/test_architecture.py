@@ -35,7 +35,7 @@ def _violations(package: str, forbidden: tuple[str, ...]) -> list[str]:
 
 
 def test_routers_only_use_services_and_schemas():
-    assert _violations("api", ("app.db", "app.repositories", "app.domain", "sqlite3", "app.strava")) == []
+    assert _violations("api", ("app.db", "app.repositories", "app.domain", "sqlite3")) == []
 
 
 def test_routers_contain_no_sql():

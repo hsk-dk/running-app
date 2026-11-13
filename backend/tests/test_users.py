@@ -1,4 +1,4 @@
-"""Several users: who is calling, data isolation, Strava per person, and routing of webhook events."""
+"""Several users: who is calling, and data isolation."""
 import importlib
 import time
 
@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.auth_helpers import ADMIN, FAMILY, OUTSIDER, patch_settings
-from tests.conftest import add_activity, add_plan, connect_strava
+from tests.conftest import add_activity, add_plan
 
 _patch_settings = patch_settings
 
@@ -84,9 +84,8 @@ def test_a_known_user_keeps_their_id_and_gets_a_new_role(proxy):
     assert (promoted["id"], promoted["role"]) == (first["id"], "admin")
 
 
-def test_health_and_webhook_verification_need_no_login(proxy):
+def test_health_needs_no_login(proxy):
     assert proxy.get("/api/health").status_code == 200
-    assert proxy.get("/api/webhooks/strava", params={"hub.mode": "x", "hub.verify_token": "y", "hub.challenge": "z"}).status_code == 403
 
 
 # ---- isolation ------------------------------------------------------------------------
@@ -181,196 +180,18 @@ def test_sharing_is_forced_private_when_family_sharing_is_off(proxy, monkeypatch
     assert (me["sharing_level"], me["family_sharing_enabled"]) == ("private", False)
 
 
-# ---- Strava per user ---------------------------------------------------------------------------------
+# ---- the signed link that travels with a connect request ---------------------------------------------------
 
 def test_oauth_state_is_signed_and_expires(db):
     from app.errors import ForbiddenError
-    from app.services import strava_service
+    from app.services import oauth_state
 
-    state = strava_service.make_state(5)
-    assert strava_service.read_state(state) == 5
+    state = oauth_state.make_state(5)
+    assert oauth_state.read_state(state) == 5
     payload, signature = state.split(".")
     with pytest.raises(ForbiddenError):
-        strava_service.read_state(f"{payload}.{signature[:-2]}xx")  # tampered signature
+        oauth_state.read_state(f"{payload}.{signature[:-2]}xx")  # tampered signature
     with pytest.raises(ForbiddenError):
-        strava_service.read_state("not-a-state")
+        oauth_state.read_state("not-a-state")
     with pytest.raises(ForbiddenError):
-        strava_service.read_state(strava_service.make_state(5, now=time.time() - 3600))  # made an hour ago
-
-
-def test_connect_returns_the_strava_url_with_a_signed_state(proxy, monkeypatch):
-    _patch_settings(monkeypatch, STRAVA_CLIENT_ID="123", APP_BASE_URL="https://run.example")
-    url = proxy.post("/api/strava/connect", headers=FAMILY).json()["url"]
-    assert url.startswith("https://www.strava.com/oauth/authorize?")
-    assert "client_id=123" in url and "redirect_uri=https%3A%2F%2Frun.example%2Fapi%2Fstrava%2Fcallback" in url
-    assert "activity%3Aread_all" in url
-
-
-def test_connect_says_so_when_strava_is_not_configured(proxy, monkeypatch):
-    _patch_settings(monkeypatch, STRAVA_CLIENT_ID="")
-    assert proxy.post("/api/strava/connect", headers=FAMILY).status_code == 409
-
-
-def _token_payload(athlete_id=555, refresh="r1", access="a1"):
-    return {"access_token": access, "refresh_token": refresh, "expires_at": int(time.time()) + 3600, "athlete": {"id": athlete_id}, "scope": "read,activity:read_all"}
-
-
-def test_callback_saves_the_account_for_the_user_in_the_state(proxy, monkeypatch):
-    import app.services.strava_service as strava_service
-
-    _patch_settings(monkeypatch, APP_BASE_URL="https://run.example")
-    monkeypatch.setattr(strava_service.strava, "exchange_code", lambda code: _token_payload())
-    monkeypatch.setattr(strava_service, "after_connect", lambda user_id: None)  # the first sync is tested separately
-    proxy.get("/api/me", headers=ADMIN)
-    anna_id = proxy.get("/api/me", headers=FAMILY).json()["id"]
-
-    r = proxy.get("/api/strava/callback", params={"code": "abc", "state": strava_service.make_state(anna_id)})
-
-    assert r.status_code == 302 and r.headers["location"] == "https://run.example/?strava=connected"
-    assert proxy.get("/api/strava/status", headers=FAMILY).json() == {"connected": True, "configured": False, "athlete_id": "555"}
-    assert proxy.get("/api/strava/status", headers=ADMIN).json()["connected"] is False
-
-
-def test_callback_rejects_a_forged_state(proxy):
-    r = proxy.get("/api/strava/callback", params={"code": "abc", "state": "forged.value"})
-    assert r.status_code == 403
-
-
-def test_callback_handles_a_denied_request(proxy, monkeypatch):
-    import app.services.strava_service as strava_service
-
-    _patch_settings(monkeypatch, APP_BASE_URL="https://run.example")
-    r = proxy.get("/api/strava/callback", params={"error": "access_denied", "state": strava_service.make_state(1)})
-    assert r.headers["location"] == "https://run.example/?strava=denied"
-
-
-def test_a_strava_account_can_only_belong_to_one_user(proxy, monkeypatch):
-    import app.services.strava_service as strava_service
-
-    monkeypatch.setattr(strava_service.strava, "exchange_code", lambda code: _token_payload(athlete_id=777))
-    monkeypatch.setattr(strava_service, "after_connect", lambda user_id: None)
-    proxy.get("/api/me", headers=ADMIN)
-    anna_id = proxy.get("/api/me", headers=FAMILY).json()["id"]
-    assert proxy.get("/api/strava/callback", params={"code": "c", "state": strava_service.make_state(1)}).status_code == 302
-    clash = proxy.get("/api/strava/callback", params={"code": "c", "state": strava_service.make_state(anna_id)})
-    assert clash.status_code == 409
-
-
-def test_disconnect_removes_the_tokens(proxy, db):
-    proxy.get("/api/me", headers=ADMIN)
-    connect_strava(db, user_id=1, athlete_id="9")
-    assert proxy.get("/api/strava/status", headers=ADMIN).json()["connected"] is True
-    assert proxy.delete("/api/strava/connection", headers=ADMIN).json()["connected"] is False
-
-
-def test_syncing_without_a_strava_account_says_so(proxy):
-    proxy.get("/api/me", headers=ADMIN)
-    r = proxy.post("/api/admin/ingest", headers=FAMILY)
-    assert r.status_code == 409 and r.json()["code"] == "strava_not_connected"
-
-
-def test_new_tokens_from_strava_are_saved(db, monkeypatch):
-    """Strava rotates the refresh token on every refresh. The new one must be kept."""
-    import app.strava as strava_module
-    from app.services import sync_service
-
-    connect_strava(db, user_id=1, athlete_id="1")
-
-    class Response:
-        ok = True
-        status_code = 200
-
-        def json(self):
-            return {"access_token": "new-access", "refresh_token": "new-refresh", "expires_at": int(time.time()) + 3600}
-
-    monkeypatch.setattr(strava_module.requests, "post", lambda *a, **k: Response())
-    client = sync_service.client_for(1)
-    client.refresh_access_token()
-
-    conn = db.get_conn()
-    try:
-        row = conn.execute("SELECT refresh_token, access_token FROM strava_accounts WHERE user_id = 1").fetchone()
-    finally:
-        conn.close()
-    assert (row["refresh_token"], row["access_token"]) == ("new-refresh", "new-access")
-
-
-def test_a_fresh_access_token_is_reused_without_asking_strava(db, monkeypatch):
-    import app.strava as strava_module
-    from app.services import sync_service
-
-    conn = db.get_conn()
-    try:
-        conn.execute(
-            "INSERT INTO strava_accounts (user_id, athlete_id, refresh_token, access_token, access_expires_at) VALUES (1, '1', 'r', 'still-good', ?)",
-            (int(time.time()) + 3600,),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-    monkeypatch.setattr(strava_module.requests, "post", lambda *a, **k: pytest.fail("should not refresh"))
-    assert sync_service.client_for(1).headers() == {"Authorization": "Bearer still-good"}
-
-
-def test_the_token_from_the_environment_moves_to_the_first_user_once(db, monkeypatch):
-    from app.services import strava_service
-
-    _patch_settings(monkeypatch, STRAVA_REFRESH_TOKEN="env-token", STRAVA_ATHLETE_ID="42")
-    assert strava_service.ensure_legacy_account() is True
-    assert strava_service.ensure_legacy_account() is False  # already moved
-    assert strava_service.status(1)["athlete_id"] == "42"
-
-
-# ---- webhook events go to the right user ------------------------------------------------------------
-
-@pytest.fixture()
-def family_webhooks(proxy, db, monkeypatch):
-    import app.services.sync_service as sync_service
-
-    proxy.get("/api/me", headers=ADMIN)
-    proxy.get("/api/me", headers=FAMILY)
-    connect_strava(db, user_id=1, athlete_id="11")
-    connect_strava(db, user_id=2, athlete_id="22")
-
-    class FakeStrava:
-        def __init__(self, refresh_token, access_token=None, access_expires_at=None, on_tokens=None):
-            self.who = refresh_token
-
-        def get_activity(self, activity_id):
-            return {"id": activity_id, "name": "Run", "sport_type": "Run", "start_date": "2026-11-10T08:00:00Z", "distance": 5000, "moving_time": 1500}
-
-    monkeypatch.setattr(sync_service, "StravaClient", FakeStrava)
-    return proxy, db
-
-
-def _activity_owners(db):
-    conn = db.get_conn()
-    try:
-        return {r["id"]: r["user_id"] for r in conn.execute("SELECT id, user_id FROM activities")}
-    finally:
-        conn.close()
-
-
-def test_an_event_ingests_into_the_owner_of_that_strava_account(family_webhooks):
-    client, db = family_webhooks
-    client.post("/api/webhooks/strava", json={"object_type": "activity", "object_id": 900, "aspect_type": "create", "owner_id": 22, "event_time": 1})
-    client.post("/api/webhooks/strava", json={"object_type": "activity", "object_id": 901, "aspect_type": "create", "owner_id": 11, "event_time": 2})
-    assert _activity_owners(db) == {900: 2, 901: 1}
-
-
-def test_a_delete_event_only_removes_the_owners_activity(family_webhooks):
-    client, db = family_webhooks
-    client.post("/api/webhooks/strava", json={"object_type": "activity", "object_id": 900, "aspect_type": "create", "owner_id": 22, "event_time": 1})
-    client.post("/api/webhooks/strava", json={"object_type": "activity", "object_id": 900, "aspect_type": "delete", "owner_id": 11, "event_time": 2})
-    assert _activity_owners(db) == {900: 2}  # athlete 11 cannot delete athlete 22's run
-    client.post("/api/webhooks/strava", json={"object_type": "activity", "object_id": 900, "aspect_type": "delete", "owner_id": 22, "event_time": 3})
-    assert _activity_owners(db) == {}
-
-
-def test_status_counts_only_own_events_for_family_and_all_for_admin(family_webhooks):
-    client, _ = family_webhooks
-    client.post("/api/webhooks/strava", json={"object_type": "activity", "object_id": 900, "aspect_type": "create", "owner_id": 22, "event_time": 1})
-    client.post("/api/webhooks/strava", json={"object_type": "activity", "object_id": 901, "aspect_type": "create", "owner_id": 11, "event_time": 2})
-    client.post("/api/webhooks/strava", json={"object_type": "activity", "object_id": 902, "aspect_type": "create", "owner_id": 11, "event_time": 3})
-    assert client.get("/api/admin/status", headers=FAMILY).json()["webhook_event_count"] == 1
-    assert client.get("/api/admin/status", headers=ADMIN).json()["webhook_event_count"] == 3
+        oauth_state.read_state(oauth_state.make_state(5, now=time.time() - 3600))  # made an hour ago

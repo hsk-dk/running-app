@@ -41,7 +41,6 @@ def test_indexes_exist(db):
         "idx_activities_matched_planned_run_id",
         "idx_planned_runs_planned_date",
         "idx_planned_runs_matched_activity_id",
-        "idx_webhook_events_lookup",
     } <= names
 
 
@@ -142,10 +141,10 @@ def test_legacy_database_is_upgraded(tmp_path, monkeypatch):
         assert {r[0] for r in conn.execute("SELECT user_id FROM activities")} == {1}
         assert {r[0] for r in conn.execute("SELECT user_id FROM planned_runs")} == {1}
 
-        # per-user sync state moved; the global webhook marker stayed
+        # per-user sync state moved; the global Strava webhook marker was dropped with Strava
         user_keys = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM user_state WHERE user_id = 1")}
         assert user_keys == {"last_sync_at": "2020-03-12T08:00:00Z", "last_error": "boom"}
-        assert [r["key"] for r in conn.execute("SELECT key FROM sync_state")] == ["last_webhook_at"]
+        assert [r["key"] for r in conn.execute("SELECT key FROM sync_state")] == []
 
         # `mandatory` follows `optional`, the value older code actually edited
         mandatory = [r[0] for r in conn.execute("SELECT mandatory FROM planned_runs ORDER BY id")]
@@ -200,3 +199,29 @@ def test_lifespan_initialises_database_and_links(tmp_path, monkeypatch):
             assert app.db.get_schema_version(conn) == app.db.SCHEMA_VERSION
         finally:
             conn.close()
+
+
+def test_strava_tokens_and_the_webhook_log_are_dropped_but_the_runs_stay(db):
+    """Migration 12: Strava's API is closed to the app, so its secrets go; the runs that came from it are kept."""
+    from tests.conftest import add_activity
+
+    add_activity(db, 111, "2026-03-01T08:00:00Z", raw={"map": {"summary_polyline": "abc"}})
+    conn = db.get_conn()
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE strava_accounts (user_id INTEGER PRIMARY KEY, athlete_id TEXT, refresh_token TEXT);
+            INSERT INTO strava_accounts VALUES (1, '99', 'secret-refresh-token');
+            CREATE TABLE IF NOT EXISTS webhook_events (id INTEGER PRIMARY KEY);
+            INSERT INTO sync_state (key, value) VALUES ('last_webhook_at', '2026-04-14T15:31:57Z');
+            """
+        )
+        db._migration_12_drop_strava(conn)
+        db._migration_12_drop_strava(conn)  # safe to run twice
+        tables = {r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        assert "strava_accounts" not in tables and "webhook_events" not in tables
+        assert conn.execute("SELECT COUNT(*) FROM sync_state WHERE key = 'last_webhook_at'").fetchone()[0] == 0
+        row = conn.execute("SELECT id, source, raw_json FROM activities WHERE id = 111").fetchone()
+        assert row["id"] == 111 and "abc" in row["raw_json"]  # the run and its route are untouched
+    finally:
+        conn.close()

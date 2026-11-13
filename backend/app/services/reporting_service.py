@@ -137,7 +137,7 @@ def list_activities(user_id: int, limit: int = 100):
 
 
 def _route_of(raw_json: str | None) -> str | None:
-    """The simplified route Strava sends with every activity summary (absent for treadmill runs)."""
+    """The simplified route stored with older runs from Strava (absent for treadmill runs)."""
     try:
         raw = json.loads(raw_json or "{}")
     except (TypeError, ValueError):
