@@ -12,6 +12,7 @@ type Me = {
   strava: { connected: boolean; configured: boolean; athlete_id: string | null };
   smashrun: { connected: boolean; configured: boolean; mode?: string | null; expires_at?: string | null; expired?: boolean };
   runna: { connected: boolean; last_sync_at: string | null; last_error: string | null };
+  garmin: { connected: boolean; last_sync_at: string | null; last_error: string | null };
 };
 
 /** Your own settings: who sees your runs, and which Strava the app reads. */
@@ -21,6 +22,7 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [token, setToken] = useState("");
   const [runnaUrl, setRunnaUrl] = useState("");
+  const [garminKey, setGarminKey] = useState("");
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -94,6 +96,69 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
             </label>
           ))}
         </fieldset>
+      </section>
+
+      <section className="u-card" aria-labelledby="garmin-title" style={{ display: "grid", gap: 12 }}>
+        <h2 id="garmin-title" className="u-h2">Garmin Connect</h2>
+        {me.garmin.connected ? (
+          <>
+            <p className="u-card__meta">
+              Forbundet. Dine løb hentes direkte fra Garmin, med tempo, puls, runder og kilometertider fra urets egen fil.
+              {me.garmin.last_sync_at && ` Sidst hentet ${new Date(me.garmin.last_sync_at).toLocaleString("da-DK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.`}
+            </p>
+            {me.garmin.last_error && (
+              <div className="u-notice u-notice--error" role="alert">
+                <b className="u-notice__level">Fejl</b>
+                <span>{me.garmin.last_error}</span>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" className="u-btn u-btn--secondary" disabled={busy} onClick={() => run(() => api.garminDisconnect())}>
+                Frakobl Garmin
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="u-card__meta">Ikke forbundet. Brug din personlige Garmin-nøgle til at hente dine løb.</p>
+        )}
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!garminKey.trim()) return;
+            run(async () => {
+              await api.garminConnect(garminKey);
+              setGarminKey("");
+            });
+          }}
+          style={{ display: "grid", gap: 8 }}
+        >
+          <label htmlFor="garmin-key" className="u-card__meta">
+            {me.garmin.connected ? "Indsæt en ny nøgle (fx når den gamle udløber)" : "Personlig Garmin-nøgle"}
+          </label>
+          <input
+            id="garmin-key"
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            value={garminKey}
+            onChange={(e) => setGarminKey(e.target.value)}
+            style={{ minHeight: 44, padding: "0 12px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", width: "100%", boxSizing: "border-box" }}
+          />
+          <details>
+            <summary className="u-card__meta" style={{ cursor: "pointer", minHeight: 44, display: "flex", alignItems: "center" }}>Sådan får du nøglen</summary>
+            <ol className="u-card__meta" style={{ margin: "4px 0 0", paddingLeft: 20, display: "grid", gap: 4 }}>
+              <li>Log ind på <a href="https://connect.garmin.com/app/settings/personalApiToken" target="_blank" rel="noreferrer">Garmin Connect → Personlige API-nøgler</a>.</li>
+              <li>Opret en nøgle. Den vises kun én gang, så kopiér den med det samme.</li>
+              <li>Indsæt den her. Nøglen udløber efter den periode, du valgte (højst et år), og så skal du oprette en ny.</li>
+            </ol>
+          </details>
+          <div>
+            <button type="submit" className="u-btn u-btn--primary" disabled={busy || !garminKey.trim()}>
+              {me.garmin.connected ? "Gem ny nøgle" : "Forbind Garmin"}
+            </button>
+          </div>
+        </form>
       </section>
 
       <section className="u-card" aria-labelledby="smashrun-title" style={{ display: "grid", gap: 12 }}>

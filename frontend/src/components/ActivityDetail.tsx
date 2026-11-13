@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import ProfileChart from "./ProfileChart";
 import SplitsChart from "./SplitsChart";
 import RoutePoster from "./RoutePoster";
 
@@ -35,6 +36,7 @@ export default function ActivityDetail({
   onClose,
   load = (id: number) => api.getActivity(id),
   loadSplits,
+  loadProfile,
 }: {
   activityId: number;
   onClose: () => void;
@@ -42,6 +44,8 @@ export default function ActivityDetail({
   load?: (id: number) => Promise<any>;
   /** Fetches the kilometre splits; family members' runs use a different endpoint. */
   loadSplits?: (id: number) => Promise<any>;
+  /** Fetches the tempo and heart-rate profile; family members' runs use a different endpoint (and carry no heart rate). */
+  loadProfile?: (id: number) => Promise<any>;
 }) {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +107,8 @@ export default function ActivityDetail({
             {"avg_hr" in detail && <div className="u-tile"><span className="u-tile__label">Puls (gns / max)</span><span className="u-tile__value">{detail.avg_hr ? num(detail.avg_hr, 0) : "–"}{detail.max_hr ? ` / ${num(detail.max_hr, 0)}` : ""}</span></div>}
             <div className="u-tile"><span className="u-tile__label">Stigning</span><span className="u-tile__value">{detail.elevation_gain_m != null ? `${num(detail.elevation_gain_m, 0)} m` : "–"}</span></div>
           </div>
-          <div style={{ gridColumn: "1 / -1" }}>
+          <div style={{ gridColumn: "1 / -1", display: "grid", gap: 16 }}>
+            <ProfileChart activityId={activityId} load={loadProfile} />
             <SplitsChart activityId={activityId} load={loadSplits} />
           </div>
         </div>

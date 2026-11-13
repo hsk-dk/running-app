@@ -18,6 +18,28 @@ Andre i familien ser kun det, man selv har valgt at dele.
    Hver person forbinder derefter sin egen Strava under **Mere → Mig**.
 5. `APP_SECRET_KEY` bør sættes til en lang tilfældig værdi (underskriver OAuth-state).
 
+## Datakilde: Garmin Connect (anbefalet)
+
+Garmin har et officielt **personligt API** til dine egne data
+([oversigt](https://developer.garmin.com/gc-developer-program/overview)). Det er gratis, kræver ingen ansøgning og
+ingen adgangskode i appen. Appen henter dine løb direkte fra Garmin, også de løb der ikke har GPS.
+
+1. Log ind på [Garmin Connect → Personlige API-nøgler](https://connect.garmin.com/app/settings/personalApiToken) og
+   opret en nøgle. Den vises **kun én gang**. Nøglen udløber efter den periode, du vælger (højst et år).
+2. Indsæt den under **Mere → Mig → Garmin Connect**. Appen tjekker nøglen, gemmer den (vises aldrig igen) og henter
+   hele historikken i baggrunden. Bagefter henter **Synkronisér** (Admin) nye løb.
+3. Serveren skal kunne nå `https://personal.connectapi.garmin.com`.
+
+Hvad du får, som Strava og Smashrun ikke gav:
+- **Urets egen fil (FIT)** for hvert løb: tempo og puls gennem løbet, **runderne** (intervallernes trin), kilometertider
+  med puls, og GPS-rute for løb udendørs. Løb på løbebånd har ingen rute, men fuld profil.
+- Udendørsløb læses ved synkronisering; øvrige løb læses første gang du åbner dem (ét kald pr. løb).
+- Et løb, der allerede findes fra Smashrun eller Strava (samme starttid inden for to minutter), tilføjes ikke igen,
+  men knyttes til sin Garmin-aktivitet, så det får profil og splits.
+- Familien ser aldrig din puls: hverken i profilen, rundetabellen eller pr. kilometer.
+
+Garmin skriver, at personlig adgang ikke er til kommercielle apps med mange brugere. Hver person bruger sin egen nøgle.
+
 ## Datakilde: Smashrun
 
 Stravas API kræver nu et Strava-abonnement for appens ejer. Uden det svarer Strava `Application Inactive`, og der

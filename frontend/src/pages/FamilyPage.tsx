@@ -104,10 +104,13 @@ export default function FamilyPage() {
     const loadSplits = open.member.is_me
       ? (id: number) => api.getSplits(id)
       : (id: number) => api.getFamilySplits(open.member.user_id, id);
+    const loadProfile = open.member.is_me
+      ? (id: number) => api.getProfile(id)
+      : (id: number) => api.getFamilyProfile(open.member.user_id, id);
     return (
       <div style={{ display: "grid", gap: 16 }}>
         <p className="u-card__meta">{open.member.is_me ? "Dit løb" : `${open.member.name}s løb`}</p>
-        <ActivityDetail activityId={open.id} onClose={() => setOpen(null)} load={load} loadSplits={loadSplits} />
+        <ActivityDetail activityId={open.id} onClose={() => setOpen(null)} load={load} loadSplits={loadSplits} loadProfile={loadProfile} />
       </div>
     );
   }

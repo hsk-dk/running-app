@@ -51,6 +51,7 @@ export default function SplitsChart({
               <span style={{ display: "block", background: "var(--data-1, #446ea8)", height: 18, borderRadius: 4, width: `${widths[i]}%`, opacity: s.partial ? 0.55 : 1 }} aria-hidden="true" />
               <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                 {paceLabel(s.pace_s_per_km)}
+                {s.avg_hr ? <span className="u-card__meta" style={{ display: "block", fontSize: 12 }}>♥ {Math.round(s.avg_hr)}</span> : null}
                 {tag && <span className="u-card__meta" style={{ display: "block", fontSize: 12 }}>{tag}</span>}
               </span>
             </li>
