@@ -33,6 +33,9 @@ Hvad du får, som Smashrun ikke giver:
 - Et løb, der allerede findes fra Smashrun eller fra Strava-tiden (samme starttid inden for to minutter), tilføjes ikke igen,
   men knyttes til sin Garmin-aktivitet, så det får profil og splits.
 - Familien ser aldrig din puls: hverken i profilen, rundetabellen eller pr. kilometer.
+- **Udforsk (under År)** bruger det: *Dine ruter* som kontaktark, områdekort og afspilning, og *Dine løb som bjergkæde* (tempoet for de
+  seneste løb, ét bjerg pr. løb). Til bjergkæden skal urets filer være læst. Det sker, når et løb åbnes, eller med knappen
+  **Læs flere løb ind fra Garmin** (25 ad gangen, ét kald pr. løb, nyeste først). Animationerne slås fra ved reduceret bevægelse.
 
 Garmin skriver, at personlig adgang ikke er til kommercielle apps med mange brugere. Hver person bruger sin egen nøgle.
 

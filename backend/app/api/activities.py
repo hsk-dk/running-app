@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import current_user
-from app.api.schemas import ActivityDetailOut, ActivityOut, MonthlyVolumeOut, ProfileOut, RouteOut, SplitsOut
+from app.api.schemas import ActivityDetailOut, ActivityOut, MonthlyVolumeOut, ProfileOut, RouteOut, RunProfileOut, SplitsOut
 from app.services import garmin_service, reporting_service, splits_service
 from app.services.user_service import CurrentUser
 
@@ -17,6 +17,12 @@ def list_activities(limit: int = Query(100, ge=1, le=500), user: CurrentUser = D
 def routes(limit: int = Query(400, ge=1, le=1000), user: CurrentUser = Depends(current_user)):
     """Declared before /activities/{activity_id}, which would otherwise try to read 'routes' as an id."""
     return reporting_service.routes(user.id, limit=limit)
+
+
+@router.get("/activities/profiles", response_model=list[RunProfileOut])
+def profiles(limit: int = Query(16, ge=1, le=60), user: CurrentUser = Depends(current_user)):
+    """Declared before /activities/{activity_id}. Only the signed-in person's own runs (heart rate included)."""
+    return reporting_service.profiles(user.id, limit=limit)
 
 
 @router.get("/activities/{activity_id}", response_model=ActivityDetailOut)

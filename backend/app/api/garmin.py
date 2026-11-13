@@ -1,7 +1,7 @@
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 
 from app.api.deps import current_user
-from app.api.schemas import GarminKeyIn, GarminStatusOut
+from app.api.schemas import GarminKeyIn, GarminStatusOut, ReadDetailsOut
 from app.services import garmin_service
 from app.services.user_service import CurrentUser
 
@@ -24,3 +24,9 @@ def connect(body: GarminKeyIn, background_tasks: BackgroundTasks, user: CurrentU
 @router.delete("/connection", response_model=GarminStatusOut)
 def disconnect(user: CurrentUser = Depends(current_user)):
     return garmin_service.disconnect(user.id)
+
+
+@router.post("/read-details", response_model=ReadDetailsOut)
+def read_details(limit: int = Query(25, ge=1, le=50), user: CurrentUser = Depends(current_user)):
+    """Read the watch files of the next runs that have not been read yet. Call again until `remaining` is 0."""
+    return garmin_service.read_pending(user.id, limit=limit)
