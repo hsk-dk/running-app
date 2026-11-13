@@ -235,3 +235,64 @@ def clear_matched_activity_id(conn: sqlite3.Connection, user_id: int, activity_i
         "UPDATE planned_runs SET matched_activity_id = NULL WHERE matched_activity_id = ? AND user_id = ?",
         (activity_id, user_id),
     )
+
+
+# ---- imported plans (Runna calendar) ----------------------------------------------------
+
+def get_by_external_uid(conn: sqlite3.Connection, user_id: int, external_uid: str) -> sqlite3.Row | None:
+    return conn.execute(
+        "SELECT * FROM planned_runs WHERE user_id = ? AND external_uid = ?", (user_id, external_uid)
+    ).fetchone()
+
+
+def count_manual_on_date(conn: sqlite3.Connection, user_id: int, planned_date: str) -> int:
+    """Runs the person made themselves that day (those are never replaced by an import)."""
+    return conn.execute(
+        "SELECT COUNT(*) FROM planned_runs WHERE user_id = ? AND planned_date = ? AND source = 'manual'",
+        (user_id, planned_date),
+    ).fetchone()[0]
+
+
+def insert_imported(
+    conn: sqlite3.Connection, user_id: int, *, source: str, external_uid: str, planned_date: str,
+    session_type: str, target_type: str, target_value, notes, status: str,
+) -> int:
+    cur = conn.execute(
+        """
+        INSERT INTO planned_runs (
+            planned_date, session_type, optional, notes, status, target_type, target_value,
+            mandatory, manual_override, user_id, source, external_uid
+        ) VALUES (?, ?, 0, ?, ?, ?, ?, 1, 0, ?, ?, ?)
+        """,
+        (planned_date, session_type, notes, status, target_type, target_value, user_id, source, external_uid),
+    )
+    return cur.lastrowid
+
+
+def update_imported(
+    conn: sqlite3.Connection, user_id: int, plan_id: int, *, planned_date: str, session_type: str,
+    target_type: str, target_value, notes,
+) -> None:
+    """Follow a change made in the source. Plans the person edited by hand are left alone (manual_override)."""
+    conn.execute(
+        """
+        UPDATE planned_runs
+        SET planned_date = ?, session_type = ?, target_type = ?, target_value = ?, notes = ?
+        WHERE id = ? AND user_id = ? AND manual_override = 0
+        """,
+        (planned_date, session_type, target_type, target_value, notes, plan_id, user_id),
+    )
+
+
+def delete_vanished_imports(conn: sqlite3.Connection, user_id: int, source: str, keep_uids: list[str], from_date: str) -> int:
+    """Future imported plans that are no longer in the feed (cancelled or moved). Done, matched or hand-edited ones stay."""
+    marks = ",".join("?" for _ in keep_uids)
+    sql = (
+        "DELETE FROM planned_runs WHERE user_id = ? AND source = ? AND planned_date >= ? "
+        "AND manual_override = 0 AND matched_activity_id IS NULL"
+    )
+    args: list = [user_id, source, from_date]
+    if keep_uids:
+        sql += f" AND external_uid NOT IN ({marks})"
+        args += keep_uids
+    return conn.execute(sql, args).rowcount

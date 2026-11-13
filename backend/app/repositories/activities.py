@@ -240,3 +240,21 @@ def count_link_mismatches(conn: sqlite3.Connection, user_id: int | None = None) 
         """,  # scope is a fixed literal, never user input
         params,
     ).fetchone()[0]
+
+
+def find_near_local(conn: sqlite3.Connection, user_id: int, start_local: str, window_s: int = 300) -> sqlite3.Row | None:
+    """A run of the user's whose local start time is within `window_s` seconds of `start_local` (wall-clock time)."""
+    return conn.execute(
+        "SELECT * FROM activities WHERE user_id = ? AND sport_type = 'Run' AND start_date_local IS NOT NULL "
+        "AND ABS(julianday(start_date_local) - julianday(?)) * 86400 <= ? "
+        "ORDER BY ABS(julianday(start_date_local) - julianday(?)) LIMIT 1",
+        (user_id, start_local, window_s, start_local),
+    ).fetchone()
+
+
+def set_name_if_empty(conn: sqlite3.Connection, user_id: int, activity_id: int, name: str) -> bool:
+    """Give a run a name, but never replace one that already has a name."""
+    return conn.execute(
+        "UPDATE activities SET name = ? WHERE id = ? AND user_id = ? AND (name IS NULL OR TRIM(name) = '')",
+        (name, activity_id, user_id),
+    ).rowcount > 0
