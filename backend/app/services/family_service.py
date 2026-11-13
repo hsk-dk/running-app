@@ -10,7 +10,7 @@ from app.errors import ForbiddenError
 from app.repositories import activities as activity_repo
 from app.repositories import planned_runs as plan_repo
 from app.repositories import strava_accounts
-from app.services import reporting_service, user_service
+from app.services import reporting_service, splits_service, user_service
 from app.services.user_service import CurrentUser
 
 RECENT_RUNS = 8
@@ -109,3 +109,8 @@ def member_activities(viewer: CurrentUser, user_id: int, limit: int = 20):
 def member_activity(viewer: CurrentUser, user_id: int, activity_id: int):
     target = _target(viewer, user_id)
     return reporting_service.get_activity(target.id, activity_id)
+
+
+def member_splits(viewer: CurrentUser, user_id: int, activity_id: int):
+    target = _target(viewer, user_id)
+    return splits_service.get_splits(target.id, activity_id)

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import SplitsChart from "./SplitsChart";
 import RoutePoster from "./RoutePoster";
 
 type Detail = {
@@ -33,11 +34,14 @@ export default function ActivityDetail({
   activityId,
   onClose,
   load = (id: number) => api.getActivity(id),
+  loadSplits,
 }: {
   activityId: number;
   onClose: () => void;
   /** Fetches the run; family members' runs come from a different endpoint. */
   load?: (id: number) => Promise<any>;
+  /** Fetches the kilometre splits; family members' runs use a different endpoint. */
+  loadSplits?: (id: number) => Promise<any>;
 }) {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +102,9 @@ export default function ActivityDetail({
             <div className="u-tile"><span className="u-tile__label">Tempo</span><span className="u-tile__value">{pace(detail.avg_pace_s_per_km)}</span></div>
             {"avg_hr" in detail && <div className="u-tile"><span className="u-tile__label">Puls (gns / max)</span><span className="u-tile__value">{detail.avg_hr ? num(detail.avg_hr, 0) : "–"}{detail.max_hr ? ` / ${num(detail.max_hr, 0)}` : ""}</span></div>}
             <div className="u-tile"><span className="u-tile__label">Stigning</span><span className="u-tile__value">{detail.elevation_gain_m != null ? `${num(detail.elevation_gain_m, 0)} m` : "–"}</span></div>
+          </div>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <SplitsChart activityId={activityId} load={loadSplits} />
           </div>
         </div>
       )}

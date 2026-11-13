@@ -114,6 +114,21 @@ class FamilyActivityDetailOut(FamilyActivityOut):
     route: str | None
 
 
+class SplitOut(BaseModel):
+    km: int
+    distance_m: float
+    time_s: int
+    pace_s_per_km: float
+    elevation_m: float | None
+    partial: bool
+
+
+class SplitsOut(BaseModel):
+    # available=False: Strava could not be asked right now (not connected, or an error). Try again later.
+    available: bool
+    splits: list[SplitOut]
+
+
 class MonthlyVolumeOut(BaseModel):
     month: str
     km: float
