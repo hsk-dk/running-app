@@ -1,11 +1,12 @@
 import { ReactNode, useState } from "react";
 
-type Tab = "admin" | "ai";
+type Tab = "me" | "admin" | "ai";
 
 /** Drift and the AI suggestions live together here so the main navigation stays at five items. */
-export default function MorePage({ admin, ai }: { admin: ReactNode; ai: ReactNode }) {
-  const [tab, setTab] = useState<Tab>("admin");
+export default function MorePage({ me, admin, ai }: { me: ReactNode; admin: ReactNode; ai: ReactNode }) {
+  const [tab, setTab] = useState<Tab>("me");
   const tabs: { key: Tab; label: string }[] = [
+    { key: "me", label: "Mig" },
     { key: "admin", label: "Admin" },
     { key: "ai", label: "AI Forslag" },
   ];
@@ -22,7 +23,7 @@ export default function MorePage({ admin, ai }: { admin: ReactNode; ai: ReactNod
           ))}
         </ul>
       </nav>
-      {tab === "admin" ? admin : ai}
+      {tab === "me" ? me : tab === "admin" ? admin : ai}
     </div>
   );
 }

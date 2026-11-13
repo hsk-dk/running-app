@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 _OLLAMA_TIMEOUT = 120
 
 
-def _get_recent_activities(weeks: int = 6) -> list[dict]:
+def _get_recent_activities(user_id: int, weeks: int = 6) -> list[dict]:
     cutoff = timeutil.local_now().replace(tzinfo=None) - timedelta(weeks=weeks)
     cutoff_str = cutoff.strftime("%Y-%m-%dT00:00:00")
 
     conn = get_conn()
     try:
-        rows = activity_repo.list_runs_since(conn, cutoff_str)
+        rows = activity_repo.list_runs_since(conn, user_id, cutoff_str)
 
         result = []
         for row in rows:
@@ -83,13 +83,13 @@ def _get_weekly_summary(activities: list[dict]) -> list[dict]:
     return sorted(result, key=lambda x: x["week"])
 
 
-def _get_current_planned_runs() -> list[dict]:
+def _get_current_planned_runs(user_id: int) -> list[dict]:
     today = timeutil.today()
     three_weeks = today + timedelta(weeks=3)
 
     conn = get_conn()
     try:
-        rows = plan_repo.list_between(conn, today.isoformat(), three_weeks.isoformat())
+        rows = plan_repo.list_between(conn, user_id, today.isoformat(), three_weeks.isoformat())
 
         return [
             {
@@ -287,10 +287,10 @@ def _parse_suggestions(raw_text: str, next_monday: date) -> tuple[list[dict], st
     return result, summary
 
 
-def generate_suggestions() -> dict:
-    activities = _get_recent_activities(weeks=6)
+def generate_suggestions(user_id: int) -> dict:
+    activities = _get_recent_activities(user_id, weeks=6)
     weekly_summary = _get_weekly_summary(activities)
-    existing_plan = _get_current_planned_runs()
+    existing_plan = _get_current_planned_runs(user_id)
     next_monday = _next_monday()
 
     prompt = _build_prompt(activities, weekly_summary, existing_plan)

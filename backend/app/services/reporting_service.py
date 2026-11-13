@@ -33,10 +33,10 @@ def _month_stats(rows: list) -> tuple[int, float, float | None]:
     return runs, km, avg_hr
 
 
-def _current_week_summary(conn, today: date) -> dict:
+def _current_week_summary(conn, user_id: int, today: date) -> dict:
     current_week = weekly.iso_week_key(today)
     plans = []
-    for row in plan_repo.list_all(conn):
+    for row in plan_repo.list_all(conn, user_id):
         if not is_mandatory(row):
             continue
         try:
@@ -48,7 +48,7 @@ def _current_week_summary(conn, today: date) -> dict:
     return weekly.summarize(plans, today, tolerance_days=1)
 
 
-def summary():
+def summary(user_id: int):
     conn = get_conn()
     try:
         today = timeutil.today()
@@ -56,7 +56,7 @@ def summary():
         prev_month = _previous_month(*month)
 
         by_month: dict[tuple[int, int], list] = defaultdict(list)
-        for row in activity_repo.list_runs_for_metrics(conn):
+        for row in activity_repo.list_runs_for_metrics(conn, user_id):
             run_date = timeutil.activity_local_date(row)
             if run_date is not None:
                 by_month[(run_date.year, run_date.month)].append(row)
@@ -64,7 +64,7 @@ def summary():
         current_runs, current_km, current_avg_hr = _month_stats(by_month.get(month, []))
         prev_runs, prev_km, prev_avg_hr = _month_stats(by_month.get(prev_month, []))
 
-        week = _current_week_summary(conn, today)
+        week = _current_week_summary(conn, user_id, today)
         adherence = weekly.adherence_pct(week)
 
         return {
@@ -96,11 +96,11 @@ def summary():
         conn.close()
 
 
-def monthly_volume():
+def monthly_volume(user_id: int):
     conn = get_conn()
     try:
         meters_by_month: dict[str, float] = defaultdict(float)
-        for row in activity_repo.list_runs_for_metrics(conn):
+        for row in activity_repo.list_runs_for_metrics(conn, user_id):
             run_date = timeutil.activity_local_date(row)
             if run_date is not None:
                 meters_by_month[run_date.strftime("%Y-%m")] += float(row["distance_m"] or 0)
@@ -113,11 +113,11 @@ def monthly_volume():
         conn.close()
 
 
-def list_activities(limit: int = 100):
+def list_activities(user_id: int, limit: int = 100):
     conn = get_conn()
     try:
         data = []
-        for row in activity_repo.list_recent_runs(conn, limit):
+        for row in activity_repo.list_recent_runs(conn, user_id, limit):
             run_date = timeutil.activity_local_date(row)
             data.append(
                 {
@@ -147,10 +147,10 @@ def _route_of(raw_json: str | None) -> str | None:
     return route or None
 
 
-def get_activity(activity_id: int):
+def get_activity(user_id: int, activity_id: int):
     conn = get_conn()
     try:
-        row = activity_repo.get(conn, activity_id)
+        row = activity_repo.get(conn, user_id, activity_id)
         if row is None or row["sport_type"] != "Run":
             raise NotFoundError(f"Activity {activity_id} not found")
 
@@ -177,11 +177,11 @@ def get_activity(activity_id: int):
         conn.close()
 
 
-def weekly_consistency(tolerance_days: int = 1):
+def weekly_consistency(user_id: int, tolerance_days: int = 1):
     conn = get_conn()
     try:
         weeks: dict[str, list[tuple[date, str]]] = {}
-        for row in plan_repo.list_all(conn):
+        for row in plan_repo.list_all(conn, user_id):
             if not is_mandatory(row):
                 continue
             try:

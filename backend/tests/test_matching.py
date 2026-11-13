@@ -12,9 +12,10 @@ def matching(db):
     import app.services.planning_service as planning_service
     import app.services.reporting_service as reporting_service
 
+    uid = db.DEFAULT_USER_ID
     return SimpleNamespace(
-        evaluate_planned_runs=planning_service.evaluate_planned_runs,
-        get_weekly_consistency=reporting_service.weekly_consistency,
+        evaluate_planned_runs=lambda tolerance_days=1: planning_service.evaluate_planned_runs(uid, tolerance_days),
+        get_weekly_consistency=lambda: reporting_service.weekly_consistency(uid),
     )
 
 

@@ -90,7 +90,7 @@ def test_match_activity_requires_activity_id(client):
 def test_ingest_failure_is_recorded_and_raised(client, monkeypatch):
     import app.services.admin_service as admin_service
 
-    def boom(pages):
+    def boom(user_id, pages):
         raise RuntimeError("strava down")
 
     monkeypatch.setattr(admin_service, "ingest_recent", boom)

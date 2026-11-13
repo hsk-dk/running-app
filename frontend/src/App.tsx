@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 import OverviewPage from "./pages/OverviewPage";
 import PlanPage from "./pages/PlanPage";
-import ActivitiesPage from "./pages/ActivitiesPage";
+import FamilyPage from "./pages/FamilyPage";
+import MePage from "./pages/MePage";
+import YearSection from "./pages/YearSection";
+import StravaBanner, { StravaNotice } from "./components/StravaBanner";
 import AdminPage from "./pages/AdminPage";
 import AiSuggestionsPage from "./pages/AiSuggestionsPage";
 import MorePage from "./pages/MorePage";
-import YearPage from "./pages/YearPage";
 
-type PageKey = "overview" | "plan" | "year" | "activities" | "more";
+type PageKey = "overview" | "plan" | "year" | "family" | "more";
 
 function formatDateTime(value?: string) {
   if (!value) return "-";
@@ -56,6 +58,16 @@ export default function App() {
   const [plannedRuns, setPlannedRuns] = useState<any[]>([]);
   const [weeklyConsistency, setWeeklyConsistency] = useState<any[]>([]);
   const [adminStatus, setAdminStatus] = useState<any>(null);
+  const [me, setMe] = useState<any>(null);
+  const [notice, setNotice] = useState<StravaNotice>(null);
+
+  async function loadMe() {
+    try {
+      setMe(await api.getMe());
+    } catch (e: any) {
+      setError(e.message || "Kunne ikke hente din bruger");
+    }
+  }
 
   async function loadAll() {
     try {
@@ -81,7 +93,21 @@ export default function App() {
   }
 
   useEffect(() => {
+    loadMe();
     loadAll();
+    // Back from Strava: say what happened, tidy the address, and reload once the first sync has had time to run.
+    const flag = new URLSearchParams(window.location.search).get("strava");
+    if (flag === "connected" || flag === "denied") {
+      setNotice(flag);
+      window.history.replaceState(null, "", window.location.pathname);
+      if (flag === "connected") {
+        const t = window.setTimeout(() => {
+          loadMe();
+          loadAll();
+        }, 6000);
+        return () => window.clearTimeout(t);
+      }
+    }
   }, []);
 
   async function handleAction(action: "ingest" | "plan") {
@@ -145,19 +171,14 @@ export default function App() {
             onPlanningChanged={loadAll}
           />
         );
-      case "activities":
-        return (
-          <ActivitiesPage
-            {...common}
-            activities={activities}
-            plannedRuns={plannedRuns}
-          />
-        );
+      case "family":
+        return <FamilyPage />;
       case "year":
-        return <YearPage activities={activities} />;
+        return <YearSection {...common} activities={activities} plannedRuns={plannedRuns} />;
       case "more":
         return (
           <MorePage
+            me={me ? <MePage me={me} onChanged={loadMe} /> : <p className="u-card__meta" role="status">Henter…</p>}
             admin={<AdminPage {...common} adminStatus={adminStatus} />}
             ai={<AiSuggestionsPage onPlanningChanged={loadAll} />}
           />
@@ -194,9 +215,9 @@ export default function App() {
               onClick={() => setPage("year")}
             />
             <NavItem
-              active={page === "activities"}
-              label="Løb"
-              onClick={() => setPage("activities")}
+              active={page === "family"}
+              label="Familie"
+              onClick={() => setPage("family")}
             />
             <NavItem
               active={page === "more"}
@@ -204,10 +225,17 @@ export default function App() {
               onClick={() => setPage("more")}
             />
           </nav>
+
+          {me && (
+            <div className="u-header__actions">
+              <span>{me.display_name}</span>
+            </div>
+          )}
         </div>
       </header>
 
       <main id="indhold" className="u-container app-main" tabIndex={-1}>
+        {me && <StravaBanner me={me} notice={notice} onDismiss={() => setNotice(null)} />}
         <div className="u-panel" style={{ minHeight: 620 }}>
           {renderPage()}
         </div>

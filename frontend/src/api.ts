@@ -28,6 +28,19 @@ export const api = {
   getActivities: (limit = 500) => getJson(`/activities?limit=${limit}`),
   getActivity: (id: number) => getJson(`/activities/${id}`),
 
+  // Me, Strava and family
+  getMe: () => getJson("/me"),
+  updateMe: (payload: { sharing_level?: "private" | "overview" | "all"; display_name?: string }) =>
+    getJson("/me", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  stravaConnect: () => getJson("/strava/connect", { method: "POST" }),
+  stravaDisconnect: () => getJson("/strava/connection", { method: "DELETE" }),
+  getFamily: () => getJson("/family"),
+  getFamilyActivity: (userId: number, activityId: number) => getJson(`/family/${userId}/activities/${activityId}`),
+
   // Planning
   getPlannedRuns: () => getJson("/planning"),
   getWeeklyConsistency: () => getJson("/planning/weekly-consistency"),

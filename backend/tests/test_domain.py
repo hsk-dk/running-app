@@ -159,3 +159,36 @@ def test_app_does_not_import_pandas():
 def test_requirements_do_not_list_pandas():
     reqs = (Path(__file__).resolve().parents[1] / "requirements.txt").read_text().lower()
     assert "pandas" not in reqs
+
+
+# ---- streak of weeks with a run -------------------------------------------------
+
+NOV12 = date(2026, 11, 12)  # a Thursday in ISO week 46
+
+def test_streak_counts_consecutive_weeks_back_from_this_week():
+    runs = [date(2026, 11, 10), date(2026, 11, 3), date(2026, 10, 27)]  # weeks 46, 45, 44
+    assert weekly.streak(runs, NOV12) == 3
+
+
+def test_streak_survives_a_current_week_without_a_run_yet():
+    runs = [date(2026, 11, 3), date(2026, 10, 27)]  # last two weeks; this week (46) has none yet
+    assert weekly.streak(runs, NOV12) == 2
+
+
+def test_streak_ends_after_a_whole_week_without_a_run():
+    runs = [date(2026, 10, 27), date(2026, 10, 20)]  # weeks 44 and 43; week 45 and 46 empty
+    assert weekly.streak(runs, NOV12) == 0
+
+
+def test_streak_with_a_gap_stops_at_the_gap():
+    runs = [date(2026, 11, 10), date(2026, 10, 27)]  # 46 and 44, nothing in 45
+    assert weekly.streak(runs, NOV12) == 1
+
+
+def test_streak_is_zero_without_runs_and_counts_several_runs_in_a_week_once():
+    assert weekly.streak([], NOV12) == 0
+    assert weekly.streak([date(2026, 11, 9), date(2026, 11, 10), date(2026, 11, 12)], NOV12) == 1
+
+
+def test_streak_crosses_the_year_boundary():
+    assert weekly.streak([date(2021, 1, 4), date(2020, 12, 30)], date(2021, 1, 5)) == 2  # weeks 2021-W01 and 2020-W53

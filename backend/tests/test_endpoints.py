@@ -90,9 +90,9 @@ def test_ai_context_queries(db):
     add_activity(db, 1, f"{today.isoformat()}T08:00:00Z", distance_m=8000, moving_time_s=2400)
     add_plan(db, (today + timedelta(days=2)).isoformat(), target_value=30)
 
-    runs = ai._get_recent_activities(weeks=2)
+    runs = ai._get_recent_activities(1, weeks=2)
     assert [r["distance_km"] for r in runs] == [8.0]
-    assert len(ai._get_current_planned_runs()) == 1
+    assert len(ai._get_current_planned_runs(1)) == 1
 
 
 # ---- sprint 5: local dates, partial credit, single mandatory flag ----------------

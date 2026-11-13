@@ -29,7 +29,16 @@ function duration(min: number) {
 }
 
 /** One run as a story: the route first, then the three numbers that matter. */
-export default function ActivityDetail({ activityId, onClose }: { activityId: number; onClose: () => void }) {
+export default function ActivityDetail({
+  activityId,
+  onClose,
+  load = (id: number) => api.getActivity(id),
+}: {
+  activityId: number;
+  onClose: () => void;
+  /** Fetches the run; family members' runs come from a different endpoint. */
+  load?: (id: number) => Promise<any>;
+}) {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,13 +46,13 @@ export default function ActivityDetail({ activityId, onClose }: { activityId: nu
     let cancelled = false;
     setDetail(null);
     setError(null);
-    api
-      .getActivity(activityId)
+    load(activityId)
       .then((d: Detail) => !cancelled && setDetail(d))
       .catch((e: any) => !cancelled && setError(e.message || "Kunne ikke hente løbet"));
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activityId]);
 
   return (
@@ -87,7 +96,7 @@ export default function ActivityDetail({ activityId, onClose }: { activityId: nu
             <div className="u-tile"><span className="u-tile__label">Distance</span><span className="u-tile__value">{num(detail.distance_km, 2)} km</span></div>
             <div className="u-tile"><span className="u-tile__label">Tid</span><span className="u-tile__value">{duration(detail.duration_min)}</span></div>
             <div className="u-tile"><span className="u-tile__label">Tempo</span><span className="u-tile__value">{pace(detail.avg_pace_s_per_km)}</span></div>
-            <div className="u-tile"><span className="u-tile__label">Puls (gns / max)</span><span className="u-tile__value">{detail.avg_hr ? num(detail.avg_hr, 0) : "–"}{detail.max_hr ? ` / ${num(detail.max_hr, 0)}` : ""}</span></div>
+            {"avg_hr" in detail && <div className="u-tile"><span className="u-tile__label">Puls (gns / max)</span><span className="u-tile__value">{detail.avg_hr ? num(detail.avg_hr, 0) : "–"}{detail.max_hr ? ` / ${num(detail.max_hr, 0)}` : ""}</span></div>}
             <div className="u-tile"><span className="u-tile__label">Stigning</span><span className="u-tile__value">{detail.elevation_gain_m != null ? `${num(detail.elevation_gain_m, 0)} m` : "–"}</span></div>
           </div>
         </div>

@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS activities (
     max_heartrate REAL,
     average_cadence REAL,
     raw_json TEXT NOT NULL,
+    user_id INTEGER NOT NULL DEFAULT 1,
     is_extra INTEGER DEFAULT 0,
     is_aborted INTEGER DEFAULT 0,
     matched_planned_run_id INTEGER,
@@ -49,7 +50,38 @@ CREATE TABLE IF NOT EXISTS planned_runs (
     evaluated_at TEXT,
     match_score REAL,
     match_reason TEXT,
+    user_id INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY (matched_activity_id) REFERENCES activities(id)
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    external_id TEXT NOT NULL UNIQUE,
+    username TEXT NOT NULL,
+    display_name TEXT,
+    role TEXT NOT NULL DEFAULT 'family',
+    sharing_level TEXT NOT NULL DEFAULT 'private',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS strava_accounts (
+    user_id INTEGER PRIMARY KEY,
+    athlete_id TEXT NOT NULL UNIQUE,
+    refresh_token TEXT NOT NULL,
+    access_token TEXT,
+    access_expires_at INTEGER,
+    scope TEXT,
+    connected_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS user_state (
+    user_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, key)
 );
 
 CREATE TABLE IF NOT EXISTS sync_state (
@@ -68,6 +100,7 @@ CREATE TABLE IF NOT EXISTS webhook_events (
     subscription_id TEXT,
     event_time INTEGER,
     payload_json TEXT NOT NULL,
+    user_id INTEGER,
     processed INTEGER DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     processed_at TEXT
@@ -212,6 +245,45 @@ def _migration_6_drop_derived_metrics(conn: sqlite3.Connection) -> None:
     conn.execute("DROP TABLE IF EXISTS derived_metrics")
 
 
+DEFAULT_USER_ID = 1
+_USER_STATE_KEYS = ("last_sync_at", "last_ingest_result", "last_error", "last_synced_start_date")
+
+
+def _migration_7_users(conn: sqlite3.Connection) -> None:
+    """Multiple users. All existing data belongs to the first user (the owner), who is created here."""
+    for table, definition in (
+        ("activities", "INTEGER NOT NULL DEFAULT 1"),
+        ("planned_runs", "INTEGER NOT NULL DEFAULT 1"),
+        ("webhook_events", "INTEGER"),
+    ):
+        _add_column_if_missing(conn, table, "user_id", definition)
+
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO users (id, external_id, username, display_name, role)
+        VALUES (?, 'local', 'owner', 'Mig', 'admin')
+        """,
+        (DEFAULT_USER_ID,),
+    )
+
+    # Per-user keys move out of the global sync_state table.
+    placeholders = ", ".join("?" for _ in _USER_STATE_KEYS)
+    conn.execute(
+        f"INSERT OR IGNORE INTO user_state (user_id, key, value, updated_at) "
+        f"SELECT ?, key, value, updated_at FROM sync_state WHERE key IN ({placeholders})",
+        (DEFAULT_USER_ID, *_USER_STATE_KEYS),
+    )
+    conn.execute(f"DELETE FROM sync_state WHERE key IN ({placeholders})", _USER_STATE_KEYS)
+
+    conn.executescript(
+        """
+        CREATE INDEX IF NOT EXISTS idx_activities_user_start ON activities(user_id, start_date);
+        CREATE INDEX IF NOT EXISTS idx_planned_runs_user_date ON planned_runs(user_id, planned_date);
+        CREATE INDEX IF NOT EXISTS idx_webhook_events_user ON webhook_events(user_id);
+        """
+    )
+
+
 MIGRATIONS = [
     _migration_1_add_missing_columns,
     _migration_2_add_indexes,
@@ -219,6 +291,7 @@ MIGRATIONS = [
     _migration_4_add_start_date_local,
     _migration_5_sync_mandatory_from_optional,
     _migration_6_drop_derived_metrics,
+    _migration_7_users,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

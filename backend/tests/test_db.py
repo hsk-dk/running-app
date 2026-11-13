@@ -96,6 +96,10 @@ INSERT INTO planned_runs (planned_date, session_type, matched_activity_id, optio
 INSERT INTO planned_runs (planned_date, session_type, matched_activity_id, optional)
     VALUES ('2020-03-11', 'easy', 999, 1);
 INSERT INTO derived_metrics VALUES (999, '2020-01-01', 2020, '2020-01', '2020-W01');
+CREATE TABLE sync_state (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
+INSERT INTO sync_state (key, value) VALUES ('last_sync_at', '2020-03-12T08:00:00Z');
+INSERT INTO sync_state (key, value) VALUES ('last_error', 'boom');
+INSERT INTO sync_state (key, value) VALUES ('last_webhook_at', '2020-03-12T09:00:00Z');
 """
 
 
@@ -131,6 +135,17 @@ def test_legacy_database_is_upgraded(tmp_path, monkeypatch):
         # local start time is backfilled from raw_json where Strava provided it
         local = {r["id"]: r["start_date_local"] for r in conn.execute("SELECT id, start_date_local FROM activities")}
         assert local == {1: "2020-03-11T00:30:00Z", 2: None}
+
+        # everything that existed belongs to the first user, the owner
+        owner = conn.execute("SELECT id, external_id, role FROM users").fetchall()
+        assert [tuple(r) for r in owner] == [(1, "local", "admin")]
+        assert {r[0] for r in conn.execute("SELECT user_id FROM activities")} == {1}
+        assert {r[0] for r in conn.execute("SELECT user_id FROM planned_runs")} == {1}
+
+        # per-user sync state moved; the global webhook marker stayed
+        user_keys = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM user_state WHERE user_id = 1")}
+        assert user_keys == {"last_sync_at": "2020-03-12T08:00:00Z", "last_error": "boom"}
+        assert [r["key"] for r in conn.execute("SELECT key FROM sync_state")] == ["last_webhook_at"]
 
         # `mandatory` follows `optional`, the value older code actually edited
         mandatory = [r[0] for r in conn.execute("SELECT mandatory FROM planned_runs ORDER BY id")]

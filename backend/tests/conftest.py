@@ -23,15 +23,15 @@ def db(tmp_path, monkeypatch):
     return app.db
 
 
-def add_activity(db, id, start_date, distance_m=5000, moving_time_s=1800, name="Run", sport_type="Run", raw=None):
+def add_activity(db, id, start_date, distance_m=5000, moving_time_s=1800, name="Run", sport_type="Run", raw=None, user_id=1):
     conn = db.get_conn()
     try:
         conn.execute(
             """
-            INSERT INTO activities (id, name, sport_type, start_date, distance_m, moving_time_s, raw_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO activities (id, name, sport_type, start_date, distance_m, moving_time_s, raw_json, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (id, name, sport_type, start_date, distance_m, moving_time_s, json.dumps(raw if raw is not None else {})),
+            (id, name, sport_type, start_date, distance_m, moving_time_s, json.dumps(raw if raw is not None else {}), user_id),
         )
         conn.commit()
     finally:
@@ -48,6 +48,7 @@ def add_plan(
     status="planlagt",
     manual_override=0,
     matched_activity_id=None,
+    user_id=1,
 ):
     conn = db.get_conn()
     try:
@@ -55,12 +56,12 @@ def add_plan(
             """
             INSERT INTO planned_runs (
                 planned_date, session_type, target_type, target_value,
-                mandatory, optional, status, manual_override, matched_activity_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                mandatory, optional, status, manual_override, matched_activity_id, user_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 planned_date, session_type, target_type, target_value,
-                mandatory, int(not mandatory), status, manual_override, matched_activity_id,
+                mandatory, int(not mandatory), status, manual_override, matched_activity_id, user_id,
             ),
         )
         conn.commit()
@@ -83,3 +84,31 @@ def get_activity(db, activity_id):
         return dict(conn.execute("SELECT * FROM activities WHERE id = ?", (activity_id,)).fetchone())
     finally:
         conn.close()
+
+
+def connect_strava(db, user_id=1, athlete_id="1"):
+    """Give a user a Strava account (webhook events are routed by athlete id)."""
+    conn = db.get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO strava_accounts (user_id, athlete_id, refresh_token) VALUES (?, ?, 'refresh')",
+            (user_id, str(athlete_id)),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@pytest.fixture()
+def proxy(db, monkeypatch):
+    """The app in proxy mode, called from a trusted address, with no one signed in until headers are sent."""
+    import importlib
+
+    from fastapi.testclient import TestClient
+
+    import app.main
+    from tests.auth_helpers import PROXY_IP, FromAddress, patch_settings
+
+    importlib.reload(app.main)
+    patch_settings(monkeypatch, AUTH_MODE="proxy", TRUSTED_PROXIES=["10.0.0.0/8"], AUTH_OWNER_USERNAME="")
+    return TestClient(FromAddress(app.main.app, PROXY_IP), follow_redirects=False)

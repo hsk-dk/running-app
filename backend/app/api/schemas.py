@@ -97,6 +97,23 @@ class ActivityDetailOut(ActivityOut):
     route: str | None
 
 
+class FamilyActivityOut(BaseModel):
+    """A run as other family members see it: no heart rate and no plan details."""
+
+    id: int
+    date: str | None
+    name: str | None
+    distance_km: float
+    duration_min: float
+
+
+class FamilyActivityDetailOut(FamilyActivityOut):
+    start_time_local: str | None
+    elevation_gain_m: float | None
+    avg_pace_s_per_km: float | None
+    route: str | None
+
+
 class MonthlyVolumeOut(BaseModel):
     month: str
     km: float
@@ -133,3 +150,62 @@ class StravaWebhookEvent(BaseModel):
     subscription_id: int | str | None = None
     event_time: int | None = None
     updates: dict | None = None
+
+
+class StravaStatusOut(BaseModel):
+    connected: bool
+    configured: bool
+    athlete_id: str | None
+
+
+class MeOut(BaseModel):
+    id: int
+    username: str
+    display_name: str
+    role: str
+    sharing_level: str
+    family_sharing_enabled: bool
+    strava: StravaStatusOut
+
+
+class MeUpdate(BaseModel):
+    sharing_level: Literal["private", "overview", "all"] | None = None
+    display_name: str | None = Field(default=None, max_length=60)
+
+
+class ConnectOut(BaseModel):
+    url: str
+
+
+class FamilyRunOut(BaseModel):
+    id: int
+    date: str | None
+    name: str | None
+    distance_km: float
+    duration_min: float
+
+
+class FamilyWeekOut(BaseModel):
+    done: int
+    total: int
+    open: int
+
+
+class FamilyMemberOut(BaseModel):
+    user_id: int
+    name: str
+    is_me: bool
+    level: Literal["private", "overview", "all"]
+    shared: bool
+    strava_connected: bool
+    week: FamilyWeekOut | None
+    month_km: float | None
+    month_runs: int | None
+    streak_weeks: int | None
+    recent_runs: list[FamilyRunOut] | None
+
+
+class FamilyOut(BaseModel):
+    members: list[FamilyMemberOut]
+    total_km_this_month: float
+    sharing_enabled: bool

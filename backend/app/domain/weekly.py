@@ -67,3 +67,22 @@ def score(summary: dict) -> str:
     if summary["completed"] + summary["shortened"] > 0:
         return "Gul"
     return "Rød"
+
+
+def streak(run_dates: Iterable[date], today: date) -> int:
+    """Consecutive weeks with at least one run, counted back from the current week.
+
+    A current week without a run does not break the streak yet: it still has days left, so counting
+    starts from last week. Once a whole week has passed without a run, the streak is over.
+    """
+    weeks = {iso_week_key(d) for d in run_dates}
+    if not weeks:
+        return 0
+    cursor = today
+    if iso_week_key(cursor) not in weeks:
+        cursor = cursor - timedelta(days=7)
+    count = 0
+    while iso_week_key(cursor) in weeks:
+        count += 1
+        cursor = cursor - timedelta(days=7)
+    return count
