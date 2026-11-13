@@ -100,7 +100,10 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
           <>
             <p className="u-card__meta">
               Forbundet{me.smashrun.mode === "token" ? " med et personligt token" : ""}. Dine løb hentes herfra.
-              {me.smashrun.mode === "token" && me.smashrun.expires_at && ` Tokenet gælder til ${me.smashrun.expires_at}.`}
+              {me.smashrun.mode === "token" &&
+                (me.smashrun.expires_at
+                  ? ` Tokenet gælder til ${me.smashrun.expires_at}.`
+                  : " Smashrun oplyser ikke, hvornår tokenet udløber. Virker synkroniseringen en dag ikke, så indsæt et nyt.")}
             </p>
             {tokenNotice(me.smashrun) && (
               <div className={`u-notice u-notice--${tokenNotice(me.smashrun)!.level}`} role="status">
