@@ -263,7 +263,29 @@ def set_name_if_empty(conn: sqlite3.Connection, user_id: int, activity_id: int, 
 def list_with_raw(conn: sqlite3.Connection, user_id: int, limit: int) -> list[sqlite3.Row]:
     """The user's newest runs with the stored source data (used to pull out each run's route)."""
     return conn.execute(
-        "SELECT id, start_date, start_date_local, distance_m, raw_json FROM activities "
+        "SELECT id, start_date, start_date_local, distance_m, raw_json, route_polyline FROM activities "
         "WHERE user_id = ? AND sport_type = 'Run' ORDER BY start_date DESC, id DESC LIMIT ?",
         (user_id, limit),
     ).fetchall()
+
+
+# ---- Garmin: link to the Garmin activity and keep what its FIT file says ---------------------------------
+
+def set_garmin_id(conn: sqlite3.Connection, user_id: int, activity_id: int, garmin_id: int) -> None:
+    conn.execute("UPDATE activities SET garmin_id = ? WHERE id = ? AND user_id = ?", (garmin_id, activity_id, user_id))
+
+
+def set_fit_result(
+    conn: sqlite3.Connection, user_id: int, activity_id: int, *, status: str,
+    route: str | None = None, profile_json: str | None = None, laps_json: str | None = None, splits_json: str | None = None,
+) -> None:
+    """Save what the FIT file said. The route only fills a gap: a run that already has one keeps it."""
+    conn.execute(
+        """
+        UPDATE activities SET fit_status = ?, profile_json = ?, laps_json = ?,
+            route_polyline = COALESCE(route_polyline, ?),
+            splits_json = COALESCE(?, splits_json)
+        WHERE id = ? AND user_id = ?
+        """,
+        (status, profile_json, laps_json, route, splits_json, activity_id, user_id),
+    )

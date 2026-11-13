@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import current_user
-from app.api.schemas import ActivityDetailOut, ActivityOut, MonthlyVolumeOut, RouteOut, SplitsOut
-from app.services import reporting_service, splits_service
+from app.api.schemas import ActivityDetailOut, ActivityOut, MonthlyVolumeOut, ProfileOut, RouteOut, SplitsOut
+from app.services import garmin_service, reporting_service, splits_service
 from app.services.user_service import CurrentUser
 
 router = APIRouter(prefix="/api", tags=["activities"])
@@ -27,6 +27,11 @@ def get_activity(activity_id: int, user: CurrentUser = Depends(current_user)):
 @router.get("/activities/{activity_id}/splits", response_model=SplitsOut)
 def get_splits(activity_id: int, user: CurrentUser = Depends(current_user)):
     return splits_service.get_splits(user.id, activity_id)
+
+
+@router.get("/activities/{activity_id}/profile", response_model=ProfileOut)
+def get_profile(activity_id: int, user: CurrentUser = Depends(current_user)):
+    return garmin_service.get_profile(user.id, activity_id)
 
 
 @router.get("/metrics/summary")

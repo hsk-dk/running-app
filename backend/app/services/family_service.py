@@ -10,7 +10,7 @@ from app.errors import ForbiddenError
 from app.repositories import activities as activity_repo
 from app.repositories import planned_runs as plan_repo
 from app.repositories import strava_accounts
-from app.services import reporting_service, splits_service, user_service
+from app.services import garmin_service, reporting_service, splits_service, user_service
 from app.services.user_service import CurrentUser
 
 RECENT_RUNS = 8
@@ -113,4 +113,11 @@ def member_activity(viewer: CurrentUser, user_id: int, activity_id: int):
 
 def member_splits(viewer: CurrentUser, user_id: int, activity_id: int):
     target = _target(viewer, user_id)
-    return splits_service.get_splits(target.id, activity_id)
+    result = splits_service.get_splits(target.id, activity_id)
+    # Heart rate is never shared with the family, not even per kilometre.
+    return {**result, "splits": [{**split, "avg_hr": None} for split in result["splits"]]}
+
+
+def member_profile(viewer: CurrentUser, user_id: int, activity_id: int):
+    target = _target(viewer, user_id)
+    return garmin_service.get_profile(target.id, activity_id, include_hr=False)

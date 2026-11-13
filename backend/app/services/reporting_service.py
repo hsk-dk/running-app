@@ -156,7 +156,7 @@ def routes(user_id: int, limit: int = 400):
         conn.close()
     out = []
     for row in rows:
-        route = _route_of(row["raw_json"])
+        route = row["route_polyline"] or _route_of(row["raw_json"])
         if not route:
             continue
         day = timeutil.activity_local_date(row)
@@ -195,7 +195,7 @@ def get_activity(user_id: int, activity_id: int):
             "elevation_gain_m": round(float(row["total_elevation_gain"]), 0) if row["total_elevation_gain"] is not None else None,
             "avg_pace_s_per_km": round(moving_s / (distance_m / 1000.0), 1) if distance_m > 0 and moving_s > 0 else None,
             "max_hr": round(float(row["max_heartrate"]), 1) if row["max_heartrate"] is not None else None,
-            "route": _route_of(row["raw_json"]),
+            "route": row["route_polyline"] or _route_of(row["raw_json"]),
         }
     finally:
         conn.close()

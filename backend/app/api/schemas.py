@@ -128,6 +128,33 @@ class SplitOut(BaseModel):
     pace_s_per_km: float
     elevation_m: float | None
     partial: bool
+    avg_hr: float | None = None
+
+
+class ProfileSeriesOut(BaseModel):
+    t: list[float]
+    d: list[float]
+    hr: list[float | None] | None = None
+    v: list[float | None] | None = None
+    cad: list[float | None] | None = None
+    alt: list[float | None] | None = None
+
+
+class LapOut(BaseModel):
+    start_s: float | None = None
+    duration_s: float
+    distance_m: float | None = None
+    avg_hr: float | None = None
+    pace_s_per_km: float | None = None
+    intensity: str | None = None
+
+
+class ProfileOut(BaseModel):
+    # available=False: Garmin could not be asked right now. source=False: this run does not come from Garmin.
+    available: bool
+    source: bool
+    profile: ProfileSeriesOut | None = None
+    laps: list[LapOut] = []
 
 
 class SplitsOut(BaseModel):
@@ -192,6 +219,16 @@ class SmashrunTokenIn(BaseModel):
     token: str = Field(min_length=1, max_length=200)
 
 
+class GarminStatusOut(BaseModel):
+    connected: bool
+    last_sync_at: str | None = None
+    last_error: str | None = None
+
+
+class GarminKeyIn(BaseModel):
+    key: str = Field(min_length=1, max_length=700)
+
+
 class RunnaStatusOut(BaseModel):
     connected: bool
     last_sync_at: str | None = None
@@ -212,6 +249,7 @@ class MeOut(BaseModel):
     strava: StravaStatusOut
     smashrun: SmashrunStatusOut
     runna: RunnaStatusOut
+    garmin: GarminStatusOut
 
 
 class MeUpdate(BaseModel):

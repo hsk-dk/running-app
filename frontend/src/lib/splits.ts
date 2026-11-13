@@ -6,6 +6,8 @@ export type Split = {
   pace_s_per_km: number;
   elevation_m: number | null;
   partial: boolean;
+  /** Average heart rate in the kilometre, when the source has it. Never sent for other people's runs. */
+  avg_hr?: number | null;
 };
 
 /** 5:32 for 332 seconds. */

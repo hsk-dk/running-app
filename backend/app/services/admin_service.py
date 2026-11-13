@@ -1,8 +1,8 @@
 from app.db import get_conn
 from app.errors import NotConnectedError, UpstreamError
 from app.repositories import activities as activity_repo
-from app.repositories import calendar_feeds, smashrun_accounts, strava_accounts, sync_state, user_state, webhook_events
-from app.services import planning_service, runna_service, smashrun_service
+from app.repositories import calendar_feeds, garmin_accounts, smashrun_accounts, strava_accounts, sync_state, user_state, webhook_events
+from app.services import garmin_service, planning_service, runna_service, smashrun_service
 from app.services.sync_service import ingest_recent, set_state
 
 
@@ -29,6 +29,8 @@ def run_ingest(user_id: int, pages: int = 3):
     conn = get_conn()
     try:
         sources = []
+        if garmin_accounts.get(conn, user_id) is not None:
+            sources.append("garmin")
         if smashrun_accounts.get(conn, user_id) is not None:
             sources.append("smashrun")
         if strava_accounts.get(conn, user_id) is not None:
@@ -45,7 +47,9 @@ def run_ingest(user_id: int, pages: int = 3):
     failures: list[Exception] = []
     for source in sources:
         try:
-            if source == "smashrun":
+            if source == "garmin":
+                results[source] = garmin_service.ingest_recent(user_id)
+            elif source == "smashrun":
                 results[source] = smashrun_service.ingest_recent(user_id)
             elif source == "runna":
                 results[source] = runna_service.sync(user_id)

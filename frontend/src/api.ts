@@ -37,6 +37,15 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
+  garminConnect: (key: string) =>
+    getJson("/garmin/key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key }),
+    }),
+  garminDisconnect: () => getJson("/garmin/connection", { method: "DELETE" }),
+  getProfile: (activityId: number) => getJson(`/activities/${activityId}/profile`),
+  getFamilyProfile: (userId: number, activityId: number) => getJson(`/family/${userId}/activities/${activityId}/profile`),
   runnaConnect: (url: string) =>
     getJson("/runna/link", {
       method: "POST",

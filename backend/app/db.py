@@ -25,6 +25,11 @@ CREATE TABLE IF NOT EXISTS activities (
     user_id INTEGER NOT NULL DEFAULT 1,
     source TEXT NOT NULL DEFAULT 'strava',
     source_id TEXT,
+    garmin_id INTEGER,
+    route_polyline TEXT,
+    profile_json TEXT,
+    laps_json TEXT,
+    fit_status TEXT,
     is_extra INTEGER DEFAULT 0,
     is_aborted INTEGER DEFAULT 0,
     matched_planned_run_id INTEGER,
@@ -86,6 +91,15 @@ CREATE TABLE IF NOT EXISTS smashrun_accounts (
     access_token TEXT,
     access_expires_at INTEGER,
     scope TEXT,
+    connected_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS garmin_accounts (
+    user_id INTEGER PRIMARY KEY,
+    api_key TEXT NOT NULL,
+    bearer_token TEXT,
+    token_expires_at INTEGER,
     connected_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
@@ -353,6 +367,33 @@ def _migration_10_plan_import(conn: sqlite3.Connection) -> None:
     )
 
 
+def _migration_11_garmin(conn: sqlite3.Connection) -> None:
+    """Garmin Connect (personal API) as a source: a run can be linked to its Garmin activity, and what the FIT file
+    tells about it (route, per-second profile, laps) is kept with the run. fit_status: NULL = not read yet,
+    'ok' = read, 'none' = Garmin has no usable file for it."""
+    for column, definition in (
+        ("garmin_id", "INTEGER"),
+        ("route_polyline", "TEXT"),
+        ("profile_json", "TEXT"),
+        ("laps_json", "TEXT"),
+        ("fit_status", "TEXT"),
+    ):
+        _add_column_if_missing(conn, "activities", column, definition)
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS garmin_accounts (
+            user_id INTEGER PRIMARY KEY,
+            api_key TEXT NOT NULL,
+            bearer_token TEXT,
+            token_expires_at INTEGER,
+            connected_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_activities_garmin ON activities(user_id, garmin_id)")
+
+
 MIGRATIONS = [
     _migration_1_add_missing_columns,
     _migration_2_add_indexes,
@@ -364,6 +405,7 @@ MIGRATIONS = [
     _migration_8_splits,
     _migration_9_sources,
     _migration_10_plan_import,
+    _migration_11_garmin,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 
