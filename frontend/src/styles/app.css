@@ -64,3 +64,6 @@ button.u-tab { font: inherit; font-size: var(--text-sm); cursor: pointer; }
 .detail { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--space-5); align-items: start; }
 .detail__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-3); }
 @media (max-width: 48rem) { .detail { grid-template-columns: minmax(0, 1fr); } }
+
+/* The signed-in name is also on the Mig page; on a phone it would push the menu onto a second row. */
+@media (max-width: 30rem) { .u-header__actions { display: none; } }

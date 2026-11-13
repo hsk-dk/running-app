@@ -36,6 +36,8 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
+  smashrunConnect: () => getJson("/smashrun/connect", { method: "POST" }),
+  smashrunDisconnect: () => getJson("/smashrun/connection", { method: "DELETE" }),
   stravaConnect: () => getJson("/strava/connect", { method: "POST" }),
   stravaDisconnect: () => getJson("/strava/connection", { method: "DELETE" }),
   getFamily: () => getJson("/family"),

@@ -9,6 +9,7 @@ type Me = {
   sharing_level: SharingLevel;
   family_sharing_enabled: boolean;
   strava: { connected: boolean; configured: boolean; athlete_id: string | null };
+  smashrun: { connected: boolean; configured: boolean };
 };
 
 /** Your own settings: who sees your runs, and which Strava the app reads. */
@@ -30,14 +31,14 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
     }
   }
 
-  async function connect() {
+  async function connect(source: "strava" | "smashrun" = "strava") {
     setBusy(true);
     setError(null);
     try {
-      const { url } = await api.stravaConnect();
+      const { url } = await (source === "smashrun" ? api.smashrunConnect() : api.stravaConnect());
       window.location.href = url;
     } catch (e: any) {
-      setError(e.message || "Kunne ikke starte forbindelsen til Strava");
+      setError(e.message || "Kunne ikke starte forbindelsen");
       setBusy(false);
     }
   }
@@ -91,6 +92,35 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
         </fieldset>
       </section>
 
+      <section className="u-card" aria-labelledby="smashrun-title" style={{ display: "grid", gap: 12 }}>
+        <h2 id="smashrun-title" className="u-h2">Smashrun</h2>
+        {me.smashrun.connected ? (
+          <>
+            <p className="u-card__meta">Forbundet. Dine løb hentes herfra.</p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" className="u-btn u-btn--secondary" disabled={busy} onClick={() => run(() => api.smashrunDisconnect())}>
+                Frakobl Smashrun
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="u-card__meta">Ikke forbundet. Forbind din Smashrun-konto for at se dine løb her.</p>
+            {!me.smashrun.configured && (
+              <div className="u-notice u-notice--warning" role="status">
+                <b className="u-notice__level">Ikke sat op</b>
+                <span>Smashrun er ikke sat op på serveren endnu.</span>
+              </div>
+            )}
+            <div>
+              <button type="button" className="u-btn u-btn--primary" disabled={busy || !me.smashrun.configured} onClick={() => connect("smashrun")}>
+                Forbind Smashrun
+              </button>
+            </div>
+          </>
+        )}
+      </section>
+
       <section className="u-card" aria-labelledby="strava-title" style={{ display: "grid", gap: 12 }}>
         <h2 id="strava-title" className="u-h2">Strava</h2>
         {me.strava.connected ? (
@@ -114,9 +144,9 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
           </>
         ) : (
           <>
-            <p className="u-card__meta">Ikke forbundet. Forbind din egen Strava for at se dine løb her.</p>
+            <p className="u-card__meta">Ikke forbundet. Stravas API kræver nu et Strava-abonnement, så Smashrun er den nemmeste kilde.</p>
             <div>
-              <button type="button" className="u-btn u-btn--primary" disabled={busy || !me.strava.configured} onClick={connect}>
+              <button type="button" className="u-btn u-btn--primary" disabled={busy || !me.strava.configured} onClick={() => connect("strava")}>
                 Forbind Strava
               </button>
             </div>
