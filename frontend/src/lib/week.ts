@@ -15,6 +15,7 @@ export type PlannedRun = {
   matched_activity_id?: number | null;
   display_target?: string;
   display_actual?: string;
+  notes?: string | null;
 };
 
 export type Activity = {

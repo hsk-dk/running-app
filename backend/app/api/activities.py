@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import current_user
-from app.api.schemas import ActivityDetailOut, ActivityOut, MonthlyVolumeOut, SplitsOut
+from app.api.schemas import ActivityDetailOut, ActivityOut, MonthlyVolumeOut, RouteOut, SplitsOut
 from app.services import reporting_service, splits_service
 from app.services.user_service import CurrentUser
 
@@ -11,6 +11,12 @@ router = APIRouter(prefix="/api", tags=["activities"])
 @router.get("/activities", response_model=list[ActivityOut])
 def list_activities(limit: int = Query(100, ge=1, le=500), user: CurrentUser = Depends(current_user)):
     return reporting_service.list_activities(user.id, limit=limit)
+
+
+@router.get("/activities/routes", response_model=list[RouteOut])
+def routes(limit: int = Query(400, ge=1, le=1000), user: CurrentUser = Depends(current_user)):
+    """Declared before /activities/{activity_id}, which would otherwise try to read 'routes' as an id."""
+    return reporting_service.routes(user.id, limit=limit)
 
 
 @router.get("/activities/{activity_id}", response_model=ActivityDetailOut)

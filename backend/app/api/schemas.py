@@ -114,6 +114,13 @@ class FamilyActivityDetailOut(FamilyActivityOut):
     route: str | None
 
 
+class RouteOut(BaseModel):
+    id: int
+    date: str | None
+    distance_km: float
+    route: str
+
+
 class SplitOut(BaseModel):
     km: int
     distance_m: float

@@ -258,3 +258,12 @@ def set_name_if_empty(conn: sqlite3.Connection, user_id: int, activity_id: int, 
         "UPDATE activities SET name = ? WHERE id = ? AND user_id = ? AND (name IS NULL OR TRIM(name) = '')",
         (name, activity_id, user_id),
     ).rowcount > 0
+
+
+def list_with_raw(conn: sqlite3.Connection, user_id: int, limit: int) -> list[sqlite3.Row]:
+    """The user's newest runs with the stored source data (used to pull out each run's route)."""
+    return conn.execute(
+        "SELECT id, start_date, start_date_local, distance_m, raw_json FROM activities "
+        "WHERE user_id = ? AND sport_type = 'Run' ORDER BY start_date DESC, id DESC LIMIT ?",
+        (user_id, limit),
+    ).fetchall()

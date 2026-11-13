@@ -26,6 +26,7 @@ export const api = {
 
   // Activities
   getActivities: (limit = 500) => getJson(`/activities?limit=${limit}`),
+  getRoutes: () => getJson("/activities/routes"),
   getActivity: (id: number) => getJson(`/activities/${id}`),
 
   // Me, Strava and family
