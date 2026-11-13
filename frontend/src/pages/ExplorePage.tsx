@@ -1,6 +1,7 @@
 import MilestoneCard from "../components/MilestoneCard";
 import RaceCard from "../components/RaceCard";
-import RoutesPoster from "../components/RoutesPoster";
+import PaceLandscape from "../components/PaceLandscape";
+import RoutesCard from "../components/RoutesCard";
 import YearRing from "../components/YearRing";
 import { Activity, PlannedRun } from "../lib/week";
 
@@ -13,7 +14,8 @@ export default function ExplorePage({ activities, plannedRuns }: { activities: A
         <h1 className="u-h1">Din træning i billeder</h1>
       </section>
       <RaceCard activities={activities} plannedRuns={plannedRuns} />
-      <RoutesPoster />
+      <RoutesCard />
+      <PaceLandscape />
       <YearRing activities={activities} />
       <MilestoneCard activities={activities} />
     </div>

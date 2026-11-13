@@ -1,7 +1,7 @@
 /** Lays many routes over each other on one map, so the places a person runs most show up. Pure and testable. */
 import { LatLng, decodePolyline } from "./route";
 
-export type PosterRoute = { id: number; date: string | null; distance_km: number; route: string };
+export type PosterRoute = { id: number; date: string | null; distance_km: number; route: string; name?: string | null; duration_min?: number };
 export type Poster = {
   paths: string[];
   used: number;
@@ -34,11 +34,15 @@ function thin(points: LatLng[]): LatLng[] {
   return out;
 }
 
-export function buildPoster(routes: PosterRoute[], width: number, height: number, pad = 24): Poster {
+export type PlacedRoute = { route: PosterRoute; points: [number, number][] };
+export type PosterLayout = { placed: PlacedRoute[]; outside: number; totalKm: number };
+
+/** The routes projected onto one shared frame (x, y in pixels). `buildPoster` and the playback both start from this. */
+export function layoutPoster(routes: PosterRoute[], width: number, height: number, pad = 24): PosterLayout {
   const decoded = routes
     .map((r) => ({ r, pts: thin(decodePolyline(r.route)) }))
     .filter((x) => x.pts.length >= 2);
-  if (decoded.length === 0) return { paths: [], used: 0, outside: 0, totalKm: 0 };
+  if (decoded.length === 0) return { placed: [], outside: 0, totalKm: 0 };
 
   const centroids = decoded.map(({ pts }) => [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length] as LatLng);
   const home: LatLng = [median(centroids.map((c) => c[0])), median(centroids.map((c) => c[1]))];
@@ -56,13 +60,23 @@ export function buildPoster(routes: PosterRoute[], width: number, height: number
   const offX = (width - spanX * scale) / 2;
   const offY = (height - spanY * scale) / 2;
 
-  const paths = kept.map(({ pts }) =>
-    pts.map((p, i) => `${i === 0 ? "M" : "L"}${(offX + (p[1] - loLng) * kx * scale).toFixed(1)} ${(offY + (hiLat - p[0]) * scale).toFixed(1)}`).join(" "),
-  );
+  const placed = kept.map(({ r, pts }) => ({
+    route: r,
+    points: pts.map((p): [number, number] => [offX + (p[1] - loLng) * kx * scale, offY + (hiLat - p[0]) * scale]),
+  }));
   return {
-    paths,
-    used: kept.length,
+    placed,
     outside: decoded.length - kept.length,
-    totalKm: Math.round(kept.reduce((s, { r }) => s + r.distance_km, 0) * 10) / 10,
+    totalKm: Math.round(kept.reduce((sum, { r }) => sum + r.distance_km, 0) * 10) / 10,
+  };
+}
+
+export function buildPoster(routes: PosterRoute[], width: number, height: number, pad = 24): Poster {
+  const layout = layoutPoster(routes, width, height, pad);
+  return {
+    paths: layout.placed.map(({ points }) => points.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ")),
+    used: layout.placed.length,
+    outside: layout.outside,
+    totalKm: layout.totalKm,
   };
 }

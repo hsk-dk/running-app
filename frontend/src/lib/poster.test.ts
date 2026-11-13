@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPoster } from "./poster";
+import { buildPoster, layoutPoster } from "./poster";
 
 // Google's own example polyline (3 points in the US) and small hand-made loops near Copenhagen.
 function encode(points: [number, number][]): string {
@@ -48,5 +48,20 @@ describe("buildPoster", () => {
     const dense = Array.from({ length: 5000 }, (_, i) => [55.7 + i * 1e-5, 12.5 + Math.sin(i / 50) * 1e-3] as [number, number]);
     const p = buildPoster([{ id: 1, date: null, distance_km: 10, route: encode(dense) }], 640, 480);
     expect(p.paths[0].split("L").length).toBeLessThan(300);
+  });
+});
+
+
+describe("layoutPoster", () => {
+  it("gives the projected points of every route on one shared frame, and buildPoster is built from them", () => {
+    const routes = [route(1, 55.676, 12.568), route(2, 55.68, 12.57)];
+    const layout = layoutPoster(routes, 640, 480, 20);
+    expect(layout.placed.map((p) => p.route.id)).toEqual([1, 2]);
+    expect(layout.placed[0].points.length).toBeGreaterThan(10);
+    const first = buildPoster(routes, 640, 480, 20).paths[0];
+    expect(first.startsWith(`M${layout.placed[0].points[0][0].toFixed(1)} ${layout.placed[0].points[0][1].toFixed(1)}`)).toBe(true);
+  });
+  it("is empty for no routes", () => {
+    expect(layoutPoster([], 640, 480)).toEqual({ placed: [], outside: 0, totalKm: 0 });
   });
 });
