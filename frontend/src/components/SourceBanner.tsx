@@ -1,18 +1,17 @@
 import { tokenNotice } from "../lib/token";
 
-export type SourceNotice = { source: "strava" | "smashrun"; result: "connected" | "denied" } | null;
+export type SourceNotice = { source: "smashrun"; result: "connected" | "denied" } | null;
 
 type Me = {
-  strava: { connected: boolean; configured: boolean };
   garmin?: { connected: boolean };
   smashrun: { connected: boolean; configured: boolean; mode?: string | null; expires_at?: string | null; expired?: boolean };
 };
 
-const NAMES = { strava: "Strava", smashrun: "Smashrun" } as const;
+const NAMES = { smashrun: "Smashrun" } as const;
 
 /** Asks the person to connect where their runs come from, and says what happened when they come back. */
 export default function SourceBanner({ me, notice, onDismiss, onOpenMe }: { me: Me; notice: SourceNotice; onDismiss: () => void; onOpenMe: () => void }) {
-  const hasSource = Boolean(me.garmin?.connected) || me.smashrun.connected || me.strava.connected;
+  const hasSource = Boolean(me.garmin?.connected) || me.smashrun.connected;
   const expiry = tokenNotice(me.smashrun);
 
   return (

@@ -150,7 +150,7 @@ export default function AiSuggestionsPage({
             AI Træningsforslag
           </div>
           <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
-            Generér næste uges træningsplan baseret på din Strava-historik via
+            Generér næste uges træningsplan baseret på din træningshistorik via
             lokal AI (Ollama) eller cloud LLM.
           </div>
         </div>
@@ -418,7 +418,7 @@ export default function AiSuggestionsPage({
 
           {result.suggestions.length === 0 && (
             <section style={{ ...cardStyle, color: "var(--color-text-muted)", fontSize: 14 }}>
-              AI returnerede ingen forslag. Prøv at synkronisere Strava-data
+              AI returnerede ingen forslag. Prøv at synkronisere dine data
               og prøv igen.
             </section>
           )}

@@ -64,11 +64,8 @@ export default function AdminPage({
   error: string | null;
 }) {
   const lastSync = adminStatus?.last_sync_at?.value;
-  const lastWebhook = adminStatus?.last_webhook_at?.value;
-  const webhookCount = adminStatus?.webhook_event_count ?? 0;
   const lastIngest = adminStatus?.last_ingest_result?.value;
   const lastError = adminStatus?.last_error?.value;
-  const lastWebhookMeta = adminStatus?.last_webhook;
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
@@ -110,33 +107,6 @@ export default function AdminPage({
         <div style={{ display: "grid", gap: 14, fontSize: 14 }}>
           <div>
             <strong>Sidste sync:</strong> {formatDateTime(lastSync)}
-          </div>
-
-          <div>
-            <strong>Sidste webhook:</strong> {formatDateTime(lastWebhook)}
-          </div>
-
-          <div>
-            <strong>Webhook-events:</strong> {webhookCount}
-          </div>
-
-          <div>
-            <strong>Seneste webhook-metadata:</strong>
-            <pre
-              style={{
-                marginTop: 6,
-                padding: 12,
-                background: "var(--color-surface-muted)",
-                border: "1px solid var(--color-border)",
-                borderRadius: 8,
-                fontSize: 12,
-                color: "var(--color-text-muted)",
-                overflowX: "auto",
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {safeText(lastWebhookMeta)}
-            </pre>
           </div>
 
           <div>

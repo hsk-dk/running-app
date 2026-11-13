@@ -9,17 +9,15 @@ type Me = {
   role: string;
   sharing_level: SharingLevel;
   family_sharing_enabled: boolean;
-  strava: { connected: boolean; configured: boolean; athlete_id: string | null };
   smashrun: { connected: boolean; configured: boolean; mode?: string | null; expires_at?: string | null; expired?: boolean };
   runna: { connected: boolean; last_sync_at: string | null; last_error: string | null };
   garmin: { connected: boolean; last_sync_at: string | null; last_error: string | null };
 };
 
-/** Your own settings: who sees your runs, and which Strava the app reads. */
+/** Your own settings: who sees your runs, and where the app reads them from. */
 export default function MePage({ me, onChanged }: { me: Me; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [token, setToken] = useState("");
   const [runnaUrl, setRunnaUrl] = useState("");
   const [garminKey, setGarminKey] = useState("");
@@ -37,11 +35,11 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
     }
   }
 
-  async function connect(source: "strava" | "smashrun" = "strava") {
+  async function connect() {
     setBusy(true);
     setError(null);
     try {
-      const { url } = await (source === "smashrun" ? api.smashrunConnect() : api.stravaConnect());
+      const { url } = await api.smashrunConnect();
       window.location.href = url;
     } catch (e: any) {
       setError(e.message || "Kunne ikke starte forbindelsen");
@@ -233,7 +231,7 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
 
         {me.smashrun.configured && !me.smashrun.connected && (
           <div>
-            <button type="button" className="u-btn u-btn--secondary" disabled={busy} onClick={() => connect("smashrun")}>
+            <button type="button" className="u-btn u-btn--secondary" disabled={busy} onClick={() => connect()}>
               Forbind via Smashrun i stedet
             </button>
           </div>
@@ -303,38 +301,6 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
         )}
       </section>
 
-      <section className="u-card" aria-labelledby="strava-title" style={{ display: "grid", gap: 12 }}>
-        <h2 id="strava-title" className="u-h2">Strava</h2>
-        {me.strava.connected ? (
-          <>
-            <p className="u-card__meta">Forbundet{me.strava.athlete_id ? ` (atlet ${me.strava.athlete_id})` : ""}. Dine løb hentes automatisk.</p>
-            {confirmDisconnect ? (
-              <div style={{ display: "grid", gap: 8 }}>
-                <p>Frakobl Strava? Appen holder op med at hente nye løb. Dine gemte løb bliver liggende.</p>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button type="button" className="u-btn u-btn--primary" disabled={busy} onClick={() => run(async () => { await api.stravaDisconnect(); setConfirmDisconnect(false); })}>
-                    Ja, frakobl
-                  </button>
-                  <button type="button" className="u-btn u-btn--secondary" onClick={() => setConfirmDisconnect(false)}>Annuller</button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <button type="button" className="u-btn u-btn--secondary" onClick={() => setConfirmDisconnect(true)}>Frakobl Strava</button>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <p className="u-card__meta">Ikke forbundet. Stravas API kræver nu et Strava-abonnement, så Smashrun er den nemmeste kilde.</p>
-            <div>
-              <button type="button" className="u-btn u-btn--primary" disabled={busy || !me.strava.configured} onClick={() => connect("strava")}>
-                Forbind Strava
-              </button>
-            </div>
-          </>
-        )}
-      </section>
     </div>
   );
 }

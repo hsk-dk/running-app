@@ -1,3 +1,7 @@
+> **Bemærk (november 2026):** Strava-integrationen er fjernet fra appen, fordi Stravas API er lukket for den. Afsnit om
+> Strava, webhook og abonnement i dette dokument er historiske. Se `docs/MULTI_USER.md` for den nuværende opsætning
+> (Garmin Connect som kilde, login via Authentik).
+
 # Running Compose + Webhook MVP (External Nginx Reverse Proxy Mode)
 
 En deploybar fullstack MVP til din Docker-LXC med:

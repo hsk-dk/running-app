@@ -1,3 +1,7 @@
+> **Bemærk (november 2026):** Strava-integrationen er fjernet fra appen, fordi Stravas API er lukket for den. Afsnit om
+> Strava, webhook og abonnement i dette dokument er historiske. Se `docs/MULTI_USER.md` for den nuværende opsætning
+> (Garmin Connect som kilde, login via Authentik).
+
 Her er en refaktorplan for backend med fokus på services og tydelig domain separation.
 
 Målet er at gøre backend lettere at:

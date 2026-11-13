@@ -1,6 +1,6 @@
 # Flere brugere (familie)
 
-Appen kan bruges af flere personer. Hver person har sine egne løb, sin egen plan og sin egen Strava-forbindelse.
+Appen kan bruges af flere personer. Hver person har sine egne løb, sin egen plan og sin egen kilde (Garmin Connect, Smashrun).
 Andre i familien ser kun det, man selv har valgt at dele.
 
 ## Opsætning
@@ -11,12 +11,8 @@ Andre i familien ser kun det, man selv har valgt at dele.
 2. **Roller via grupper.** `AUTH_ADMIN_GROUPS` (fx `homelab-admins`) giver admin, `AUTH_FAMILY_GROUPS` (fx
    `homelab-family`) giver adgang som familiemedlem. Alle andre afvises (403).
 3. **Ejer af de eksisterende data.** Løb og planer fra før flere brugere overtages af den første admin, eller af
-   den bruger der står i `AUTH_OWNER_USERNAME`. Den eksisterende Strava-forbindelse fra `.env` flyttes til ejeren
-   ved første start.
-4. **Strava-app.** `STRAVA_CLIENT_ID`/`STRAVA_CLIENT_SECRET` er fælles for appen. Sæt *Authorization Callback Domain*
-   i Strava til appens domæne, og `STRAVA_REDIRECT_URI` (eller `APP_BASE_URL`) til `…/api/strava/callback`.
-   Hver person forbinder derefter sin egen Strava under **Mere → Mig**.
-5. `APP_SECRET_KEY` bør sættes til en lang tilfældig værdi (underskriver OAuth-state).
+   den bruger der står i `AUTH_OWNER_USERNAME`.
+4. `APP_SECRET_KEY` bør sættes til en lang tilfældig værdi (underskriver OAuth-state).
 
 ## Datakilde: Garmin Connect (anbefalet)
 
@@ -30,22 +26,21 @@ ingen adgangskode i appen. Appen henter dine løb direkte fra Garmin, også de l
    hele historikken i baggrunden. Bagefter henter **Synkronisér** (Admin) nye løb.
 3. Serveren skal kunne nå `https://personal.connectapi.garmin.com`.
 
-Hvad du får, som Strava og Smashrun ikke gav:
+Hvad du får, som Smashrun ikke giver:
 - **Urets egen fil (FIT)** for hvert løb: tempo og puls gennem løbet, **runderne** (intervallernes trin), kilometertider
   med puls, og GPS-rute for løb udendørs. Løb på løbebånd har ingen rute, men fuld profil.
 - Udendørsløb læses ved synkronisering; øvrige løb læses første gang du åbner dem (ét kald pr. løb).
-- Et løb, der allerede findes fra Smashrun eller Strava (samme starttid inden for to minutter), tilføjes ikke igen,
+- Et løb, der allerede findes fra Smashrun eller fra Strava-tiden (samme starttid inden for to minutter), tilføjes ikke igen,
   men knyttes til sin Garmin-aktivitet, så det får profil og splits.
 - Familien ser aldrig din puls: hverken i profilen, rundetabellen eller pr. kilometer.
 
 Garmin skriver, at personlig adgang ikke er til kommercielle apps med mange brugere. Hver person bruger sin egen nøgle.
 
-## Datakilde: Smashrun
+## Datakilde: Smashrun (valgfri)
 
-Stravas API kræver nu et Strava-abonnement for appens ejer. Uden det svarer Strava `Application Inactive`, og der
-hentes ingen løb. Appen kan derfor hente løb fra [Smashrun](https://api.smashrun.com/v1/documentation) i stedet
-(Smashrun får løbene fra fx Garmin). Smashrun-løb gemmes med negativt id og kolonnen `source = 'smashrun'`.
-Et løb, der allerede findes fra Strava inden for 2 minutter, tilføjes ikke en gang til.
+Garmin er hovedkilden. Smashrun kan bruges ved siden af eller i stedet
+([API](https://api.smashrun.com/v1/documentation)). Smashrun-løb gemmes med negativt id og kolonnen
+`source = 'smashrun'`. Et løb, der allerede findes fra en anden kilde inden for 2 minutter, tilføjes ikke en gang til.
 
 To måder at forbinde på (under **Mere → Mig**):
 
@@ -83,14 +78,13 @@ Hver person vælger under **Mere → Mig**:
 
 Admin har ingen ekstra indsigt i andres løb. `FAMILY_SHARING_ENABLED=false` slår al deling fra for alle.
 
-## Vigtigt: Strava
+## Strava er fjernet
 
-Stravas API-aftale begrænser, at en tredjepartsapp viser én persons Strava-data til andre. Samtykke i familien
-ændrer ikke aftalen. Brug deling med øje for det, hold appen privat, og brug `FAMILY_SHARING_ENABLED=false` som
-nødbremse. Strava-appen er desuden som udgangspunkt begrænset til én atlet, til man får udvidet kapaciteten
-(typisk op til 10) hos Strava.
+Stravas API er lukket for appen (kræver abonnement), så Strava-forbindelsen, webhooken og synkroniseringen er fjernet.
+Migration 12 sletter de gemte Strava-tokens og webhook-loggen. **Løbene fra Strava-tiden bliver liggende** med deres
+ruter (`source = 'strava'`). Strava-variablerne i `.env` bruges ikke længere og kan fjernes.
 
 ## Kendte begrænsninger
 
 - Refresh-tokens ligger i klartekst i SQLite-databasen. Beskyt databasefilen og dens backup.
-- Ruter er Stravas forenklede polylines og er ikke afprøvet mod rigtige data.
+- Ruter fra Strava-tiden er Stravas forenklede polylines; nye ruter kommer fra Garmins FIT-fil. Ingen af delene er afprøvet mod rigtige data.

@@ -30,7 +30,7 @@ export default function SplitsChart({
 
   if (failed) return <p className="u-card__meta">Kilometertiderne kunne ikke hentes.</p>;
   if (!data) return <p className="u-card__meta" role="status">Henter kilometertider…</p>;
-  if (!data.available) return <p className="u-card__meta">Kilometertiderne kan ikke hentes fra Strava lige nu. Prøv igen senere.</p>;
+  if (!data.available) return <p className="u-card__meta">Kilometertiderne kan ikke hentes fra Garmin lige nu. Prøv igen senere.</p>;
   if (data.splits.length === 0) return <p className="u-card__meta">Der er ingen kilometertider for dette løb.</p>;
 
   const widths = barWidths(data.splits);
