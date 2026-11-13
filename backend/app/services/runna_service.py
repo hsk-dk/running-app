@@ -87,6 +87,7 @@ def sync(user_id: int) -> dict:
         raise
 
     result = _import_plan(user_id, domain.planned_runs(events))
+    result.update(_import_history(user_id, domain.completed_plan_runs(events)))
     result["named"] = _name_runs(user_id, domain.completed_runs(events))
 
     conn = get_conn()
@@ -133,6 +134,35 @@ def _import_plan(user_id: int, items: list[dict]) -> dict:
     finally:
         conn.close()
     return {"planned_added": added, "planned_updated": updated, "planned_removed": removed, "planned_skipped": skipped}
+
+
+def _import_history(user_id: int, items: list[dict]) -> dict:
+    """The plan workouts Runna lists as done, so the plan page shows what was planned in the past too.
+
+    A day only gets a planned run if there is a run to match it with (otherwise the plan would be marked as skipped
+    although Runna says it was done), and never a second one on a day that already has a plan."""
+    added = existing = no_run = same_day = 0
+    conn = get_conn()
+    try:
+        for item in items:
+            fields = {k: item[k] for k in ("planned_date", "session_type", "target_type", "target_value", "notes")}
+            row = plan_repo.get_by_external_uid(conn, user_id, item["external_uid"])
+            if row is not None:
+                plan_repo.update_imported(conn, user_id, row["id"], **fields)
+                existing += 1
+            elif not activity_repo.has_run_near_date(conn, user_id, item["planned_date"]):
+                no_run += 1
+            elif plan_repo.count_on_date(conn, user_id, item["planned_date"]):
+                same_day += 1
+            else:
+                plan_repo.insert_imported(
+                    conn, user_id, source=SOURCE, external_uid=item["external_uid"], status=STATUS_PLANLAGT, **fields
+                )
+                added += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return {"history_added": added, "history_kept": existing, "history_no_run": no_run, "history_same_day": same_day}
 
 
 def _name_runs(user_id: int, completed: list[dict]) -> int:

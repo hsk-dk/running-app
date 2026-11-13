@@ -253,6 +253,13 @@ def count_manual_on_date(conn: sqlite3.Connection, user_id: int, planned_date: s
     ).fetchone()[0]
 
 
+def count_on_date(conn: sqlite3.Connection, user_id: int, planned_date: str) -> int:
+    """Every plan on that day, whoever made it."""
+    return conn.execute(
+        "SELECT COUNT(*) FROM planned_runs WHERE user_id = ? AND planned_date = ?", (user_id, planned_date)
+    ).fetchone()[0]
+
+
 def insert_imported(
     conn: sqlite3.Connection, user_id: int, *, source: str, external_uid: str, planned_date: str,
     session_type: str, target_type: str, target_value, notes, status: str,

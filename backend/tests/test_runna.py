@@ -286,3 +286,100 @@ def test_disconnecting_forgets_the_link_but_keeps_the_plan(rn):
     client.post("/api/runna/link", headers=ADMIN, json={"url": LINK})
     assert client.delete("/api/runna/link", headers=ADMIN).json()["connected"] is False
     assert len(_plans(client)) == 1
+
+
+# ---- plan workouts that are already done (history) ------------------------------------------------------------
+
+def done(uid, day_offset, time, title, actual_km="5.63", planned="5km easy run at a conversational pace", kind="COMPLETED_PLAN_WORKOUT"):
+    desc = f"📊 Summary:\\nDistance: {actual_km}km\\nTime: 44:13\\nAvg Pace: 7:51 /km\\n\\n📋 Description:\\n{planned}\\n\\n♻️ Laps:\\n2.00 km @ 7:44 /km\\n📲 View in the Runna app: https://club.runna.com/x"
+    return (
+        f"BEGIN:VEVENT\r\nUID:{kind}-{uid}\r\nDTSTAMP:20260101T000000\r\nDTSTART:{_day(day_offset)}T{time}\r\n"
+        f"DTEND:{_day(day_offset)}T{time}\r\nSUMMARY:🏃 {title}\r\nDESCRIPTION:{desc}\r\nX-USER-TIMEZONE:Europe/Copenhagen\r\nEND:VEVENT\r\n"
+    )
+
+
+def test_a_done_workout_becomes_a_planned_run_with_the_distance_in_its_name_as_target():
+    events = domain.parse_events(feed(
+        done("garmin-25033488515", -2, "173857", "5km Easy Run", actual_km="5.01"),
+        done("garmin-25056407215", -1, "170513", "Taper 400s", actual_km="5.63", planned="2km warm up\\n\\n5 reps of:\\n• 400m at 9.9kph"),
+    ))
+    easy, taper = domain.completed_plan_runs(events)
+    assert (easy["session_type"], easy["target_type"], easy["target_value"]) == ("easy", "distance", 5.0)  # planned 5 km, ran 5.01
+    assert easy["planned_date"] == (timeutil.today() - timedelta(days=2)).isoformat() and easy["garmin_id"] == 25033488515
+    assert (taper["session_type"], taper["target_value"]) == ("intervals", 5.63)  # no distance in the name: what was run stands in
+    assert taper["notes"].startswith("2km warm up") and "5 reps of:" in taper["notes"]
+    assert "Laps" not in taper["notes"] and "View in the Runna app" not in taper["notes"] and "Summary" not in taper["notes"]
+
+
+def test_only_done_plan_workouts_count_and_ones_without_any_distance_are_skipped():
+    events = domain.parse_events(feed(
+        RACE,  # upcoming: handled elsewhere
+        done("garmin-1", -3, "090000", "Morning", kind="COMPLETED_NON_PLAN_WORKOUT"),  # not part of the plan
+        done("garmin-2", -4, "090000", "Mystery Session", actual_km="x"),  # no distance anywhere
+        done("garmin-3", -5, "090000", "3.5km Easy Run"),
+    ))
+    assert [r["external_uid"] for r in domain.completed_plan_runs(events)] == ["COMPLETED_PLAN_WORKOUT-garmin-3"]
+
+
+def test_a_done_workout_from_another_source_has_no_garmin_id():
+    ev = domain.parse_events(feed(done("strava-77", -2, "090000", "5km Easy Run")))
+    assert domain.completed_plan_runs(ev)[0]["garmin_id"] is None
+
+
+def test_history_is_added_when_there_is_a_run_to_match_and_the_plan_page_shows_it_done(rn):
+    client, state, db = rn
+    day = timeutil.today() - timedelta(days=3)
+    add_activity(db, 11, f"{day.isoformat()}T08:00:00Z", distance_m=5010, moving_time_s=2286, user_id=1)
+    state["text"] = feed(done("garmin-11", -3, "100000", "5km Easy Run", actual_km="5.01"))
+    result = client.post("/api/runna/link", headers=ADMIN, json={"url": LINK})
+    assert result.status_code == 200
+    [plan] = _plans(client)
+    assert (plan["planned_date"], plan["session_type"], plan["status"], plan["matched_activity_id"]) == (day.isoformat(), "easy", "gennemført", 11)
+    sync = client.post("/api/runna/sync", headers=ADMIN).json()
+    assert (sync["history_added"], sync["history_kept"]) == (0, 1)  # run again: nothing new, nothing doubled
+    assert len(_plans(client)) == 1
+
+
+def test_history_without_a_run_to_match_is_left_out_so_it_is_not_marked_as_skipped(rn):
+    client, state, db = rn
+    state["text"] = feed(done("garmin-12", -3, "100000", "5km Easy Run"))
+    client.post("/api/runna/link", headers=ADMIN, json={"url": LINK})
+    assert _plans(client) == []
+    assert client.post("/api/runna/sync", headers=ADMIN).json()["history_no_run"] == 1
+
+
+def test_a_day_that_already_has_a_plan_does_not_get_a_second_one_from_history(rn):
+    client, state, db = rn
+    day = timeutil.today() - timedelta(days=4)
+    add_activity(db, 13, f"{day.isoformat()}T08:00:00Z", distance_m=5000, moving_time_s=1800, user_id=1)
+    add_plan(db, day.isoformat(), session_type="tempo")  # the person planned it themselves
+    state["text"] = feed(done("garmin-13", -4, "100000", "5km Easy Run"))
+    client.post("/api/runna/link", headers=ADMIN, json={"url": LINK})
+    plans = _plans(client)
+    assert len(plans) == 1 and plans[0]["session_type"] == "tempo"
+    assert client.post("/api/runna/sync", headers=ADMIN).json()["history_same_day"] == 1
+
+
+def test_a_workout_that_was_imported_as_upcoming_and_is_now_done_is_not_doubled(rn):
+    client, state, db = rn
+    day = timeutil.today() - timedelta(days=1)
+    add_activity(db, 14, f"{day.isoformat()}T08:00:00Z", distance_m=5000, moving_time_s=1800, user_id=1)
+    state["text"] = feed(upcoming("w9_EASY_0", -1, "5km Easy Run", "", 1800))  # still upcoming when first read
+    client.post("/api/runna/link", headers=ADMIN, json={"url": LINK})
+    state["text"] = feed(done("garmin-14", -1, "100000", "5km Easy Run"))  # Runna has since moved it to done
+    client.post("/api/runna/sync", headers=ADMIN)
+    assert len(_plans(client)) == 1
+
+
+def test_a_hand_edited_history_row_is_left_alone_by_later_syncs(rn):
+    client, state, db = rn
+    day = timeutil.today() - timedelta(days=3)
+    add_activity(db, 15, f"{day.isoformat()}T08:00:00Z", distance_m=5000, moving_time_s=1800, user_id=1)
+    state["text"] = feed(done("garmin-15", -3, "100000", "5km Easy Run"))
+    client.post("/api/runna/link", headers=ADMIN, json={"url": LINK})
+    [plan] = _plans(client)
+    client.put(f"/api/planning/{plan['id']}", headers=ADMIN, json={
+        "planned_date": plan["planned_date"], "session_type": "tempo", "target_type": "distance", "target_value": 4.0, "optional": False, "notes": "mine"})
+    client.post("/api/runna/sync", headers=ADMIN)
+    [after] = _plans(client)
+    assert (after["session_type"], after["notes"]) == ("tempo", "mine")
