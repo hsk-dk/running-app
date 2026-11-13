@@ -39,6 +39,8 @@ export const api = {
   stravaConnect: () => getJson("/strava/connect", { method: "POST" }),
   stravaDisconnect: () => getJson("/strava/connection", { method: "DELETE" }),
   getFamily: () => getJson("/family"),
+  getSplits: (activityId: number) => getJson(`/activities/${activityId}/splits`),
+  getFamilySplits: (userId: number, activityId: number) => getJson(`/family/${userId}/activities/${activityId}/splits`),
   getFamilyActivity: (userId: number, activityId: number) => getJson(`/family/${userId}/activities/${activityId}`),
 
   // Planning

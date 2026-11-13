@@ -284,6 +284,11 @@ def _migration_7_users(conn: sqlite3.Connection) -> None:
     )
 
 
+def _migration_8_splits(conn: sqlite3.Connection) -> None:
+    """Kilometre splits are fetched from Strava once per run on demand and cached here (NULL = not fetched yet)."""
+    _add_column_if_missing(conn, "activities", "splits_json", "TEXT")
+
+
 MIGRATIONS = [
     _migration_1_add_missing_columns,
     _migration_2_add_indexes,
@@ -292,6 +297,7 @@ MIGRATIONS = [
     _migration_5_sync_mandatory_from_optional,
     _migration_6_drop_derived_metrics,
     _migration_7_users,
+    _migration_8_splits,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

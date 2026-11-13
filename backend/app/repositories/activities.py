@@ -61,6 +61,19 @@ def get(conn: sqlite3.Connection, user_id: int, activity_id: int) -> sqlite3.Row
     ).fetchone()
 
 
+def get_splits_json(conn: sqlite3.Connection, user_id: int, activity_id: int) -> str | None:
+    row = conn.execute(
+        "SELECT splits_json FROM activities WHERE id = ? AND user_id = ?", (activity_id, user_id)
+    ).fetchone()
+    return row["splits_json"] if row else None
+
+
+def set_splits_json(conn: sqlite3.Connection, user_id: int, activity_id: int, splits_json: str) -> None:
+    conn.execute(
+        "UPDATE activities SET splits_json = ? WHERE id = ? AND user_id = ?", (splits_json, activity_id, user_id)
+    )
+
+
 def delete(conn: sqlite3.Connection, user_id: int, activity_id: int) -> int:
     return conn.execute(
         "DELETE FROM activities WHERE id = ? AND user_id = ?", (activity_id, user_id)
