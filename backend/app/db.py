@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS activities (
     average_cadence REAL,
     raw_json TEXT NOT NULL,
     user_id INTEGER NOT NULL DEFAULT 1,
+    source TEXT NOT NULL DEFAULT 'strava',
+    source_id TEXT,
     is_extra INTEGER DEFAULT 0,
     is_aborted INTEGER DEFAULT 0,
     matched_planned_run_id INTEGER,
@@ -68,6 +70,16 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS strava_accounts (
     user_id INTEGER PRIMARY KEY,
     athlete_id TEXT NOT NULL UNIQUE,
+    refresh_token TEXT NOT NULL,
+    access_token TEXT,
+    access_expires_at INTEGER,
+    scope TEXT,
+    connected_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS smashrun_accounts (
+    user_id INTEGER PRIMARY KEY,
     refresh_token TEXT NOT NULL,
     access_token TEXT,
     access_expires_at INTEGER,
@@ -289,6 +301,27 @@ def _migration_8_splits(conn: sqlite3.Connection) -> None:
     _add_column_if_missing(conn, "activities", "splits_json", "TEXT")
 
 
+def _migration_9_sources(conn: sqlite3.Connection) -> None:
+    """Runs can come from more than one place. Strava ids are positive; Smashrun runs are stored as -id."""
+    _add_column_if_missing(conn, "activities", "source", "TEXT NOT NULL DEFAULT 'strava'")
+    _add_column_if_missing(conn, "activities", "source_id", "TEXT")
+    conn.execute("UPDATE activities SET source_id = CAST(id AS TEXT) WHERE source_id IS NULL")
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS smashrun_accounts (
+            user_id INTEGER PRIMARY KEY,
+            refresh_token TEXT NOT NULL,
+            access_token TEXT,
+            access_expires_at INTEGER,
+            scope TEXT,
+            connected_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_activities_user_start ON activities(user_id, start_date)")
+
+
 MIGRATIONS = [
     _migration_1_add_missing_columns,
     _migration_2_add_indexes,
@@ -298,6 +331,7 @@ MIGRATIONS = [
     _migration_6_drop_derived_metrics,
     _migration_7_users,
     _migration_8_splits,
+    _migration_9_sources,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

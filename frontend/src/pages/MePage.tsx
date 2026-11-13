@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../api";
 import { SHARING_LEVELS, SharingLevel } from "../lib/sharing";
+import { tokenNotice } from "../lib/token";
 
 type Me = {
   display_name: string;
@@ -9,6 +10,7 @@ type Me = {
   sharing_level: SharingLevel;
   family_sharing_enabled: boolean;
   strava: { connected: boolean; configured: boolean; athlete_id: string | null };
+  smashrun: { connected: boolean; configured: boolean; mode?: string | null; expires_at?: string | null; expired?: boolean };
 };
 
 /** Your own settings: who sees your runs, and which Strava the app reads. */
@@ -16,6 +18,7 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [token, setToken] = useState("");
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -30,14 +33,14 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
     }
   }
 
-  async function connect() {
+  async function connect(source: "strava" | "smashrun" = "strava") {
     setBusy(true);
     setError(null);
     try {
-      const { url } = await api.stravaConnect();
+      const { url } = await (source === "smashrun" ? api.smashrunConnect() : api.stravaConnect());
       window.location.href = url;
     } catch (e: any) {
-      setError(e.message || "Kunne ikke starte forbindelsen til Strava");
+      setError(e.message || "Kunne ikke starte forbindelsen");
       setBusy(false);
     }
   }
@@ -91,6 +94,82 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
         </fieldset>
       </section>
 
+      <section className="u-card" aria-labelledby="smashrun-title" style={{ display: "grid", gap: 12 }}>
+        <h2 id="smashrun-title" className="u-h2">Smashrun</h2>
+        {me.smashrun.connected ? (
+          <>
+            <p className="u-card__meta">
+              Forbundet{me.smashrun.mode === "token" ? " med et personligt token" : ""}. Dine løb hentes herfra.
+              {me.smashrun.mode === "token" && me.smashrun.expires_at && ` Tokenet gælder til ${me.smashrun.expires_at}.`}
+            </p>
+            {tokenNotice(me.smashrun) && (
+              <div className={`u-notice u-notice--${tokenNotice(me.smashrun)!.level}`} role="status">
+                <b className="u-notice__level">{me.smashrun.expired ? "Udløbet" : "Snart"}</b>
+                <span>{tokenNotice(me.smashrun)!.text}</span>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" className="u-btn u-btn--secondary" disabled={busy} onClick={() => run(() => api.smashrunDisconnect())}>
+                Frakobl Smashrun
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="u-card__meta">Ikke forbundet.</p>
+        )}
+
+        {(!me.smashrun.connected || me.smashrun.mode === "token") && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!token.trim()) return;
+              run(async () => {
+                await api.smashrunToken(token);
+                setToken("");
+              });
+            }}
+            style={{ display: "grid", gap: 8 }}
+          >
+            <label htmlFor="smashrun-token" className="u-card__meta">
+              {me.smashrun.connected ? "Indsæt et nyt personligt token" : "Personligt token"}
+            </label>
+            <input
+              id="smashrun-token"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              style={{ minHeight: 44, padding: "0 12px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", width: "100%", boxSizing: "border-box" }}
+            />
+            <details>
+              <summary className="u-card__meta" style={{ cursor: "pointer", minHeight: 44, display: "flex", alignItems: "center" }}>Sådan får du tokenet</summary>
+              <ol className="u-card__meta" style={{ margin: "4px 0 0", paddingLeft: 20, display: "grid", gap: 4 }}>
+                <li>Åbn <a href="https://api.smashrun.com/v1/documentation" target="_blank" rel="noreferrer">Smashruns dokumentation</a> og klik på API Explorer.</li>
+                <li>Skriv <b>client</b> i feltet og tryk Connect. Log ind hos Smashrun.</li>
+                <li>Kopiér access token og indsæt det her.</li>
+              </ol>
+              <p className="u-card__meta" style={{ marginTop: 8 }}>
+                Tokenet virker i ca. 12 uger. Du kan bede Smashrun (api@smashrun.com) om at forlænge det, eller bruge en app-nøgle, som fornyer sig selv.
+              </p>
+            </details>
+            <div>
+              <button type="submit" className="u-btn u-btn--primary" disabled={busy || !token.trim()}>
+                Gem token
+              </button>
+            </div>
+          </form>
+        )}
+
+        {me.smashrun.configured && !me.smashrun.connected && (
+          <div>
+            <button type="button" className="u-btn u-btn--secondary" disabled={busy} onClick={() => connect("smashrun")}>
+              Forbind via Smashrun i stedet
+            </button>
+          </div>
+        )}
+      </section>
+
       <section className="u-card" aria-labelledby="strava-title" style={{ display: "grid", gap: 12 }}>
         <h2 id="strava-title" className="u-h2">Strava</h2>
         {me.strava.connected ? (
@@ -114,9 +193,9 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
           </>
         ) : (
           <>
-            <p className="u-card__meta">Ikke forbundet. Forbind din egen Strava for at se dine løb her.</p>
+            <p className="u-card__meta">Ikke forbundet. Stravas API kræver nu et Strava-abonnement, så Smashrun er den nemmeste kilde.</p>
             <div>
-              <button type="button" className="u-btn u-btn--primary" disabled={busy || !me.strava.configured} onClick={connect}>
+              <button type="button" className="u-btn u-btn--primary" disabled={busy || !me.strava.configured} onClick={() => connect("strava")}>
                 Forbind Strava
               </button>
             </div>

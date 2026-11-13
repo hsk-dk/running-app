@@ -87,15 +87,15 @@ def test_match_activity_requires_activity_id(client):
     assert "activity_id" in r.json()["detail"]
 
 
-def test_ingest_failure_is_recorded_and_raised(client, monkeypatch):
+def test_ingest_failure_is_recorded_and_reported_with_its_reason(client, monkeypatch):
     import app.services.admin_service as admin_service
 
     def boom(user_id, pages):
         raise RuntimeError("strava down")
 
     monkeypatch.setattr(admin_service, "ingest_recent", boom)
-    with pytest.raises(RuntimeError):
-        TestClient(client.app, raise_server_exceptions=True).post("/api/admin/ingest")
+    r = client.post("/api/admin/ingest")
+    assert r.status_code == 502 and "strava down" in r.json()["detail"]
     assert "strava down" in client.get("/api/admin/status").json()["last_error"]["value"]
 
 

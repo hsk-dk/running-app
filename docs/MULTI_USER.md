@@ -18,6 +18,24 @@ Andre i familien ser kun det, man selv har valgt at dele.
    Hver person forbinder derefter sin egen Strava under **Mere → Mig**.
 5. `APP_SECRET_KEY` bør sættes til en lang tilfældig værdi (underskriver OAuth-state).
 
+## Datakilde: Smashrun
+
+Stravas API kræver nu et Strava-abonnement for appens ejer. Uden det svarer Strava `Application Inactive`, og der
+hentes ingen løb. Appen kan derfor hente løb fra [Smashrun](https://api.smashrun.com/v1/documentation) i stedet
+(Smashrun får løbene fra fx Garmin). Smashrun-løb gemmes med negativt id og kolonnen `source = 'smashrun'`.
+Et løb, der allerede findes fra Strava inden for 2 minutter, tilføjes ikke en gang til.
+
+To måder at forbinde på (under **Mere → Mig**):
+
+1. **Personligt token (hurtigst).** Åbn API Explorer i Smashruns dokumentation, skriv `client`, tryk Connect, og
+   kopiér tokenet ind i appen. Det virker ca. 12 uger og kan ikke fornyes af sig selv. Appen viser udløbsdatoen
+   og advarer de sidste 14 dage. Smashrun (`api@smashrun.com`) kan forlænge det i hånden.
+2. **App-nøgle (fornyer sig selv).** Bed Smashrun om en nøgle, og sæt `SMASHRUN_CLIENT_ID`,
+   `SMASHRUN_CLIENT_SECRET` og evt. `SMASHRUN_REDIRECT_URI` i `.env`. Redirect-adressen hos Smashrun skal være
+   `https://<dit-domæne>/api/smashrun/callback`. Nøglen må kun bruges til én applikation.
+
+Der er ingen webhook fra Smashrun: løb hentes med knappen **Synkronisér** under Mere → Admin.
+
 ## Deling
 
 Hver person vælger under **Mere → Mig**:

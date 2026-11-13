@@ -5,7 +5,7 @@ import PlanPage from "./pages/PlanPage";
 import FamilyPage from "./pages/FamilyPage";
 import MePage from "./pages/MePage";
 import YearSection from "./pages/YearSection";
-import StravaBanner, { StravaNotice } from "./components/StravaBanner";
+import SourceBanner, { SourceNotice } from "./components/SourceBanner";
 import AdminPage from "./pages/AdminPage";
 import AiSuggestionsPage from "./pages/AiSuggestionsPage";
 import MorePage from "./pages/MorePage";
@@ -59,7 +59,7 @@ export default function App() {
   const [weeklyConsistency, setWeeklyConsistency] = useState<any[]>([]);
   const [adminStatus, setAdminStatus] = useState<any>(null);
   const [me, setMe] = useState<any>(null);
-  const [notice, setNotice] = useState<StravaNotice>(null);
+  const [notice, setNotice] = useState<SourceNotice>(null);
 
   async function loadMe() {
     try {
@@ -95,12 +95,14 @@ export default function App() {
   useEffect(() => {
     loadMe();
     loadAll();
-    // Back from Strava: say what happened, tidy the address, and reload once the first sync has had time to run.
-    const flag = new URLSearchParams(window.location.search).get("strava");
-    if (flag === "connected" || flag === "denied") {
-      setNotice(flag);
+    // Back from Strava or Smashrun: say what happened, tidy the address, and reload once the first sync has had time to run.
+    const params = new URLSearchParams(window.location.search);
+    const source = params.get("smashrun") ? "smashrun" : params.get("strava") ? "strava" : null;
+    const result = source ? params.get(source) : null;
+    if (source && (result === "connected" || result === "denied")) {
+      setNotice({ source, result });
       window.history.replaceState(null, "", window.location.pathname);
-      if (flag === "connected") {
+      if (result === "connected") {
         const t = window.setTimeout(() => {
           loadMe();
           loadAll();
@@ -235,7 +237,7 @@ export default function App() {
       </header>
 
       <main id="indhold" className="u-container app-main" tabIndex={-1}>
-        {me && <StravaBanner me={me} notice={notice} onDismiss={() => setNotice(null)} />}
+        {me && <SourceBanner me={me} notice={notice} onDismiss={() => setNotice(null)} onOpenMe={() => setPage("more")} />}
         <div className="u-panel" style={{ minHeight: 620 }}>
           {renderPage()}
         </div>
