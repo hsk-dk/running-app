@@ -5,20 +5,22 @@ import { PosterRoute } from "../lib/poster";
 import { addDays, dateKey } from "../lib/week";
 import AreaPosters from "./AreaPosters";
 import ContactSheet from "./ContactSheet";
+import FlightMap from "./FlightMap";
 import YearPlayback from "./YearPlayback";
 
-type View = "contact" | "areas" | "play";
+type View = "flight" | "contact" | "areas" | "play";
 const VIEWS: { key: View; label: string }[] = [
+  { key: "flight", label: "Flyvetur" },
   { key: "contact", label: "Kontaktark" },
   { key: "areas", label: "Områder" },
   { key: "play", label: "Afspil" },
 ];
 
-/** Your routes, three ways: a sheet with every run on its own tile, one map per place, and a playback in date order. */
+/** Your routes: a flight over the places you have run, a sheet with every run on its own tile, one map per place, and a playback. */
 export default function RoutesCard({ today = new Date() }: { today?: Date }) {
   const [routes, setRoutes] = useState<PosterRoute[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<View>("contact");
+  const [view, setView] = useState<View>("flight");
   const [range, setRange] = useState<"all" | "year">("all");
   const [replayKey, setReplayKey] = useState(0);
   const [areaKey, setAreaKey] = useState<string | null>(null);
@@ -86,6 +88,7 @@ export default function RoutesCard({ today = new Date() }: { today?: Date }) {
             </label>
           )}
 
+          {view === "flight" && <FlightMap areas={areas} />}
           {view === "contact" && <ContactSheet routes={shown} replayKey={replayKey} />}
           {view === "areas" && <AreaPosters areas={areas} onPlay={(key) => { setAreaKey(key); setView("play"); }} />}
           {view === "play" && area && <YearPlayback area={area} />}
