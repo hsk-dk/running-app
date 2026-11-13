@@ -117,7 +117,9 @@ class FamilyActivityDetailOut(FamilyActivityOut):
 class RouteOut(BaseModel):
     id: int
     date: str | None
+    name: str | None = None
     distance_km: float
+    duration_min: float = 0
     route: str
 
 
@@ -138,6 +140,22 @@ class ProfileSeriesOut(BaseModel):
     v: list[float | None] | None = None
     cad: list[float | None] | None = None
     alt: list[float | None] | None = None
+
+
+class RunProfileOut(BaseModel):
+    id: int
+    date: str | None
+    name: str | None = None
+    distance_km: float
+    duration_min: float
+    avg_hr: float | None = None
+    profile: ProfileSeriesOut
+
+
+class ReadDetailsOut(BaseModel):
+    read: int
+    failed: int
+    remaining: int
 
 
 class LapOut(BaseModel):

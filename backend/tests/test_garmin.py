@@ -403,3 +403,40 @@ def test_downloads_return_the_zip_or_none_and_errors_are_clear(monkeypatch):
     monkeypatch.setattr(garmin_module.requests, "get", lambda *a, **k: Resp(429))
     with pytest.raises(RuntimeError, match="for mange"):
         client.download_activity(5)
+
+
+# ---- reading every run's file in batches ------------------------------------------------------------------
+
+def test_read_details_reads_the_files_in_batches_newest_first_until_nothing_is_left(gc):
+    client, state, _ = gc
+    state["pages"] = [[summary(2000 + i, local=f"2026-11-{i + 1:02d} 17:05:13", gmt=f"2026-11-{i + 1:02d} 16:05:13", kind="treadmill_running") for i in range(5)]]
+    state["files"].update({2000 + i: zipped(treadmill_fit(200)) for i in range(5)})
+    connect(client)
+    assert state["downloads"] == []  # treadmill runs wait until asked for
+    first = client.post("/api/garmin/read-details?limit=2", headers=ADMIN).json()
+    assert first == {"read": 2, "failed": 0, "remaining": 3}
+    assert state["downloads"] == [2004, 2003]  # the newest two
+    second = client.post("/api/garmin/read-details?limit=10", headers=ADMIN).json()
+    assert second == {"read": 3, "failed": 0, "remaining": 0}
+    assert client.post("/api/garmin/read-details", headers=ADMIN).json() == {"read": 0, "failed": 0, "remaining": 0}
+    assert len(client.get("/api/activities/profiles", headers=ADMIN).json()) == 5
+
+
+def test_read_details_gives_up_early_when_garmin_does_not_answer_and_loses_nothing(gc):
+    client, state, _ = gc
+    state["pages"] = [[summary(3000 + i, local=f"2026-11-{i + 1:02d} 17:05:13", gmt=f"2026-11-{i + 1:02d} 16:05:13", kind="treadmill_running") for i in range(6)]]
+    connect(client)
+    state["down"] = True
+    r = client.post("/api/garmin/read-details?limit=10", headers=ADMIN).json()
+    assert r["read"] == 0 and r["failed"] == 3 and r["remaining"] == 6  # stopped after three misses, nothing marked
+    state["down"] = False
+    state["files"].update({3000 + i: zipped(treadmill_fit(100)) for i in range(6)})
+    assert client.post("/api/garmin/read-details?limit=10", headers=ADMIN).json()["read"] == 6
+
+
+def test_read_details_needs_a_connected_garmin_and_is_per_person(gc):
+    client, _, _ = gc
+    assert client.post("/api/garmin/read-details", headers=ADMIN).status_code == 409  # not connected
+    connect(client, headers=ADMIN)
+    assert client.post("/api/garmin/read-details", headers=FAMILY).status_code == 409
+    assert client.post("/api/garmin/read-details?limit=0", headers=ADMIN).status_code == 422

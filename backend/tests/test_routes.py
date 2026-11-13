@@ -1,4 +1,6 @@
 """The route poster's data: every route the person has, and only theirs."""
+import json
+
 from tests.auth_helpers import ADMIN, FAMILY
 from tests.conftest import add_activity
 
@@ -33,3 +35,42 @@ def test_the_limit_caps_the_answer_and_routes_is_not_mistaken_for_an_activity_id
         add_activity(db, i, f"2026-11-0{i}T08:00:00Z", raw={"map": {"summary_polyline": LINE}})
     assert len(proxy.get("/api/activities/routes?limit=3", headers=ADMIN).json()) == 3
     assert proxy.get("/api/activities/routes?limit=0", headers=ADMIN).status_code == 422
+
+
+def test_routes_carry_the_runs_name_and_duration_for_the_labels(proxy, db):
+    proxy.get("/api/me", headers=ADMIN)
+    add_activity(db, 1, "2026-11-01T08:00:00Z", distance_m=5000, moving_time_s=1800, name="Horsens - W7 Easy", raw={"map": {"summary_polyline": LINE}})
+    [r] = proxy.get("/api/activities/routes", headers=ADMIN).json()
+    assert (r["name"], r["duration_min"], r["distance_km"]) == ("Horsens - W7 Easy", 30.0, 5.0)
+
+
+PROFILE = {"t": [0, 10, 20], "d": [0.0, 28.0, 56.0], "hr": [120, 130, 140], "v": [2.8, 2.8, 2.8], "cad": None, "alt": None}
+
+
+def store_profile(db, activity_id, profile=PROFILE):
+    c = db.get_conn(); c.execute("UPDATE activities SET profile_json = ?, fit_status = 'ok' WHERE id = ?", (json.dumps(profile), activity_id)); c.commit(); c.close()
+
+
+def test_profiles_lists_runs_that_have_one_newest_first_with_heart_rate_and_only_the_persons_own(proxy, db):
+    proxy.get("/api/me", headers=ADMIN)
+    proxy.get("/api/me", headers=FAMILY)
+    add_activity(db, 1, "2026-11-01T08:00:00Z", distance_m=5000, moving_time_s=1800, name="Old", user_id=1)
+    add_activity(db, 2, "2026-11-05T08:00:00Z", distance_m=6000, moving_time_s=2000, name="New", user_id=1)
+    add_activity(db, 3, "2026-11-06T08:00:00Z", name="No profile", user_id=1)
+    add_activity(db, 4, "2026-11-07T08:00:00Z", name="Someone else's", user_id=2)
+    for rid in (1, 2, 4):
+        store_profile(db, rid)
+    r = proxy.get("/api/activities/profiles", headers=ADMIN)
+    assert r.status_code == 200
+    assert [x["name"] for x in r.json()] == ["New", "Old"]
+    assert r.json()[0]["profile"]["hr"] == [120, 130, 140] and r.json()[0]["duration_min"] == 33.3
+    assert [x["name"] for x in proxy.get("/api/activities/profiles", headers=FAMILY).json()] == ["Someone else's"]
+    assert len(proxy.get("/api/activities/profiles?limit=1", headers=ADMIN).json()) == 1
+    assert proxy.get("/api/activities/profiles?limit=0", headers=ADMIN).status_code == 422
+
+
+def test_a_run_with_a_damaged_stored_profile_is_left_out_not_a_crash(proxy, db):
+    proxy.get("/api/me", headers=ADMIN)
+    add_activity(db, 1, "2026-11-01T08:00:00Z", user_id=1)
+    c = db.get_conn(); c.execute("UPDATE activities SET profile_json = 'not json' WHERE id = 1"); c.commit(); c.close()
+    assert proxy.get("/api/activities/profiles", headers=ADMIN).json() == []

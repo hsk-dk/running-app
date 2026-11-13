@@ -263,7 +263,7 @@ def set_name_if_empty(conn: sqlite3.Connection, user_id: int, activity_id: int, 
 def list_with_raw(conn: sqlite3.Connection, user_id: int, limit: int) -> list[sqlite3.Row]:
     """The user's newest runs with the stored source data (used to pull out each run's route)."""
     return conn.execute(
-        "SELECT id, start_date, start_date_local, distance_m, raw_json, route_polyline FROM activities "
+        "SELECT id, name, start_date, start_date_local, distance_m, moving_time_s, raw_json, route_polyline FROM activities "
         "WHERE user_id = ? AND sport_type = 'Run' ORDER BY start_date DESC, id DESC LIMIT ?",
         (user_id, limit),
     ).fetchall()
@@ -303,3 +303,29 @@ def has_run_near_date(conn: sqlite3.Connection, user_id: int, day: str, days: in
         """,
         (user_id, day, f"-{days} day", day, f"+{days} day"),
     ).fetchone() is not None
+
+
+def list_with_profile(conn: sqlite3.Connection, user_id: int, limit: int) -> list[sqlite3.Row]:
+    """The user's newest runs whose FIT file has been read (they carry a profile for charts)."""
+    return conn.execute(
+        "SELECT id, name, start_date, start_date_local, distance_m, moving_time_s, average_heartrate, profile_json "
+        "FROM activities WHERE user_id = ? AND sport_type = 'Run' AND profile_json IS NOT NULL "
+        "ORDER BY start_date DESC, id DESC LIMIT ?",
+        (user_id, limit),
+    ).fetchall()
+
+
+def list_unread_fit(conn: sqlite3.Connection, user_id: int, limit: int) -> list[sqlite3.Row]:
+    """Runs linked to Garmin whose file has not been read yet, newest first."""
+    return conn.execute(
+        "SELECT * FROM activities WHERE user_id = ? AND garmin_id IS NOT NULL AND fit_status IS NULL "
+        "AND sport_type = 'Run' ORDER BY start_date DESC LIMIT ?",
+        (user_id, limit),
+    ).fetchall()
+
+
+def count_unread_fit(conn: sqlite3.Connection, user_id: int) -> int:
+    return conn.execute(
+        "SELECT COUNT(*) FROM activities WHERE user_id = ? AND garmin_id IS NOT NULL AND fit_status IS NULL AND sport_type = 'Run'",
+        (user_id,),
+    ).fetchone()[0]

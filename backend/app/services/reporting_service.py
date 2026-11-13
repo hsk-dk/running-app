@@ -164,8 +164,38 @@ def routes(user_id: int, limit: int = 400):
             {
                 "id": row["id"],
                 "date": day.isoformat() if day else None,
+                "name": row["name"],
                 "distance_km": round(float(row["distance_m"] or 0) / 1000.0, 2),
+                "duration_min": round(float(row["moving_time_s"] or 0) / 60.0, 1),
                 "route": route,
+            }
+        )
+    return out
+
+
+def profiles(user_id: int, limit: int = 16):
+    """Newest runs that have a profile, for the pace landscape. Includes heart rate: only ever the person's own."""
+    conn = get_conn()
+    try:
+        rows = activity_repo.list_with_profile(conn, user_id, limit)
+    finally:
+        conn.close()
+    out = []
+    for row in rows:
+        day = timeutil.activity_local_date(row)
+        try:
+            profile = json.loads(row["profile_json"])
+        except (TypeError, ValueError):
+            continue
+        out.append(
+            {
+                "id": row["id"],
+                "date": day.isoformat() if day else None,
+                "name": row["name"],
+                "distance_km": round(float(row["distance_m"] or 0) / 1000.0, 2),
+                "duration_min": round(float(row["moving_time_s"] or 0) / 60.0, 1),
+                "avg_hr": None if row["average_heartrate"] is None else round(float(row["average_heartrate"])),
+                "profile": profile,
             }
         )
     return out

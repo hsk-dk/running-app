@@ -271,3 +271,28 @@ def get_profile(user_id: int, activity_id: int, include_hr: bool = True) -> dict
             profile = {**profile, "hr": None}
         laps = [{**lap, "avg_hr": None} for lap in laps]
     return {"available": True, "source": True, "profile": profile, "laps": laps}
+
+
+def read_pending(user_id: int, limit: int = FIT_PER_SYNC) -> dict:
+    """Read the FIT file of the next `limit` runs that have not been read (newest first), so charts that need every run's
+    profile have them. One Garmin call per run. Stops early if Garmin keeps failing."""
+    client = client_for(user_id)
+    conn = get_conn()
+    try:
+        rows = activity_repo.list_unread_fit(conn, user_id, limit)
+    finally:
+        conn.close()
+    read = failed = 0
+    for row in rows:
+        if read_fit(user_id, row, client) is None:
+            failed += 1
+            if failed >= 3 and read == 0:
+                break  # Garmin is not answering: do not hammer it
+        else:
+            read += 1
+    conn = get_conn()
+    try:
+        remaining = activity_repo.count_unread_fit(conn, user_id)
+    finally:
+        conn.close()
+    return {"read": read, "failed": failed, "remaining": remaining}
