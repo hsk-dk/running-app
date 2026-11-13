@@ -147,6 +147,30 @@ def _route_of(raw_json: str | None) -> str | None:
     return route or None
 
 
+def routes(user_id: int, limit: int = 400):
+    """Every route the user has, newest first, as small records for the route poster. Runs without GPS are left out."""
+    conn = get_conn()
+    try:
+        rows = activity_repo.list_with_raw(conn, user_id, limit)
+    finally:
+        conn.close()
+    out = []
+    for row in rows:
+        route = _route_of(row["raw_json"])
+        if not route:
+            continue
+        day = timeutil.activity_local_date(row)
+        out.append(
+            {
+                "id": row["id"],
+                "date": day.isoformat() if day else None,
+                "distance_km": round(float(row["distance_m"] or 0) / 1000.0, 2),
+                "route": route,
+            }
+        )
+    return out
+
+
 def get_activity(user_id: int, activity_id: int):
     conn = get_conn()
     try:

@@ -1,8 +1,9 @@
 import { useState } from "react";
 import YearPage from "./YearPage";
 import ActivitiesPage from "./ActivitiesPage";
+import ExplorePage from "./ExplorePage";
 
-type Tab = "overview" | "runs";
+type Tab = "overview" | "explore" | "runs";
 
 /** The year at a glance, with the full list of runs one tab away (keeps the main navigation at five items). */
 export default function YearSection(props: {
@@ -15,6 +16,7 @@ export default function YearSection(props: {
   const [tab, setTab] = useState<Tab>("overview");
   const tabs: { key: Tab; label: string }[] = [
     { key: "overview", label: "Oversigt" },
+    { key: "explore", label: "Udforsk" },
     { key: "runs", label: "Alle løb" },
   ];
   return (
@@ -30,7 +32,13 @@ export default function YearSection(props: {
           ))}
         </ul>
       </nav>
-      {tab === "overview" ? <YearPage activities={props.activities} /> : <ActivitiesPage {...props} />}
+      {tab === "overview" ? (
+        <YearPage activities={props.activities} />
+      ) : tab === "explore" ? (
+        <ExplorePage activities={props.activities} plannedRuns={props.plannedRuns} />
+      ) : (
+        <ActivitiesPage {...props} />
+      )}
     </div>
   );
 }

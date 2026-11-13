@@ -67,3 +67,9 @@ button.u-tab { font: inherit; font-size: var(--text-sm); cursor: pointer; }
 
 /* The signed-in name is also on the Mig page; on a phone it would push the menu onto a second row. */
 @media (max-width: 30rem) { .u-header__actions { display: none; } }
+
+/* The year ring draws itself, spoke by spoke, unless the person prefers less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .ring-spoke { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: ring-draw 0.6s ease-out forwards; animation-delay: calc(var(--i) * 2.5ms); }
+}
+@keyframes ring-draw { to { stroke-dashoffset: 0; } }
