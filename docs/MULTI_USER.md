@@ -62,8 +62,14 @@ Admin eller **Hent planen nu** under Mig.
 - Kommende Runna-løb bliver planlagte løb (dato, type af navnet, mål: distance fra titlen, ellers varighed).
   Et flyttet løb opdateres, et aflyst fremtidigt løb fjernes. Løb du har rettet i hånden, løb der allerede er matchet
   med en aktivitet, og dage hvor du selv har planlagt, røres ikke.
-- Gennemførte løb i feeden bruges til at give dine aktiviteter Runnas navn (`Taper 400s`), men kun hvis aktiviteten
-  ikke allerede har et navn. Smashrun har ingen løbsnavne.
+- **Historik:** Plan-løb, som Runna lister som gennemført, bliver også til planlagte løb, så Plan-siden viser, hvad der var
+  planlagt i fortiden, og hvordan det gik. Målet er distancen i løbets navn ("5km Easy Run"); et løb, der kun hedder
+  det, det er (fx "Taper 400s"), har ingen planlagt distance i feeden, og så står det, du løb, i stedet. Et gennemført løb
+  får kun et planlagt løb, hvis der findes et løb at matche med (ellers ville planen fejlagtigt stå som sprunget over),
+  og aldrig et ekstra på en dag, der allerede har en plan. **Runna lister ikke løb, du sprang over**, så historikken viser
+  kun gennemførte sessioner.
+- Gennemførte løb i feeden bruges også til at give dine aktiviteter Runnas navn (`Taper 400s`), men kun hvis aktiviteten
+  ikke allerede har et navn.
 - Linket gemmes pr. person, vises aldrig igen i appen, og serveren henter kun adresser på `cal.runna.com`.
 
 ## Deling

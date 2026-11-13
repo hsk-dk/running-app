@@ -289,3 +289,17 @@ def set_fit_result(
         """,
         (status, profile_json, laps_json, route, splits_json, activity_id, user_id),
     )
+
+
+def has_run_near_date(conn: sqlite3.Connection, user_id: int, day: str, days: int = 1) -> bool:
+    """Is there a run on that local calendar day, or within `days` of it?"""
+    return conn.execute(
+        """
+        SELECT 1 FROM activities
+        WHERE user_id = ? AND sport_type = 'Run'
+          AND date(COALESCE(substr(start_date_local, 1, 10), substr(start_date, 1, 10)))
+              BETWEEN date(?, ?) AND date(?, ?)
+        LIMIT 1
+        """,
+        (user_id, day, f"-{days} day", day, f"+{days} day"),
+    ).fetchone() is not None

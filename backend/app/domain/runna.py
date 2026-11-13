@@ -133,6 +133,50 @@ def planned_runs(events: list[dict]) -> list[dict]:
     return out
 
 
+_SUMMARY_DISTANCE = re.compile(r"Distance:\s*(\d+(?:[.,]\d+)?)\s*km", re.IGNORECASE)
+_PLANNED_TEXT = re.compile(r"Description:\s*\n(.*?)(?:\n\W*Laps:|\n\W*View in the Runna app|\Z)", re.IGNORECASE | re.DOTALL)
+
+
+def completed_plan_runs(events: list[dict]) -> list[dict]:
+    """Plan workouts that were done, as planned runs: what Runna had planned for a day that is now in the past.
+
+    The target is the distance in the workout's name ("5km Easy Run"); a workout named only by its kind ("Taper 400s")
+    has no planned distance in the feed, so what was run stands in for it. Runna does not list workouts that were skipped,
+    so history shows done sessions only."""
+    out = []
+    for e in events:
+        uid = e["UID"]
+        if _kind(uid) != COMPLETED_PLAN:
+            continue
+        when = _parse_when(e.get("DTSTART"), e.get("X-USER-TIMEZONE"))
+        title = clean_title(e.get("SUMMARY", ""))
+        if when is None or not title:
+            continue
+        description = e.get("DESCRIPTION", "")
+        km = _distance_km(title)
+        if km is None:
+            actual = _SUMMARY_DISTANCE.search(description)
+            km = float(actual.group(1).replace(",", ".")) if actual else None
+        if not km:
+            continue
+        planned = _PLANNED_TEXT.search(description)
+        text = (planned.group(1).strip() if planned else "")[:600]
+        garmin = re.search(r"-garmin-(\d+)$", uid)
+        out.append(
+            {
+                "external_uid": uid,
+                "planned_date": when[0].isoformat(),
+                "session_type": session_type(title),
+                "target_type": "distance",
+                "target_value": km,
+                "title": title,
+                "notes": text or title,
+                "garmin_id": int(garmin.group(1)) if garmin else None,
+            }
+        )
+    return out
+
+
 def completed_runs(events: list[dict]) -> list[dict]:
     """Done runs with Runna's name for them and the local start time (used to name the matching activity)."""
     out = []
