@@ -64,7 +64,11 @@ class SmashrunClient:
     def _token(self) -> str:
         if self._access_token and self._expires_at - 60 > time.time():
             return self._access_token
-        if not self._refresh_token:  # a personal token has no refresh token: when it is done, it is done
+        if not self._refresh_token:
+            # A personal token has no refresh token. If we do not know when it runs out (0), use it until Smashrun
+            # says no; if we know it has run out, say so.
+            if self._access_token and not self._expires_at:
+                return self._access_token
             raise SmashrunAuthError("Smashrun-tokenet er udløbet. Indsæt et nyt under Mere → Mig.")
         payload = _token_request({"grant_type": "refresh_token", "refresh_token": self._refresh_token})
         self._access_token = payload["access_token"]
@@ -96,15 +100,46 @@ class SmashrunClient:
     def get_activity(self, activity_id: int) -> dict | None:
         return self._get(f"/my/activities/{int(activity_id)}")
 
+    def userinfo(self) -> dict | None:
+        """The signed-in person. A cheap call that proves the token really works for reading."""
+        return self._get("/my/userinfo")
+
     def splits_km(self, activity_id: int):
         return self._get(f"/my/activities/{int(activity_id)}/splits/km")
 
 
 def token_info(token: str) -> dict:
-    """What Smashrun says about an access token: scopes and seconds left. Raises SmashrunAuthError if it is not valid."""
-    response = requests.get(f"{BASE_URL}/auth/{token}", timeout=30)
-    if response.status_code in (400, 401, 403, 404):
-        raise SmashrunAuthError("Smashrun kender ikke det token. Tjek, at du har kopieret hele tokenet.")
-    if not response.ok:
-        raise RuntimeError(f"Smashrun token check failed: {response.status_code}")
-    return response.json()
+    """What Smashrun says about a token (scopes, time left). Best effort: {} if it cannot be read, never an error."""
+    try:
+        response = requests.get(f"{BASE_URL}/auth/{token}", timeout=30)
+        if not response.ok:
+            return {}
+        info = response.json()
+        return info if isinstance(info, dict) else {}
+    except Exception:
+        return {}
+
+
+def expiry_epoch(info: dict, now: float | None = None) -> int | None:
+    """When a token runs out (epoch seconds) from whatever Smashrun told us, or None if it did not say.
+
+    Understands seconds left (`expires_in`) and an absolute time given as epoch seconds or an ISO date."""
+    now = time.time() if now is None else now
+    for key in ("expires_in", "expiresIn", "expires", "expiry", "expires_at", "expiresAt"):
+        value = info.get(key)
+        if value in (None, "", 0, "0"):
+            continue
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            try:
+                from datetime import datetime, timezone
+
+                dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+                return int((dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)).timestamp())
+            except ValueError:
+                continue
+        if number <= 0:
+            continue
+        return int(number) if number > 1e9 else int(now + number)  # a big number is already a point in time
+    return None

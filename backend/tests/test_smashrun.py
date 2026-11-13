@@ -22,11 +22,17 @@ def sr(proxy, db, monkeypatch):
     proxy.get("/api/me", headers=ADMIN)
     proxy.get("/api/me", headers=FAMILY)
 
-    state = {"runs": [dict(RUN)], "calls": [], "fail": False, "pages": None}
+    state = {"runs": [dict(RUN)], "calls": [], "fail": False, "pages": None, "bad_token": False, "userinfo_calls": 0}
 
     class FakeClient:
         def __init__(self, refresh_token, access_token=None, access_expires_at=None, on_tokens=None):
             self.who = refresh_token
+
+        def userinfo(self):
+            state["userinfo_calls"] += 1
+            if state["bad_token"]:
+                raise smashrun_module.SmashrunAuthError("afvist")
+            return {"id": "1"}
 
         def search(self, from_utc=None, page=0, count=100):
             state["calls"].append({"from_utc": from_utc, "page": page, "who": self.who})
@@ -201,22 +207,70 @@ def test_a_personal_token_connects_without_an_app_key_and_shows_when_it_runs_out
     assert [a["id"] for a in client.get("/api/activities", headers=ADMIN).json()] == [-900]  # first sync ran
 
 
-def test_a_bad_or_unreadable_token_is_refused_and_nothing_is_saved(sr, monkeypatch):
-    client, _, svc = sr
-    _token_info(monkeypatch, error=svc.smashrun.SmashrunAuthError("Smashrun kender ikke det token."))
-    unknown = client.post("/api/smashrun/token", headers=ADMIN, json={"token": TOKEN})
-    assert unknown.status_code == 409 and "kender ikke" in unknown.json()["detail"]
-    _token_info(monkeypatch, {"scopes": ["write_activity"], "expires_in": 100})
-    assert client.post("/api/smashrun/token", headers=ADMIN, json={"token": TOKEN}).status_code == 409
+def test_a_token_smashrun_does_not_accept_is_refused_with_a_reason_and_nothing_is_saved(sr, monkeypatch):
+    client, state, _ = sr
+    _token_info(monkeypatch, {"scopes": ["read_activity"], "expires_in": 100})
+    state["bad_token"] = True
+    refused = client.post("/api/smashrun/token", headers=ADMIN, json={"token": TOKEN})
+    assert refused.status_code == 409 and "afviste" in refused.json()["detail"] and "client" in refused.json()["detail"]
     assert client.post("/api/smashrun/token", headers=ADMIN, json={"token": "not a token!"}).status_code == 409
+    assert client.post("/api/smashrun/token", headers=ADMIN, json={"token": "short"}).status_code == 409
     assert client.get("/api/me", headers=ADMIN).json()["smashrun"]["connected"] is False
 
 
-def test_an_expired_personal_token_is_reported_and_cannot_refresh(monkeypatch):
+def test_a_pasted_token_is_cleaned_of_quotes_and_bearer_before_use(sr, monkeypatch):
+    client, _, svc = sr
+    _token_info(monkeypatch, {})
+    for pasted in (f'"{TOKEN}"', f"Bearer {TOKEN}", f"access_token={TOKEN}", f"  {TOKEN}\n"):
+        assert svc.clean_token(pasted) == TOKEN
+    assert client.post("/api/smashrun/token", headers=ADMIN, json={"token": f"Bearer {TOKEN}"}).status_code == 200
+    import app.db as dbmod
+    c = dbmod.get_conn(); stored = c.execute("SELECT access_token FROM smashrun_accounts WHERE user_id = 1").fetchone()[0]; c.close()
+    assert stored == TOKEN
+
+
+def test_a_token_whose_expiry_smashrun_does_not_state_still_works_and_is_not_called_expired(sr, monkeypatch):
+    """What happened on the real server: no usable expires_in meant 'expires now', and the first sync failed."""
+    client, state, _ = sr
+    for info in ({}, {"scopes": []}, {"expires_in": None}, {"expires_in": 0}, {"unexpected": "shape"}):
+        client.delete("/api/smashrun/connection", headers=ADMIN)
+        _token_info(monkeypatch, info)
+        body = client.post("/api/smashrun/token", headers=ADMIN, json={"token": TOKEN}).json()
+        assert body["connected"] and body["expired"] is False and body["expires_at"] is None, info
+        assert state["calls"], "the first sync must have run with the token"
+        state["calls"].clear()
+    assert client.get("/api/admin/status", headers=ADMIN).json()["last_error"]["value"] == ""
+
+
+@pytest.mark.parametrize("info,expected", [
+    ({"expires_in": 7243186}, 1_000_000 + 7243186),
+    ({"expires_in": "7243186"}, 1_000_000 + 7243186),
+    ({"expiresIn": 100}, 1_000_100),
+    ({"expires": 1_900_000_000}, 1_900_000_000),
+    ({"expiry": "2030-01-01T00:00:00Z"}, 1893456000),
+    ({"expires_in": 0}, None), ({"expires_in": -5}, None), ({}, None), ({"expires_in": "soon"}, None),
+])
+def test_the_expiry_is_read_from_whatever_form_smashrun_uses(info, expected):
+    assert smashrun_module.expiry_epoch(info, now=1_000_000) == expected
+
+
+def test_token_info_never_raises_it_just_says_nothing(monkeypatch):
+    def boom(*a, **k): raise OSError("offline")
+    monkeypatch.setattr(smashrun_module.requests, "get", boom)
+    assert smashrun_module.token_info("x" * 20) == {}
+    monkeypatch.setattr(smashrun_module.requests, "get", lambda *a, **k: FakeResponse(status=404))
+    assert smashrun_module.token_info("x" * 20) == {}
+
+
+def test_a_personal_token_known_to_be_expired_cannot_refresh_but_an_unknown_expiry_is_tried(monkeypatch):
     monkeypatch.setattr(smashrun_module.settings, "SMASHRUN_CLIENT_ID", "cid")
-    client = smashrun_module.SmashrunClient("", "old", 1)  # no refresh token, expired long ago
+    expired = smashrun_module.SmashrunClient("", "old", 1)  # no refresh token, expired long ago
     with pytest.raises(smashrun_module.SmashrunAuthError, match="udløbet"):
-        client.search()
+        expired.search()
+    sent = []
+    monkeypatch.setattr(smashrun_module.requests, "get", lambda url, params, headers, timeout: sent.append(headers) or FakeResponse(payload=[]))
+    smashrun_module.SmashrunClient("", "tok", None).search()  # nobody told us when it ends: use it until Smashrun says no
+    assert sent[0]["Authorization"] == "Bearer tok"
 
 
 def test_smashrun_saying_401_is_a_clear_message_not_a_crash(monkeypatch):

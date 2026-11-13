@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from datetime import datetime, timezone
 
@@ -10,7 +11,7 @@ from app import smashrun
 from app.config import settings
 from app.db import get_conn
 from app.domain import smashrun as domain
-from app.errors import ConflictError, ForbiddenError, NotConnectedError
+from app.errors import ConflictError, ForbiddenError, NotConnectedError, UpstreamError
 from app.repositories import activities as activity_repo
 from app.repositories import smashrun_accounts, user_state
 from app.services import strava_service  # the signed connect link is shared with Strava
@@ -58,22 +59,40 @@ def complete_connect(state: str, code: str) -> int:
     return user_id
 
 
+_TOKEN_CHARS = re.compile(r"[A-Za-z0-9._~+/=-]{8,300}")
+
+
+def clean_token(raw: str) -> str:
+    """What the person pasted, without the decoration it often comes with (quotes, 'Bearer ', 'access_token=')."""
+    token = (raw or "").strip().strip("\"'`").strip()
+    token = re.sub(r"^(bearer\s+|access_token\s*[=:]\s*)", "", token, flags=re.IGNORECASE).strip().strip("\"'`")
+    return token
+
+
 def connect_with_token(user_id: int, token: str) -> int:
     """User-level access: the person pastes a personal token (from Smashrun's API Explorer) instead of logging in
-    through our own app key. It has no refresh token and runs out after a while."""
-    token = (token or "").strip()
-    if not token or len(token) > 200 or not token.replace("-", "").replace("_", "").isalnum():
-        raise ConflictError("Det ligner ikke et Smashrun-token")
+    through our own app key. It has no refresh token and runs out after a while.
+
+    The token is checked by really using it, so what we accept is exactly what the sync will be able to do."""
+    token = clean_token(token)
+    if not _TOKEN_CHARS.fullmatch(token):
+        raise ConflictError("Det ligner ikke et Smashrun-token. Indsæt kun selve tokenet, uden mellemrum.")
     try:
-        info = smashrun.token_info(token)
+        smashrun.SmashrunClient("", token, None).userinfo()
     except smashrun.SmashrunAuthError as exc:
-        raise ConflictError(str(exc)) from exc
-    if "read_activity" not in (info.get("scopes") or []) and info.get("scopes") is not None:
-        raise ConflictError("Tokenet må ikke læse løb (mangler read_activity)")
-    expires_at = int(time.time()) + int(info.get("expires_in") or 0)
+        raise ConflictError(
+            "Smashrun afviste tokenet. Tjek, at det er hentet i API Explorer med klient-id 'client', og at det ikke er udløbet."
+        ) from exc
+    except Exception as exc:
+        raise UpstreamError(f"Kunne ikke nå Smashrun: {exc}") from exc
+
+    info = smashrun.token_info(token)  # only used for the expiry date; unknown is fine
+    expires_at = smashrun.expiry_epoch(info)
+    scopes = info.get("scopes")
+    scope = " ".join(scopes) if isinstance(scopes, list) and scopes else smashrun.SCOPE
     conn = get_conn()
     try:
-        smashrun_accounts.upsert(conn, user_id, "", token, expires_at, " ".join(info.get("scopes") or [smashrun.SCOPE]))
+        smashrun_accounts.upsert(conn, user_id, "", token, expires_at, scope)
         conn.commit()
     finally:
         conn.close()
