@@ -11,7 +11,8 @@
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "recharts": "^2.12.7"
+    "recharts": "^2.12.7",
+    "useful-design": "https://github.com/hsk-dk/useful-design/archive/refs/tags/v0.2.0.tar.gz"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
