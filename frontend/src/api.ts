@@ -29,7 +29,7 @@ export const api = {
   getRoutes: () => getJson("/activities/routes"),
   getActivity: (id: number) => getJson(`/activities/${id}`),
 
-  // Me, Strava and family
+  // Me, sources and family
   getMe: () => getJson("/me"),
   updateMe: (payload: { sharing_level?: "private" | "overview" | "all"; display_name?: string }) =>
     getJson("/me", {
@@ -62,8 +62,6 @@ export const api = {
       body: JSON.stringify({ token }),
     }),
   smashrunDisconnect: () => getJson("/smashrun/connection", { method: "DELETE" }),
-  stravaConnect: () => getJson("/strava/connect", { method: "POST" }),
-  stravaDisconnect: () => getJson("/strava/connection", { method: "DELETE" }),
   getFamily: () => getJson("/family"),
   getSplits: (activityId: number) => getJson(`/activities/${activityId}/splits`),
   getFamilySplits: (userId: number, activityId: number) => getJson(`/family/${userId}/activities/${activityId}/splits`),

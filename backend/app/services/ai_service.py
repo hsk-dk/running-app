@@ -146,7 +146,7 @@ def _build_prompt(
             )
 
     parts = [
-        "You are an experienced running coach. Based on the athlete's recent Strava training data below, "
+        "You are an experienced running coach. Based on the athlete's recent training data below, "
         "generate a personalised training plan for next week.",
         "",
         f"## Next week: {week_str}",

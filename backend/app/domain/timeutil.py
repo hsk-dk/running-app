@@ -1,6 +1,6 @@
 """All calendar logic uses the user's local time zone (APP_TIMEZONE).
 
-Planned dates are local calendar dates. An activity's date is Strava's
+Planned dates are local calendar dates. An activity's date is the source's
 `start_date_local` (where the run happened); if that is missing, the UTC
 `start_date` is converted to APP_TIMEZONE.
 

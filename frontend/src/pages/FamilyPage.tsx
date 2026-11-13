@@ -10,7 +10,6 @@ type Member = {
   is_me: boolean;
   level: string;
   shared: boolean;
-  strava_connected: boolean;
   week: { done: number; total: number; open: number } | null;
   month_km: number | null;
   month_runs: number | null;
@@ -35,7 +34,6 @@ function MemberCard({ m, onOpen }: { m: Member; onOpen: (m: Member, id: number) 
           {m.is_me ? "Du deler ikke dine løb med familien." : `${m.name} deler ikke sine løb.`}
         </p>
       )}
-      {m.shared && !m.strava_connected && <p className="u-card__meta">Strava er ikke forbundet endnu.</p>}
 
       {m.shared && m.week && (
         <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(7rem, 1fr))", gap: 12, margin: 0 }}>

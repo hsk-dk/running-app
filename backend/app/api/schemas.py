@@ -93,7 +93,7 @@ class ActivityDetailOut(ActivityOut):
     elevation_gain_m: float | None
     avg_pace_s_per_km: float | None
     max_hr: float | None
-    # Google-encoded polyline of a simplified route from Strava, or None (treadmill, manual entry)
+    # Google-encoded polyline of the route, or None (treadmill, manual entry)
     route: str | None
 
 
@@ -158,7 +158,7 @@ class ProfileOut(BaseModel):
 
 
 class SplitsOut(BaseModel):
-    # available=False: Strava could not be asked right now (not connected, or an error). Try again later.
+    # available=False: the source could not be asked right now (not connected, or an error). Try again later.
     available: bool
     splits: list[SplitOut]
 
@@ -186,25 +186,6 @@ class HealthOut(BaseModel):
     mismatch_count: int
 
 
-class StravaWebhookEvent(BaseModel):
-    """Strava push event. Everything is optional: unknown/partial events are
-    stored and ignored by the service rather than rejected."""
-
-    model_config = ConfigDict(extra="allow")
-
-    object_type: str | None = None
-    object_id: int | None = None
-    aspect_type: str | None = None
-    owner_id: int | str | None = None
-    subscription_id: int | str | None = None
-    event_time: int | None = None
-    updates: dict | None = None
-
-
-class StravaStatusOut(BaseModel):
-    connected: bool
-    configured: bool
-    athlete_id: str | None
 
 
 class SmashrunStatusOut(BaseModel):
@@ -246,7 +227,6 @@ class MeOut(BaseModel):
     role: str
     sharing_level: str
     family_sharing_enabled: bool
-    strava: StravaStatusOut
     smashrun: SmashrunStatusOut
     runna: RunnaStatusOut
     garmin: GarminStatusOut
@@ -281,7 +261,6 @@ class FamilyMemberOut(BaseModel):
     is_me: bool
     level: Literal["private", "overview", "all"]
     shared: bool
-    strava_connected: bool
     week: FamilyWeekOut | None
     month_km: float | None
     month_runs: int | None

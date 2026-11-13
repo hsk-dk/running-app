@@ -23,16 +23,9 @@ class Settings:
     # Family members can choose to share an overview or their runs with each other. Switch off to disable.
     FAMILY_SHARING_ENABLED = os.getenv("FAMILY_SHARING_ENABLED", "true").lower() in ("1", "true", "yes")
 
-    STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID", "")
-    STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET", "")
-    STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN", "")
-    STRAVA_VERIFY_TOKEN = os.getenv("STRAVA_VERIFY_TOKEN", "")
-    STRAVA_ATHLETE_ID = os.getenv("STRAVA_ATHLETE_ID", "")
-    STRAVA_REDIRECT_URI = os.getenv("STRAVA_REDIRECT_URI", "")
     SMASHRUN_CLIENT_ID = os.getenv("SMASHRUN_CLIENT_ID", "")
     SMASHRUN_CLIENT_SECRET = os.getenv("SMASHRUN_CLIENT_SECRET", "")
     SMASHRUN_REDIRECT_URI = os.getenv("SMASHRUN_REDIRECT_URI", "")
-    STRAVA_PUSH_SUBSCRIPTION_CALLBACK_URL = os.getenv("STRAVA_PUSH_SUBSCRIPTION_CALLBACK_URL", "")
 
     OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")

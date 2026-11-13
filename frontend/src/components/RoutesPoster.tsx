@@ -41,7 +41,7 @@ export default function RoutesPoster({ today = new Date() }: { today?: Date }) {
       {!routes && !error && <p className="u-card__meta" role="status">Henter ruterne…</p>}
       {routes && poster.used === 0 && (
         <p className="u-card__meta">
-          Ingen ruter at vise{routes.length === 0 ? ". Løb fra Smashrun har endnu ingen rute, så plakaten viser kun løb med GPS-rute fra Strava." : " i den periode."}
+          Ingen ruter at vise{routes.length === 0 ? ". Løb på løbebånd har ingen GPS-rute. Udendørsløb får deres rute fra Garmin." : " i den periode."}
         </p>
       )}
 

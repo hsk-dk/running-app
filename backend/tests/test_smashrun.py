@@ -3,7 +3,7 @@ import pytest
 
 import app.smashrun as smashrun_module
 from tests.auth_helpers import ADMIN, FAMILY, patch_settings
-from tests.conftest import add_activity, connect_strava
+from tests.conftest import add_activity
 
 RUN = {"activityId": 900, "startDateTimeLocal": "2026-11-10T09:00:00+01:00", "distance": 5.0, "duration": 1500,
        "heartRateAverage": 140, "notes": "Morgentur"}
@@ -122,20 +122,18 @@ def test_every_page_is_read_and_unusable_runs_are_counted_not_fatal(sr, monkeypa
 def test_one_failing_source_does_not_stop_the_other(sr, monkeypatch):
     client, state, _ = sr
     client.get("/api/smashrun/callback", params={"code": "c", "state": _link(client)})
-    connect_strava_for_admin = __import__("tests.conftest", fromlist=["x"]).connect_strava
-    return_value = connect_strava_for_admin
-    import app.services.sync_service as sync_service
-
-    class DeadStrava:
-        def __init__(self, *a, **k): pass
-        def get_activities(self, **k): raise RuntimeError("Strava: Application Inactive")
-
-    monkeypatch.setattr(sync_service, "StravaClient", DeadStrava)
     import app.db as dbmod
-    c = dbmod.get_conn(); c.execute("INSERT INTO strava_accounts (user_id, athlete_id, refresh_token) VALUES (1, '1', 'r')"); c.commit(); c.close()
+    import app.services.garmin_service as garmin_service
+
+    c = dbmod.get_conn(); c.execute("INSERT INTO garmin_accounts (user_id, api_key) VALUES (1, 'k')"); c.commit(); c.close()
+
+    def dead(user_id, full=False):
+        raise RuntimeError("Garmin: key expired")
+
+    monkeypatch.setattr(garmin_service, "ingest_recent", dead)
     body = client.post("/api/admin/ingest", headers=ADMIN).json()
-    assert "smashrun" in body and "Inactive" in body["errors"]["strava"]
-    assert "Inactive" in client.get("/api/admin/status", headers=ADMIN).json()["last_error"]["value"]
+    assert "smashrun" in body and "key expired" in body["errors"]["garmin"]
+    assert "key expired" in client.get("/api/admin/status", headers=ADMIN).json()["last_error"]["value"]
 
 
 def test_failure_when_smashrun_is_the_only_source_is_reported(sr):

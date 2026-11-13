@@ -95,9 +95,9 @@ export default function App() {
   useEffect(() => {
     loadMe();
     loadAll();
-    // Back from Strava or Smashrun: say what happened, tidy the address, and reload once the first sync has had time to run.
+    // Back from Smashrun: say what happened, tidy the address, and reload once the first sync has had time to run.
     const params = new URLSearchParams(window.location.search);
-    const source = params.get("smashrun") ? "smashrun" : params.get("strava") ? "strava" : null;
+    const source = params.get("smashrun") ? "smashrun" : null;
     const result = source ? params.get(source) : null;
     if (source && (result === "connected" || result === "denied")) {
       setNotice({ source, result });

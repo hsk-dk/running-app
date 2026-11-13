@@ -11,12 +11,12 @@ class ForbiddenError(Exception):
 
 
 class ConflictError(Exception):
-    """The request conflicts with the current state, e.g. a Strava athlete already connected to another user (HTTP 409)."""
+    """The request conflicts with the current state, e.g. an account already connected to another user (HTTP 409)."""
 
 
 class NotConnectedError(Exception):
-    """The user has not connected a Strava account yet (HTTP 409)."""
+    """The user has not connected a data source yet (HTTP 409)."""
 
 
 class UpstreamError(Exception):
-    """A data source (Smashrun, Strava) refused or failed. The message says why (HTTP 502)."""
+    """A data source (Garmin, Smashrun) refused or failed. The message says why (HTTP 502)."""

@@ -14,7 +14,7 @@ from app.domain import smashrun as domain
 from app.errors import ConflictError, ForbiddenError, NotConnectedError, UpstreamError
 from app.repositories import activities as activity_repo
 from app.repositories import smashrun_accounts, user_state
-from app.services import strava_service  # the signed connect link is shared with Strava
+from app.services import oauth_state
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +31,13 @@ def configured() -> bool:
 
 
 def read_state(state: str) -> int:
-    try:
-        return strava_service.read_state(state)
-    except ForbiddenError as exc:
-        raise ForbiddenError("The Smashrun connection link is invalid or has expired") from exc
+    return oauth_state.read_state(state)
 
 
 def begin_connect(user_id: int) -> dict:
     if not configured():
         raise ConflictError("Smashrun is not configured (SMASHRUN_CLIENT_ID and SMASHRUN_CLIENT_SECRET)")
-    return {"url": smashrun.authorize_url(redirect_uri(), strava_service.make_state(user_id))}
+    return {"url": smashrun.authorize_url(redirect_uri(), oauth_state.make_state(user_id))}
 
 
 def complete_connect(state: str, code: str) -> int:

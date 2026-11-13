@@ -5,7 +5,7 @@ from app.api.schemas import MeOut, MeUpdate
 from app.services import user_service
 from app.services.user_service import CurrentUser
 from app.config import settings
-from app.services import garmin_service, runna_service, smashrun_service, strava_service
+from app.services import garmin_service, runna_service, smashrun_service
 
 router = APIRouter(prefix="/api", tags=["me"])
 
@@ -18,7 +18,6 @@ def _me(user: CurrentUser) -> dict:
         "role": user.role,
         "sharing_level": user.sharing_level,
         "family_sharing_enabled": settings.FAMILY_SHARING_ENABLED,
-        "strava": strava_service.status(user.id),
         "smashrun": smashrun_service.status(user.id),
         "runna": runna_service.status(user.id),
         "garmin": garmin_service.status(user.id),
