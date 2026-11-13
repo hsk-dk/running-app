@@ -5,7 +5,7 @@ from app.api.schemas import MeOut, MeUpdate
 from app.services import user_service
 from app.services.user_service import CurrentUser
 from app.config import settings
-from app.services import runna_service, smashrun_service, strava_service
+from app.services import garmin_service, runna_service, smashrun_service, strava_service
 
 router = APIRouter(prefix="/api", tags=["me"])
 
@@ -21,6 +21,7 @@ def _me(user: CurrentUser) -> dict:
         "strava": strava_service.status(user.id),
         "smashrun": smashrun_service.status(user.id),
         "runna": runna_service.status(user.id),
+        "garmin": garmin_service.status(user.id),
     }
 
 

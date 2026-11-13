@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import current_user
-from app.api.schemas import FamilyActivityDetailOut, FamilyActivityOut, FamilyOut, SplitsOut
+from app.api.schemas import FamilyActivityDetailOut, FamilyActivityOut, FamilyOut, ProfileOut, SplitsOut
 from app.services import family_service
 from app.services.user_service import CurrentUser
 
@@ -26,3 +26,8 @@ def member_activity(user_id: int, activity_id: int, user: CurrentUser = Depends(
 @router.get("/{user_id}/activities/{activity_id}/splits", response_model=SplitsOut)
 def member_splits(user_id: int, activity_id: int, user: CurrentUser = Depends(current_user)):
     return family_service.member_splits(user, user_id, activity_id)
+
+
+@router.get("/{user_id}/activities/{activity_id}/profile", response_model=ProfileOut)
+def member_profile(user_id: int, activity_id: int, user: CurrentUser = Depends(current_user)):
+    return family_service.member_profile(user, user_id, activity_id)
