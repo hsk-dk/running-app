@@ -1,3 +1,4 @@
+import { sessionTypeOptions } from "../lib/sessionTypes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api";
@@ -657,9 +658,9 @@ return (
               value={form.session_type}
               onChange={(e) => setForm({ ...form, session_type: e.target.value })}
             >
-              <option value="easy">Easy</option>
-              <option value="long">Lang tur</option>
-                  <option value="intervals">Intervaller</option>
+              {sessionTypeOptions(form.session_type).map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
             </select>
 
             <select
@@ -791,9 +792,9 @@ return (
                     setEditing({ ...editing, session_type: e.target.value })
                   }
                 >
-                  <option value="easy">Easy</option>
-                  <option value="long">Lang tur</option>
-                  <option value="intervals">Intervaller</option>
+                  {sessionTypeOptions(editing.session_type).map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
                 </select>
 
                 <select

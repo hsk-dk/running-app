@@ -185,6 +185,16 @@ class SmashrunTokenIn(BaseModel):
     token: str = Field(min_length=1, max_length=200)
 
 
+class RunnaStatusOut(BaseModel):
+    connected: bool
+    last_sync_at: str | None = None
+    last_error: str | None = None
+
+
+class RunnaLinkIn(BaseModel):
+    url: str = Field(min_length=1, max_length=300)
+
+
 class MeOut(BaseModel):
     id: int
     username: str
@@ -194,6 +204,7 @@ class MeOut(BaseModel):
     family_sharing_enabled: bool
     strava: StravaStatusOut
     smashrun: SmashrunStatusOut
+    runna: RunnaStatusOut
 
 
 class MeUpdate(BaseModel):

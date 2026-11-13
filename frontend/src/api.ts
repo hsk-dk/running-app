@@ -36,6 +36,14 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
+  runnaConnect: (url: string) =>
+    getJson("/runna/link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    }),
+  runnaSync: () => getJson("/runna/sync", { method: "POST" }),
+  runnaDisconnect: () => getJson("/runna/link", { method: "DELETE" }),
   smashrunConnect: () => getJson("/smashrun/connect", { method: "POST" }),
   smashrunToken: (token: string) =>
     getJson("/smashrun/token", {
