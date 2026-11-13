@@ -36,6 +36,19 @@ To måder at forbinde på (under **Mere → Mig**):
 
 Der er ingen webhook fra Smashrun: løb hentes med knappen **Synkronisér** under Mere → Admin.
 
+## Planen fra Runna
+
+Hver person kan indsætte sit **Runna-kalenderlink** under Mere → Mig (i Runna-appen: *Connected Apps & Devices* →
+kalender → iCalendar-link, `https://cal.runna.com/….ics`). Appen læser feeden, når du trykker **Synkronisér** under
+Admin eller **Hent planen nu** under Mig.
+
+- Kommende Runna-løb bliver planlagte løb (dato, type af navnet, mål: distance fra titlen, ellers varighed).
+  Et flyttet løb opdateres, et aflyst fremtidigt løb fjernes. Løb du har rettet i hånden, løb der allerede er matchet
+  med en aktivitet, og dage hvor du selv har planlagt, røres ikke.
+- Gennemførte løb i feeden bruges til at give dine aktiviteter Runnas navn (`Taper 400s`), men kun hvis aktiviteten
+  ikke allerede har et navn. Smashrun har ingen løbsnavne.
+- Linket gemmes pr. person, vises aldrig igen i appen, og serveren henter kun adresser på `cal.runna.com`.
+
 ## Deling
 
 Hver person vælger under **Mere → Mig**:

@@ -11,6 +11,7 @@ type Me = {
   family_sharing_enabled: boolean;
   strava: { connected: boolean; configured: boolean; athlete_id: string | null };
   smashrun: { connected: boolean; configured: boolean; mode?: string | null; expires_at?: string | null; expired?: boolean };
+  runna: { connected: boolean; last_sync_at: string | null; last_error: string | null };
 };
 
 /** Your own settings: who sees your runs, and which Strava the app reads. */
@@ -19,6 +20,7 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
   const [error, setError] = useState<string | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [token, setToken] = useState("");
+  const [runnaUrl, setRunnaUrl] = useState("");
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -167,6 +169,69 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
               Forbind via Smashrun i stedet
             </button>
           </div>
+        )}
+      </section>
+
+      <section className="u-card" aria-labelledby="runna-title" style={{ display: "grid", gap: 12 }}>
+        <h2 id="runna-title" className="u-h2">Runna-plan</h2>
+        {me.runna.connected ? (
+          <>
+            <p className="u-card__meta">
+              Forbundet. Din plan hentes fra Runna, og dine løb får Runnas navne.
+              {me.runna.last_sync_at && ` Sidst hentet ${new Date(me.runna.last_sync_at).toLocaleString("da-DK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.`}
+            </p>
+            {me.runna.last_error && (
+              <div className="u-notice u-notice--error" role="alert">
+                <b className="u-notice__level">Fejl</b>
+                <span>{me.runna.last_error}</span>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" className="u-btn u-btn--secondary" disabled={busy} onClick={() => run(() => api.runnaSync())}>
+                Hent planen nu
+              </button>
+              <button type="button" className="u-btn u-btn--secondary" disabled={busy} onClick={() => run(() => api.runnaDisconnect())}>
+                Frakobl Runna
+              </button>
+            </div>
+          </>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!runnaUrl.trim()) return;
+              run(async () => {
+                await api.runnaConnect(runnaUrl);
+                setRunnaUrl("");
+              });
+            }}
+            style={{ display: "grid", gap: 8 }}
+          >
+            <p className="u-card__meta">Ikke forbundet. Indsæt dit Runna-kalenderlink for at hente din plan.</p>
+            <label htmlFor="runna-link" className="u-card__meta">Runna-kalenderlink</label>
+            <input
+              id="runna-link"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="https://cal.runna.com/…"
+              value={runnaUrl}
+              onChange={(e) => setRunnaUrl(e.target.value)}
+              style={{ minHeight: 44, padding: "0 12px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", width: "100%", boxSizing: "border-box" }}
+            />
+            <details>
+              <summary className="u-card__meta" style={{ cursor: "pointer", minHeight: 44, display: "flex", alignItems: "center" }}>Sådan finder du linket</summary>
+              <p className="u-card__meta" style={{ marginTop: 4 }}>
+                Åbn Runna-appen, gå til <b>Connected Apps &amp; Devices</b> og vælg kalender. Kopiér iCalendar-linket (det begynder med cal.runna.com).
+                Dine planlagte løb hentes herfra; løb, du selv har oprettet, bliver ikke overskrevet.
+              </p>
+            </details>
+            <div>
+              <button type="submit" className="u-btn u-btn--primary" disabled={busy || !runnaUrl.trim()}>
+                Gem link
+              </button>
+            </div>
+          </form>
         )}
       </section>
 

@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS planned_runs (
     match_score REAL,
     match_reason TEXT,
     user_id INTEGER NOT NULL DEFAULT 1,
+    source TEXT NOT NULL DEFAULT 'manual',
+    external_uid TEXT,
     FOREIGN KEY (matched_activity_id) REFERENCES activities(id)
 );
 
@@ -84,6 +86,14 @@ CREATE TABLE IF NOT EXISTS smashrun_accounts (
     access_token TEXT,
     access_expires_at INTEGER,
     scope TEXT,
+    connected_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS calendar_feeds (
+    user_id INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL DEFAULT 'runna',
+    url TEXT NOT NULL,
     connected_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
@@ -322,6 +332,27 @@ def _migration_9_sources(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_activities_user_start ON activities(user_id, start_date)")
 
 
+def _migration_10_plan_import(conn: sqlite3.Connection) -> None:
+    """Planned runs can be imported from the person's Runna calendar link and are then kept in step with it."""
+    _add_column_if_missing(conn, "planned_runs", "source", "TEXT NOT NULL DEFAULT 'manual'")
+    _add_column_if_missing(conn, "planned_runs", "external_uid", "TEXT")
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS calendar_feeds (
+            user_id INTEGER PRIMARY KEY,
+            kind TEXT NOT NULL DEFAULT 'runna',
+            url TEXT NOT NULL,
+            connected_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_planned_external ON planned_runs(user_id, external_uid) "
+        "WHERE external_uid IS NOT NULL"
+    )
+
+
 MIGRATIONS = [
     _migration_1_add_missing_columns,
     _migration_2_add_indexes,
@@ -332,6 +363,7 @@ MIGRATIONS = [
     _migration_7_users,
     _migration_8_splits,
     _migration_9_sources,
+    _migration_10_plan_import,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 
