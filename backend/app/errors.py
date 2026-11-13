@@ -16,3 +16,7 @@ class ConflictError(Exception):
 
 class NotConnectedError(Exception):
     """The user has not connected a Strava account yet (HTTP 409)."""
+
+
+class UpstreamError(Exception):
+    """A data source (Smashrun, Strava) refused or failed. The message says why (HTTP 502)."""

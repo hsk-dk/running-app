@@ -4,7 +4,7 @@ import json
 import sqlite3
 
 
-def upsert(conn: sqlite3.Connection, user_id: int, activity: dict) -> None:
+def upsert(conn: sqlite3.Connection, user_id: int, activity: dict, source: str = "strava", source_id: str | None = None) -> None:
     """Insert or update one of the user's activities. An activity id that belongs to another user is left alone."""
     conn.execute(
         """
@@ -12,8 +12,8 @@ def upsert(conn: sqlite3.Connection, user_id: int, activity: dict) -> None:
             id, name, sport_type, start_date, start_date_local, timezone_name, distance_m,
             moving_time_s, elapsed_time_s, total_elevation_gain, average_speed,
             max_speed, average_heartrate, max_heartrate, average_cadence,
-            raw_json, user_id, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            raw_json, user_id, source, source_id, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(id) DO UPDATE SET
             name = excluded.name,
             sport_type = excluded.sport_type,
@@ -51,8 +51,22 @@ def upsert(conn: sqlite3.Connection, user_id: int, activity: dict) -> None:
             activity.get("average_cadence"),
             json.dumps(activity, ensure_ascii=False),
             user_id,
+            source,
+            source_id if source_id is not None else str(activity["id"]),
         ),
     )
+
+
+def find_near(conn: sqlite3.Connection, user_id: int, start_utc: str, window_s: int = 120, source: str | None = None) -> sqlite3.Row | None:
+    """A run of the user's that started within `window_s` seconds of `start_utc` (the same run from another source).
+
+    With `source`, only runs from that source count."""
+    sql = "SELECT * FROM activities WHERE user_id = ? AND sport_type = 'Run' AND start_date IS NOT NULL AND ABS(julianday(start_date) - julianday(?)) * 86400 <= ?"
+    args: list = [user_id, start_utc, window_s]
+    if source is not None:
+        sql += " AND source = ?"
+        args.append(source)
+    return conn.execute(sql + " ORDER BY ABS(julianday(start_date) - julianday(?)) LIMIT 1", args + [start_utc]).fetchone()
 
 
 def get(conn: sqlite3.Connection, user_id: int, activity_id: int) -> sqlite3.Row | None:

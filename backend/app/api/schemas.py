@@ -173,6 +173,11 @@ class StravaStatusOut(BaseModel):
     athlete_id: str | None
 
 
+class SmashrunStatusOut(BaseModel):
+    connected: bool
+    configured: bool
+
+
 class MeOut(BaseModel):
     id: int
     username: str
@@ -181,6 +186,7 @@ class MeOut(BaseModel):
     sharing_level: str
     family_sharing_enabled: bool
     strava: StravaStatusOut
+    smashrun: SmashrunStatusOut
 
 
 class MeUpdate(BaseModel):

@@ -5,7 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.errors import ConflictError, ForbiddenError, NotConnectedError, NotFoundError, UnauthorizedError
+from app.errors import ConflictError, ForbiddenError, NotConnectedError, NotFoundError, UnauthorizedError, UpstreamError
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,10 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(NotConnectedError)
     async def not_connected(_: Request, exc: NotConnectedError):
         return JSONResponse(status_code=409, content={"detail": str(exc) or "Strava er ikke forbundet", "code": "strava_not_connected"})
+
+    @app.exception_handler(UpstreamError)
+    async def upstream(_: Request, exc: UpstreamError):
+        return JSONResponse(status_code=502, content={"detail": str(exc) or "The data source failed"})
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_: Request, exc: RequestValidationError):
