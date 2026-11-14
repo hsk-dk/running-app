@@ -1,3 +1,4 @@
+import LoadCard from "../components/LoadCard";
 import MilestoneCard from "../components/MilestoneCard";
 import RaceCard from "../components/RaceCard";
 import PaceLandscape from "../components/PaceLandscape";
@@ -17,6 +18,7 @@ export default function ExplorePage({ activities, plannedRuns }: { activities: A
       <RaceCard activities={activities} plannedRuns={plannedRuns} />
       <RoutesCard />
       <PaceLandscape />
+      <LoadCard activities={activities} />
       <TrophyShelf activities={activities} />
       <YearRing activities={activities} />
       <MilestoneCard activities={activities} />

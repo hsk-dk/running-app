@@ -9,7 +9,7 @@ export default function TrophyShelf({ activities, today = new Date() }: { activi
   return (
     <section className="u-card" aria-labelledby="trophy-title" style={{ display: "grid", gap: 12 }}>
       <h2 id="trophy-title" className="u-h2">Dine rekorder</h2>
-      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))", gap: 12 }}>
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr))", gap: 12 }}>
         {list.map((r) => (
           <li key={r.key} style={{ border: "1px solid var(--color-border)", borderRadius: 12, padding: 12, display: "grid", gap: 4, background: "var(--color-surface)" }}>
             <span className="u-card__meta">{r.label}</span>

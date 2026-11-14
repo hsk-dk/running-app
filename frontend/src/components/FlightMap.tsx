@@ -7,7 +7,8 @@ import { useWidth } from "../lib/useWidth";
 import { parseDateKey } from "../lib/week";
 
 type Land = { rings: Float64Array[]; boxes: [number, number, number, number][] };
-type Assets = { land: Land; towns: Town[] };
+/** `coast` is the detailed Danish coast; `coastBox` is the area it covers, in map units. */
+type Assets = { land: Land; coast: Land | null; coastBox: [number, number, number, number] | null; towns: Town[] };
 
 const DRAW_SHARE = 0.8; // routes are drawn during the first 80 % of a stay, then everything rests for a moment
 
@@ -30,6 +31,13 @@ function decodeLand(data: { scale: number; rings: number[][] }): Land {
     boxes.push([minX, minY, maxX, maxY]);
   }
   return { rings, boxes };
+}
+
+function decodeCoast(data: { scale: number; bbox: number[]; rings: number[][] }): Pick<Assets, "coast" | "coastBox"> {
+  const [lon0, lat0, lon1, lat1] = data.bbox;
+  const [x0, y1] = mercator(lon0, lat0); // y grows southwards, so the south edge has the larger y
+  const [x1, y0] = mercator(lon1, lat1);
+  return { coast: decodeLand(data), coastBox: [x0, y0, x1, y1] };
 }
 
 const ramp = (v: number, a: number, b: number) => Math.min(1, Math.max(0, (v - a) / (b - a)));
@@ -76,16 +84,23 @@ function draw(ctx: CanvasRenderingContext2D, f: Frame) {
   }
   ctx.stroke();
 
-  // land: visible at country scale, gone when you are close (a rough coast would only look wrong at city scale)
-  const landAlpha = smooth(ramp(cam.w, 0.18, 1.3));
-  if (assets && landAlpha > 0.01) {
-    ctx.fillStyle = `rgba(255,255,255,${0.11 * landAlpha})`;
-    ctx.strokeStyle = `rgba(255,255,255,${0.3 * landAlpha})`;
+  // land. The coarse European outline, and over Denmark a detailed coast that takes over once the view is inside its area.
+  // The two cross-fade, because the detailed one is cut off at the edge of its area.
+  const minX = cam.x - cam.w / 2, maxX = cam.x + cam.w / 2, minY = cam.y - hh / 2, maxY = cam.y + hh / 2;
+  let fine = 0;
+  if (assets?.coast && assets.coastBox) {
+    const [bx0, by0, bx1, by1] = assets.coastBox;
+    const margin = Math.min(minX - bx0, bx1 - maxX, minY - by0, by1 - maxY);
+    fine = smooth(ramp(margin, 0, 0.25));
+  }
+  const paintLand = (land: Land, alpha: number) => {
+    if (alpha < 0.01) return;
+    ctx.fillStyle = `rgba(255,255,255,${0.11 * alpha})`;
+    ctx.strokeStyle = `rgba(255,255,255,${0.3 * alpha})`;
     ctx.lineWidth = 1;
     ctx.lineJoin = "round";
-    const minX = cam.x - cam.w / 2, maxX = cam.x + cam.w / 2, minY = cam.y - hh / 2, maxY = cam.y + hh / 2;
-    assets.land.rings.forEach((ring, i) => {
-      const b = assets.land.boxes[i];
+    land.rings.forEach((ring, i) => {
+      const b = land.boxes[i];
       if (b[2] < minX || b[0] > maxX || b[3] < minY || b[1] > maxY) return;
       ctx.beginPath();
       for (let k = 0; k < ring.length; k += 2) {
@@ -98,6 +113,11 @@ function draw(ctx: CanvasRenderingContext2D, f: Frame) {
       ctx.fill();
       ctx.stroke();
     });
+  };
+  if (assets) {
+    // coarse land is a stand-in at close range, so it fades out when zoomed in, unless the detailed coast covers that place
+    paintLand(assets.land, smooth(ramp(cam.w, 0.18, 1.3)) * (1 - fine));
+    if (assets.coast) paintLand(assets.coast, fine * smooth(ramp(cam.w, 0.01, 0.08)));
   }
 
   // lines between places, dotted, drawn while flying
@@ -246,9 +266,13 @@ export default function FlightMap({ areas }: { areas: Area[] }) {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([import("../assets/europe-land.json"), import("../assets/europe-towns.json")])
-      .then(([land, towns]) => !cancelled && setAssets({ land: decodeLand((land as any).default), towns: (towns as any).default }))
-      .catch(() => !cancelled && setAssets({ land: { rings: [], boxes: [] }, towns: [] })); // no coast, but the flight still works
+    Promise.all([import("../assets/europe-land.json"), import("../assets/europe-towns.json"), import("../assets/denmark-coast.json").catch(() => null)])
+      .then(([land, towns, coast]) => {
+        if (cancelled) return;
+        const detail = coast ? decodeCoast((coast as any).default) : { coast: null, coastBox: null };
+        setAssets({ land: decodeLand((land as any).default), ...detail, towns: (towns as any).default });
+      })
+      .catch(() => !cancelled && setAssets({ land: { rings: [], boxes: [] }, coast: null, coastBox: null, towns: [] })); // no coast, but the flight still works
     return () => {
       cancelled = true;
     };
@@ -398,7 +422,7 @@ export default function FlightMap({ areas }: { areas: Area[] }) {
           <p className="u-card__meta">
             {reduced
               ? "Bevægelse er slået fra: kortet viser alle dine steder. Vælg et sted for at se det."
-              : "Kortet tegnes lokalt ud fra offentlige landegrænser. Dine positioner forlader ikke browseren. Stednavne er fra dine løbs navne."}
+              : "Kortet tegnes lokalt og dine positioner forlader ikke browseren. Kyster: Natural Earth. Byer: GeoNames (CC BY 4.0). Stednavne er fra dine løbs navne."}
             {fa.some((a) => a.firstDate) && ` Første løb: ${dateText(fa.map((a) => a.firstDate).filter(Boolean).sort()[0] as string)}.`}
           </p>
         </>
