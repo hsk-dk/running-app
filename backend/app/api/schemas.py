@@ -131,6 +131,15 @@ class IndoorOut(BaseModel):
     duration_min: float = 0
 
 
+class OtherOut(BaseModel):
+    id: int
+    date: str | None
+    kind: str  # Walk, Ride, Row, Paddle, Swim, Strength or Other
+    name: str | None = None
+    distance_km: float = 0
+    duration_min: float = 0
+
+
 class SplitOut(BaseModel):
     km: int
     distance_m: float
@@ -252,10 +261,23 @@ class MeOut(BaseModel):
     display_name: str
     role: str
     sharing_level: str
+    is_child: bool = False
     family_sharing_enabled: bool
     smashrun: SmashrunStatusOut
     runna: RunnaStatusOut
     garmin: GarminStatusOut
+
+
+class PersonOut(BaseModel):
+    id: int
+    name: str
+    username: str
+    role: str
+    is_child: bool
+
+
+class ChildUpdate(BaseModel):
+    is_child: bool
 
 
 class MeUpdate(BaseModel):
@@ -281,20 +303,175 @@ class FamilyWeekOut(BaseModel):
     open: int
 
 
+class FirstOut(BaseModel):
+    key: str
+    label: str
+    date: str
+    is_new: bool = False
+
+
+class NextUpOut(BaseModel):
+    key: str
+    label: str
+    current: float
+    target: float
+    unit: str
+
+
+class FirstsOut(BaseModel):
+    achieved: list[FirstOut]
+    next: list[NextUpOut]
+
+
+class FamilyMilestoneOut(BaseModel):
+    key: str
+    label: str
+    date: str
+
+
+Weekday = Literal[0, 1, 2, 3, 4, 5, 6]
+
+
+class ChallengePlan(BaseModel):
+    """What a daily challenge is: a name, a unit, a start that grows a little every so many days, and the days off."""
+
+    name: str = Field(min_length=1, max_length=40)
+    unit: Literal["stk", "sek", "min"] = "stk"
+    start_value: int = Field(ge=1, le=10000)
+    step: int = Field(default=1, ge=0, le=1000)
+    step_every_days: int = Field(default=7, ge=1, le=60)
+    cap: int | None = Field(default=None, ge=1, le=100000)
+    rest_weekdays: list[Weekday] = Field(default_factory=list, max_length=6)
+
+
+class ChallengeCreate(ChallengePlan):
+    start_date: date | None = None
+
+
+class ChallengeShare(BaseModel):
+    day: date | None = None
+
+
+class ChallengeLog(BaseModel):
+    count: int = Field(ge=0, le=100000)
+    day: date | None = None  # today when left out
+
+
+class ChallengeDayOut(BaseModel):
+    date: str
+    target: int | None
+    count: int | None
+    status: str
+
+
+class ChallengePlanOut(BaseModel):
+    start_value: int
+    step: int
+    step_every_days: int
+    cap: int | None
+    rest_weekdays: list[int]
+    start_date: str
+
+
+class ChallengeHistoryDay(BaseModel):
+    date: str
+    target: int | None
+    count: int | None
+
+
+class ChallengeProgress(BaseModel):
+    first_count: int
+    recent_best: int | None
+    weeks: int
+
+
+class ChallengeOut(BaseModel):
+    id: int
+    name: str
+    unit: str
+    today_target: int | None
+    today_count: int | None
+    today_done: bool
+    rest_today: bool
+    not_started: bool
+    streak_days: int
+    done_week: int
+    planned_week: int
+    best_day: int
+    new_best_today: bool = False
+    shared_today: bool = False
+    progress: ChallengeProgress | None = None
+    history: list[ChallengeHistoryDay] = Field(default_factory=list)
+    total: int
+    week: list[ChallengeDayOut]
+    plan: ChallengePlanOut
+
+
+class GuardianChallengeOut(BaseModel):
+    name: str
+    unit: str = "stk"
+    done_week: int
+    planned_week: int
+    streak_days: int
+    first_count: int | None = None
+    recent_best: int | None = None
+    weeks: int | None = None
+
+
+class GuardianOut(BaseModel):
+    """What a parent sees about a child: how often and for how long, not how far or how fast."""
+
+    runs_week: int
+    active_days_week: int
+    minutes_week: int
+    runs_month: int
+    minutes_month: int
+    last_run_date: str | None
+    streak_weeks: int
+    challenges: list[GuardianChallengeOut] = Field(default_factory=list)
+
+
+class GoalOut(BaseModel):
+    target_km: float | None
+    km: float
+    month: str
+
+
+class GoalUpdate(BaseModel):
+    target_km: float | None = Field(default=None, ge=1, le=5000)
+
+
 class FamilyMemberOut(BaseModel):
     user_id: int
     name: str
     is_me: bool
-    level: Literal["private", "overview", "all"]
+    level: Literal["private", "overview", "all", "milestones", "guardian"]
     shared: bool
     week: FamilyWeekOut | None
     month_km: float | None
     month_runs: int | None
     streak_weeks: int | None
     recent_runs: list[FamilyRunOut] | None
+    new_milestones: list[FamilyMilestoneOut] | None = None
+    is_child: bool = False
+    guardian: GuardianOut | None = None
+
+
+class BragOut(BaseModel):
+    """Something a person chose to show the family, with the number."""
+
+    user_id: int
+    name: str
+    is_me: bool
+    challenge: str
+    unit: str
+    count: int
+    date: str
 
 
 class FamilyOut(BaseModel):
     members: list[FamilyMemberOut]
     total_km_this_month: float
     sharing_enabled: bool
+    goal: GoalOut
+    brags: list[BragOut] = Field(default_factory=list)

@@ -68,8 +68,23 @@ def test_the_curated_shape_is_understood_too_and_utc_is_worked_out_when_missing(
 
 @pytest.mark.parametrize("patch", [{"kind": "cycling"}, {"kind": "walking"}, {"kind": "indoor_rowing"}, {"distance": 0}, {"duration": None},
                                    {"local": "garbage"}, {"local": None}])
-def test_other_sports_and_unusable_entries_are_skipped(patch):
+def test_other_sports_and_unusable_entries_are_not_runs(patch):
     assert domain.activity_from_summary(summary(1, **patch)) is None
+
+
+@pytest.mark.parametrize("kind,group", [("walking", "Walk"), ("hiking", "Walk"), ("road_biking", "Ride"), ("cycling", "Ride"), ("indoor_rowing", "Row"),
+                                        ("kayaking_v2", "Paddle"), ("lap_swimming", "Swim"), ("strength_training", "Strength"), ("something_new", "Other"), (None, "Other")])
+def test_every_other_activity_type_lands_in_a_group(kind, group):
+    assert domain.category_of(kind) == group
+
+
+def test_other_activities_are_kept_without_a_distance_but_never_as_runs():
+    a = domain.other_from_summary(summary(2, kind="strength_training", distance=0))
+    assert a["sport_type"] == "Strength" and a["distance"] == 0.0 and a["id"] == domain.internal_id(2) and a["treadmill"] is False
+    assert domain.other_from_summary(summary(3, kind="treadmill_running")) is None  # that is a run
+    assert domain.other_from_summary(summary(4, kind="walking", duration=None)) is None
+    assert domain.other_from_summary(summary(5, kind="walking", local="garbage")) is None
+    assert domain.other_from_summary("nope") is None
 
 
 def test_ids_cannot_collide_with_strava_or_smashrun():
@@ -440,3 +455,70 @@ def test_read_details_needs_a_connected_garmin_and_is_per_person(gc):
     connect(client, headers=ADMIN)
     assert client.post("/api/garmin/read-details", headers=FAMILY).status_code == 409
     assert client.post("/api/garmin/read-details?limit=0", headers=ADMIN).status_code == 422
+
+
+# ---- everything that is not a run ---------------------------------------------------------------------------
+
+def test_other_activities_are_stored_and_listed_but_never_counted_as_runs(gc):
+    client, state, _ = gc
+    state["pages"] = [[
+        summary(1001, kind="treadmill_running"),
+        summary(9, kind="cycling", local="2026-11-11 08:00:00", gmt="2026-11-11 07:00:00"),
+        summary(10, kind="indoor_rowing", local="2026-11-09 15:00:00", gmt="2026-11-09 14:00:00", distance=2700),
+        summary(11, kind="strength_training", local="2026-11-08 21:00:00", gmt="2026-11-08 20:00:00", distance=0),
+    ]]
+    connect(client)
+    assert set(runs(client)) == {domain.internal_id(1001)}  # still only the run
+    got = client.get("/api/activities/other", headers=ADMIN).json()
+    assert [(x["kind"], x["date"]) for x in got] == [("Ride", "2026-11-11"), ("Row", "2026-11-09"), ("Strength", "2026-11-08")]  # newest first
+    assert got[2]["distance_km"] == 0 and got[1]["distance_km"] == 2.7
+    assert set(got[0]) == {"id", "date", "kind", "name", "distance_km", "duration_min"}  # no heart rate, no route
+    # a run endpoint and the summary are untouched by them
+    assert [r["id"] for r in client.get("/api/activities/routes", headers=ADMIN).json()] == []
+    assert len(client.get("/api/activities/indoor", headers=ADMIN).json()) == 1
+    assert client.get("/api/me", headers=FAMILY).json()["garmin"]["connected"] is False
+    assert client.get("/api/activities/other", headers=FAMILY).json() == []
+
+
+def test_syncing_again_does_not_duplicate_other_activities_and_reports_them(gc):
+    client, state, _ = gc
+    state["pages"] = [[summary(1001, kind="treadmill_running"), summary(9, kind="walking", local="2026-11-11 08:00:00", gmt="2026-11-11 07:00:00")]]
+    connect(client)
+    result = client.post("/api/admin/ingest", headers=ADMIN).json()["garmin"]
+    assert result["others"] == 1 and result["skipped"] == 0
+    assert len(client.get("/api/activities/other", headers=ADMIN).json()) == 1
+
+
+def test_a_walk_at_the_same_time_as_a_run_is_not_merged_into_it(gc):
+    client, state, _ = gc
+    state["pages"] = [[summary(1001, kind="treadmill_running"), summary(9, kind="walking")]]  # the same start time as the run
+    connect(client)
+    assert set(runs(client)) == {domain.internal_id(1001)}
+    assert [x["kind"] for x in client.get("/api/activities/other", headers=ADMIN).json()] == ["Walk"]
+
+
+def test_the_other_endpoint_validates_its_limit_and_skips_runs_from_strava_years_only_by_type(proxy, db):
+    proxy.get("/api/me", headers=ADMIN)
+    add_activity(db, 1, "2026-11-01T08:00:00Z", sport_type="Ride", distance_m=20000)
+    add_activity(db, 2, "2026-11-02T08:00:00Z", sport_type="Run")
+    add_activity(db, 3, "2026-11-03T08:00:00Z", sport_type="Yoga")
+    add_activity(db, 4, "2026-11-04T08:00:00Z", sport_type="Kitesurf")
+    got = proxy.get("/api/activities/other", headers=ADMIN).json()
+    assert [(x["id"], x["kind"]) for x in got] == [(4, "Other"), (3, "Strength"), (1, "Ride")]
+    assert len(proxy.get("/api/activities/other?limit=1", headers=ADMIN).json()) == 1
+    assert proxy.get("/api/activities/other?limit=0", headers=ADMIN).status_code == 422
+
+
+def test_a_user_synced_before_other_activities_existed_gets_one_full_read_and_then_incremental_ones(gc):
+    import app.db as db_module
+    client, state, _ = gc
+    connect(client)
+    conn = db_module.get_conn()  # as if the last sync had been done by the older version: no marker
+    conn.execute("DELETE FROM user_state WHERE key = 'garmin_others_read'")
+    conn.commit(); conn.close()
+    state["calls"].clear()
+    client.post("/api/admin/ingest", headers=ADMIN)
+    assert state["calls"][0]["start_date"] is None  # the whole history, once
+    state["calls"].clear()
+    client.post("/api/admin/ingest", headers=ADMIN)
+    assert state["calls"][0]["start_date"] is not None  # and from then on only what is new

@@ -1,3 +1,4 @@
+import { isRun } from "./runs";
 import { Activity, addDays, dateKey, parseDateKey, weekStartOf } from "./week";
 
 type Run = Pick<Activity, "date" | "distance_km" | "duration_min">;
@@ -24,7 +25,7 @@ const km0 = (v: number) => Math.round(v).toLocaleString("da-DK");
 
 /** Weekly volume for the last weeks, Monday to Sunday, and a plain reading of the trend. Pure. */
 export function loadOver(all: Run[], today: Date, count = WEEKS_SHOWN): Load {
-  const runs = all.filter((r) => r.date && r.distance_km > 0);
+  const runs = all.filter((r) => r.date && isRun(r));
   const thisWeek = weekStartOf(today);
   const weeks: LoadWeek[] = [];
   for (let i = count - 1; i >= 0; i--) {

@@ -57,6 +57,18 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
         </p>
       </section>
 
+      {me.is_child && (
+        <section className="u-card" aria-labelledby="child-title" style={{ display: "grid", gap: 6 }}>
+          <h2 id="child-title" className="u-h2">Sådan er det for dig</h2>
+          <p style={{ margin: 0 }}>Her handler det om dig og din egen start, ikke om at slå nogen.</p>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            <li>Dine forældre kan se, hvor mange gange og hvor længe du har været ude.</li>
+            <li>De kan ikke se ruter, tempo, puls eller hvor du løber.</li>
+            <li>Resten af familien kan kun se, når du har nået noget nyt, og kun hvis du deler.</li>
+          </ul>
+        </section>
+      )}
+
       {error && (
         <div className="u-notice u-notice--error" role="alert">
           <b className="u-notice__level">Fejl</b>

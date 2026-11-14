@@ -16,6 +16,7 @@ async function getJson(path: string, init?: RequestInit) {
     throw new Error(message);
   }
 
+  if (res.status === 204) return null; // nothing to read, for example after a delete
   return res.json();
 }
 
@@ -30,6 +31,19 @@ export const api = {
   garminReadDetails: (limit = 25) => getJson(`/garmin/read-details?limit=${limit}`, { method: "POST" }),
   getRoutes: () => getJson("/activities/routes"),
   getIndoor: () => getJson("/activities/indoor"),
+  getOther: () => getJson("/activities/other"),
+  getFirsts: () => getJson("/activities/firsts"),
+  getChallenges: () => getJson("/challenges"),
+  createChallenge: (body: object) =>
+    getJson("/challenges", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+  updateChallenge: (id: number, body: object) =>
+    getJson(`/challenges/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+  deleteChallenge: (id: number) => getJson(`/challenges/${id}`, { method: "DELETE" }),
+  shareChallenge: (id: number) =>
+    getJson(`/challenges/${id}/share`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }),
+  unshareChallenge: (id: number) => getJson(`/challenges/${id}/share`, { method: "DELETE" }),
+  logChallenge: (id: number, count: number) =>
+    getJson(`/challenges/${id}/log`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ count }) }),
   getActivity: (id: number) => getJson(`/activities/${id}`),
 
   // Me, sources and family
@@ -66,6 +80,11 @@ export const api = {
     }),
   smashrunDisconnect: () => getJson("/smashrun/connection", { method: "DELETE" }),
   getFamily: () => getJson("/family"),
+  getPeople: () => getJson("/admin/users"),
+  setChild: (userId: number, isChild: boolean) =>
+    getJson(`/admin/users/${userId}/child`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_child: isChild }) }),
+  setFamilyGoal: (targetKm: number | null) =>
+    getJson("/family/goal", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target_km: targetKm }) }),
   getSplits: (activityId: number) => getJson(`/activities/${activityId}/splits`),
   getFamilySplits: (userId: number, activityId: number) => getJson(`/family/${userId}/activities/${activityId}/splits`),
   getFamilyActivity: (userId: number, activityId: number) => getJson(`/family/${userId}/activities/${activityId}`),

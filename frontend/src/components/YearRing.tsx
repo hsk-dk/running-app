@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { useMe } from "../lib/meContext";
+import { Other, otherDays } from "../lib/other";
 import { useWidth } from "../lib/useWidth";
 import { MONTHS, buildRing, monthMarks } from "../lib/ring";
 import { Activity, parseDateKey } from "../lib/week";
@@ -12,7 +14,9 @@ const OUTER = 196;
 const km = (v: number, d = 0) => v.toLocaleString("da-DK", { minimumFractionDigits: d, maximumFractionDigits: d });
 
 /** The last twelve months as a ring: one spoke a day, as long as the run. Busy seasons and pauses form a pattern. */
-export default function YearRing({ activities, today = new Date() }: { activities: Activity[]; today?: Date }) {
+export default function YearRing({ activities, others = [], today = new Date() }: { activities: Activity[]; others?: Other[]; today?: Date }) {
+  const { isChild } = useMe();
+  const otherSet = useMemo(() => otherDays(others), [others]);
   const [box, px] = useWidth<HTMLDivElement>(520);
   // The ring is drawn in a 460-unit box that shrinks on a phone; grow the text by the same factor so it stays readable.
   const grow = Math.max(1, SIZE / Math.min(px, 520));
@@ -28,12 +32,15 @@ export default function YearRing({ activities, today = new Date() }: { activitie
   return (
     <section className="u-card" aria-labelledby="ring-title" style={{ display: "grid", gap: 12 }}>
       <h2 id="ring-title" className="u-h2">Årsringen</h2>
-      <p className="u-card__meta">Hver streg er en dag, med uret fra øverst. Jo længere streg, jo længere løb.</p>
+      <p className="u-card__meta">
+        Hver streg er en dag, med uret fra øverst. Jo længere streg, jo længere løb.
+        {otherSet.size > 0 ? " De små prikker på den indre ring er dage med anden træning: roning, gang, cykling og andet." : ""}
+      </p>
       <div ref={box}>
       <svg
         viewBox={`0 0 ${SIZE} ${SIZE}`}
         role="img"
-        aria-label={`Årsring over de seneste 12 måneder: ${km(facts.totalKm)} kilometer fordelt på ${facts.runDays} løbedage.`}
+        aria-label={isChild ? `Årsring over de seneste 12 måneder: ${facts.runDays} dage ude.` : `Årsring over de seneste 12 måneder: ${km(facts.totalKm)} kilometer fordelt på ${facts.runDays} løbedage.`}
         style={{ display: "block", width: "100%", maxWidth: 520, height: "auto", margin: "0 auto" }}
       >
         <circle cx={C} cy={C} r={INNER - 6} fill="none" stroke="var(--color-border)" strokeWidth={1.5} />
@@ -56,6 +63,13 @@ export default function YearRing({ activities, today = new Date() }: { activitie
             </line>
           ) : null,
         )}
+        {ring.spokes.map((s) =>
+          otherSet.has(s.date) ? (
+            <circle key={`o-${s.date}`} cx={C + Math.sin(s.angle) * (INNER - 6)} cy={C - Math.cos(s.angle) * (INNER - 6)} r={2.4} fill="var(--data-1)" opacity={0.5}>
+              <title>{`${parseDateKey(s.date).toLocaleDateString("da-DK", { day: "numeric", month: "long" })}: anden træning`}</title>
+            </circle>
+          ) : null,
+        )}
         {marks.map((m) => {
           const r = Math.min(OUTER + 18 * Math.min(grow, 1.4), 216);
           return (
@@ -73,20 +87,20 @@ export default function YearRing({ activities, today = new Date() }: { activitie
           );
         })}
         <text x={C} y={C - 4} textAnchor="middle" fontSize={Math.round(36 * Math.min(grow, 1.3))} fontWeight={700} fill="var(--color-text)">
-          {km(facts.totalKm)}
+          {isChild ? facts.runDays : km(facts.totalKm)}
         </text>
         <text x={C} y={C + 20 * Math.min(grow, 1.3)} textAnchor="middle" fontSize={Math.round(11 * Math.min(grow, 1.3))} fill="var(--color-text-muted)">
-          km · seneste 12 mdr
+          {isChild ? "dage ude" : "km · seneste 12 mdr"}
         </text>
         <text x={C} y={C + 38 * Math.min(grow, 1.3)} textAnchor="middle" fontSize={Math.round(11 * Math.min(grow, 1.3))} fill="var(--color-text-muted)">
-          {facts.runDays} løbedage
+          {isChild ? "seneste 12 mdr" : `${facts.runDays} løbedage`}
         </text>
       </svg>
       </div>
-      <p className="u-card__meta">
+      {!isChild && <p className="u-card__meta">
         {facts.longestRun && `Længste løb: ${km(facts.longestRun.km, 1)} km. `}
         {topMonth && topMonth.km > 0 && `Travleste måned: ${MONTHS[Number(topMonth.key.slice(5, 7)) - 1]} med ${km(topMonth.km)} km.`}
-      </p>
+      </p>}
     </section>
   );
 }

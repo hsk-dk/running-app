@@ -85,7 +85,44 @@ Hver person vælger under **Mere → Mig**:
 | Overblik | Navn, ugens løb, km denne måned, uger i træk. |
 | Det hele | Også seneste løb (distance, tid, tempo, rute). Puls og planer deles aldrig. |
 
-Admin har ingen ekstra indsigt i andres løb. `FAMILY_SHARING_ENABLED=false` slår al deling fra for alle.
+Admin har ingen ekstra indsigt i andre voksnes løb. Børn er et særtilfælde, se afsnittet Børn. `FAMILY_SHARING_ENABLED=false` slår al deling fra for alle.
+
+## Børn
+
+En forælder (admin) markerer et familiemedlem som barn under Familie → Indstillinger for forældre. Det ændrer tre ting:
+
+- **Barnet ser en enklere app:** ingen tempo, puls, rekorder, belastning, ruter eller flyvetur. Opbygning og årsring tæller dage og minutter, ikke kilometer og rekorder.
+- **Forældrene (admin) ser en forældreoversigt** over barnet, uanset hvad barnet deler: gange og minutter denne uge og måned, uger i gang og en rolig sætning ("Ude 2 gange i denne uge. Spørg gerne, hvordan det føles."). Aldrig kilometer, tempo, puls, ruter eller steder, og forældre kan ikke åbne barnets enkelte løb.
+- **Resten af familien ser kun barnets milepæle,** og kun hvis barnet deler. Et barn ser på samme måde kun andres milepæle.
+- Man kan ikke markere sig selv som barn. Barnets egen side under Mig fortæller, hvad forældrene kan og ikke kan se.
+
+**Fælles mål:** forældre kan sætte et månedsmål i kilometer for hele familien. Alle, der deler, tæller med, og kun ét samlet tal vises. Ingen kan se, hvem der har løbet hvor meget.
+
+Appen giver ikke lægelige råd. Tjek selv Garmins og Smashruns aldersgrænser og vilkår, før et barn forbinder sin egen konto.
+
+## Daglige udfordringer (armbøjninger, planke...)
+
+Hver person kan lave en daglig udfordring på Nu-siden: et navn, en enhed (stk., sekunder, minutter), et startmål, hvor meget det vokser og hvor tit (fx 5 armbøjninger, 1 mere hver 7. dag), evt. et loft og fridage. Dagens mål står øverst. Man trykker "Jeg klarede 5" eller skriver selv et tal. Ugen vises som runde mærker. En dag uden tal er bare en dag uden mærke, og der står aldrig noget nedslående.
+
+- Man kan skrive i dag og de seneste 14 dage, ikke fremtiden og ikke længere tilbage. Op til 10 udfordringer ad gangen. At lægge en udfordring væk gemmer tallene.
+- Udfordringer er altid dine egne. Ingen andre kan læse eller ændre dem, medmindre du selv viser noget (se nedenfor).
+- **Din udvikling:** kortet siger "Du er gået fra 5 til 14 stk. på 4 uger", markerer "Ny bedste dag!" og har en lille graf over de seneste uger mod dagens mål. Aldrig en besked om, at det går ned.
+- **Familien ser forbedringen i ord uden tal:** "Mads: ny bedste dag: Armbøjninger", "fordoblet startmålet" og "7/14/30 dage i træk", og kun hvis han deler med familien.
+- **Prale:** barnet kan selv trykke "Vis familien, at jeg klarede 14". Så står tallet i "Nyt i familien" (i tre uger), også selv om barnet ellers ikke deler. Man kan kun vise en dag, hvor man klarede målet eller satte ny bedste, og kan tage det tilbage. Ændrer man tallet bagefter, tages det tilbage, og man må vise det igen.
+- **Forældre** ser for et barn dage klaret og dage i træk, og udviklingen med tal ("fra 5 til 14 stk. på 4 uger"), aldrig de enkelte dages tal.
+
+## Opbygning og første gange (støtte, ikke konkurrence)
+
+- **Din opbygning** og **Dine første gange** (Udforsk) måler kun dig mod din egen start: uger i gang, længste løb måned for måned, første 3/5/8/10 km, første uge med 3 løb, 10/25/50/100 løb, 4/8/12 uger i træk. Er man ny (under 20 løb eller højst 12 uger inde), vises de øverst i stedet for rekorderne.
+- **Nyt i familien** (Familie) viser kun milepæle fra de seneste 21 dage ("Mads: første løb på 5 km"), fra delingsniveauet "overblik" og op. Ingen kilometer, tider eller puls, og ingen rangliste.
+- Familiesiden har ikke længere en kilometerfordeling mellem personer. Samlet kilometertal pr. måned står stadig øverst.
+
+## Anden træning (roning, gang, cykling)
+
+Garmin-synkroniseringen gemmer også det, der ikke er løb: gang, cykling, roning, padling, svømning og styrketræning. De gemmes under deres gruppe som sportstype, så alle løbetal, rekorder, planmatch og ruter er uændrede. De vises som små prikker på årsringen og på delekortet, og de nævnes i årsfilmen og under Belastning. `GET /api/activities/other` giver kun hvad og hvornår, aldrig puls eller rute.
+
+- Første synkronisering efter opdateringen læser hele historikken igen, én gang, for at hente det ældre (markeret med `garmin_others_read`).
+- Løb under 1 km (opvarmning eller et afbrudt løb) tæller ikke i rekorder, uger i træk, belastning eller filmen.
 
 ## Strava er fjernet
 

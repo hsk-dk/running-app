@@ -5,6 +5,18 @@ const run = (date: string, distance_km: number, duration_min = distance_km * 6) 
 // five weeks, one run of 10 km each Monday from 2026-09-07, plus a 5 km on Wednesdays
 const base = [7, 14, 21, 28].flatMap((d) => [run(`2026-09-${String(d).padStart(2, "0")}`, 10), run(`2026-09-${String(d + 2).padStart(2, "0")}`, 5, 25)]);
 
+describe("short runs", () => {
+  it("do not count as the longest, the fastest or a week streak", () => {
+    const withWarmup = [...base, run("2026-09-12", 0.7, 2)]; // a 0.7 km warm-up recorded as a run, at an absurd pace
+    const r = Object.fromEntries(records(withWarmup).map((x) => [x.key, x]));
+    expect(r.pace.value).toBe("5:00 /km");
+    expect(records(withWarmup).find((x) => x.key === "week")!.amount).toBe(15);
+    const alone = [run("2026-09-01", 0.5), run("2026-09-02", 0.5), run("2026-09-03", 0.5), run("2026-09-04", 0.5), run("2026-09-05", 0.5)];
+    expect(records(alone)).toEqual([]);
+    expect(weekStory([run("2026-10-05", 0.8)], new Date(2026, 9, 7))).toBeNull();
+  });
+});
+
 describe("paceText", () => {
   it("formats minutes per km and carries seconds that round to 60", () => {
     expect(paceText(5.7)).toBe("5:42 /km");

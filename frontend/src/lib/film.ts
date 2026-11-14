@@ -1,4 +1,6 @@
 import { records } from "./records";
+import { kindsText } from "./other";
+import { isRun } from "./runs";
 
 export type FilmRun = { date: string | null; distance_km: number; duration_min: number };
 
@@ -16,7 +18,7 @@ const n1 = (v: number) => v.toLocaleString("da-DK", { minimumFractionDigits: 1, 
 
 /** The facts a year film ends on. Pure. */
 export function summarise(all: FilmRun[]): FilmSummary {
-  const runs = all.filter((r) => r.distance_km > 0);
+  const runs = all.filter(isRun);
   const km = runs.reduce((s, r) => s + r.distance_km, 0);
   const minutes = runs.reduce((s, r) => s + r.duration_min, 0);
   const activeDays = new Set(runs.filter((r) => r.date).map((r) => r.date!.slice(0, 10))).size;
@@ -47,4 +49,26 @@ export const statsMs = (s: FilmSummary): number => s.lines.length * LINE_STEP_MS
 /** How visible line `i` is `ms` into the closing scene: 0 before its turn, rising to 1 over 500 ms. */
 export function lineOpacity(i: number, ms: number): number {
   return Math.min(1, Math.max(0, (ms - i * LINE_STEP_MS) / 500));
+}
+
+export type ShareStat = { value: string; label: string };
+
+/** The three numbers on the picture you can share. No places, no routes, no heart rate. */
+export function shareStats(all: FilmRun[]): ShareStat[] {
+  const runs = all.filter(isRun);
+  if (runs.length === 0) return [];
+  const km = runs.reduce((s, r) => s + r.distance_km, 0);
+  const hours = runs.reduce((s, r) => s + r.duration_min, 0) / 60;
+  const longest = Math.max(...runs.map((r) => r.distance_km));
+  const out: ShareStat[] = [{ value: String(runs.length), label: "løb" }, { value: `${n1(longest)} km`, label: "længste løb" }];
+  if (km >= MARATHON_KM) out.push({ value: n1(km / MARATHON_KM), label: "maratonløb" });
+  else if (hours > 0) out.push({ value: n1(hours), label: "timer" });
+  return out;
+}
+
+/** The closing scene also mentions other training (rowing, walks, rides), after everything about running. */
+export function withOthers(summary: FilmSummary, others: { kind: string }[]): FilmSummary {
+  if (others.length === 0 || summary.runs === 0) return summary;
+  const text = others.length === 1 ? "Dertil 1 anden aktivitet" : `Dertil ${others.length} andre aktiviteter`;
+  return { ...summary, lines: [...summary.lines, `${text}: ${kindsText(others)}`] };
 }

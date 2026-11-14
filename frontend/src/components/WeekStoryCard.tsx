@@ -1,10 +1,12 @@
 import { useMemo } from "react";
+import { useMe } from "../lib/meContext";
 import { newRecords, weekStory } from "../lib/records";
 import { Activity } from "../lib/week";
 
 /** What went well this week, and any record set in the last days. Renders nothing when there is nothing true to say. */
 export default function WeekStoryCard({ activities, today = new Date() }: { activities: Activity[]; today?: Date }) {
-  const { story, fresh } = useMemo(() => ({ story: weekStory(activities, today), fresh: newRecords(activities, today) }), [activities, today]);
+  const { isChild } = useMe();
+  const { story, fresh } = useMemo(() => ({ story: weekStory(activities, today), fresh: isChild ? [] : newRecords(activities, today) }), [activities, today, isChild]); // a child gets no records to beat
   if (!story && fresh.length === 0) return null;
   return (
     <section className="u-card" aria-labelledby="story-title" style={{ display: "grid", gap: 8 }}>

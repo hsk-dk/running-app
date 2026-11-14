@@ -38,6 +38,10 @@ def set_sharing_level(conn: sqlite3.Connection, user_id: int, level: str) -> Non
     conn.execute("UPDATE users SET sharing_level = ? WHERE id = ?", (level, user_id))
 
 
+def set_child(conn: sqlite3.Connection, user_id: int, is_child: bool) -> None:
+    conn.execute("UPDATE users SET is_child = ? WHERE id = ?", (1 if is_child else 0, user_id))
+
+
 def set_display_name(conn: sqlite3.Connection, user_id: int, display_name: str | None) -> None:
     conn.execute("UPDATE users SET display_name = ? WHERE id = ?", (display_name, user_id))
 

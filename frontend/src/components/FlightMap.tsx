@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Area } from "../lib/areas";
 import { Camera, FlightArea, Indoor, Point, Segment, Town, Tour, arcPoint, arcPoints, buildTour, dwellMs, flightAreas, mercator, smooth, stateAt, startOfArrival, startOfHold, startOfIndoor } from "../lib/flight";
 import { prefersReducedMotion } from "../lib/motion";
+import { deliverImage } from "../lib/shareImage";
 import { frameAt, partial, timeline } from "../lib/playback";
 import { useWidth } from "../lib/useWidth";
 import { parseDateKey } from "../lib/week";
@@ -386,6 +387,7 @@ export default function FlightMap({
   const done = useRef(onDone);
   done.current = onDone;
   const [uiMs, setUiMs] = useState(0);
+  const [saved, setSaved] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -480,6 +482,25 @@ export default function FlightMap({
     }
   };
 
+  /** Saves what is on the map right now. Opt-in, because the picture shows places. */
+  const saveFrame = async () => {
+    const el = canvas.current;
+    if (!el) return;
+    paint();
+    setSaved("");
+    const blob: Blob | null = await new Promise((resolve) => el.toBlob(resolve, "image/png"));
+    if (!blob) {
+      setSaved("Billedet kunne ikke laves.");
+      return;
+    }
+    try {
+      const how = await deliverImage(blob, "min-flyvetur.png", "Min flyvetur");
+      setSaved(how === "shared" ? "Delt." : how === "downloaded" ? "Billedet er gemt som en fil." : "");
+    } catch (e: any) {
+      setSaved(e?.message || "Billedet kunne ikke gemmes.");
+    }
+  };
+
   const flyToIndoor = () => {
     if (!tour) return;
     const at = startOfIndoor(tour);
@@ -541,6 +562,10 @@ export default function FlightMap({
                 </select>
               </label>
             )}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <button type="button" className="u-btn u-btn--secondary" onClick={saveFrame}>Gem kortet som billede</button>
+            <span className="u-card__meta" role="status">{saved || "Billedet viser kortet med stednavne, som det ser ud lige nu."}</span>
           </div>
           <label className="u-card__meta" style={{ display: "grid", gap: 2 }}>
             Tid i flyveturen

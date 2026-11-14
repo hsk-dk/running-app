@@ -1,6 +1,8 @@
+import ChallengeCard from "../components/ChallengeCard";
 import WeekStoryCard from "../components/WeekStoryCard";
 import { sessionLabel } from "../lib/sessionTypes";
 import NowHero from "../components/NowHero";
+import { useMe } from "../lib/meContext";
 import { scoreNote } from "../lib/week";
 import StatusBadge from "../components/StatusBadge";
 import {
@@ -129,6 +131,7 @@ export default function OverviewPage({
   onRunAction: (action: "ingest" | "plan") => void;
   error: string | null;
 }) {
+  const { isChild } = useMe();
   const currentWeekKey = getCurrentIsoWeekKey();
 
   const currentWeekRuns = plannedRuns.filter(
@@ -183,6 +186,8 @@ export default function OverviewPage({
         monthlyVolume={monthlyVolume}
       />
 
+      <ChallengeCard />
+
       <WeekStoryCard activities={activities} />
 
       {error && (
@@ -219,11 +224,13 @@ export default function OverviewPage({
           value={fmtNum(Number(summary?.km_this_month ?? 0), 1)}
           subtitle={changeText(summary?.km_this_month, summary?.km_prev_month, "km", 1)}
         />
-        <SummaryCard
-          title="Gns. puls denne måned"
-          value={summary?.avg_hr_this_month == null ? "-" : fmtNum(Number(summary.avg_hr_this_month), 1)}
-          subtitle={hrChangeText(summary?.avg_hr_this_month, summary?.avg_hr_prev_month)}
-        />
+        {!isChild && (
+          <SummaryCard
+            title="Gns. puls denne måned"
+            value={summary?.avg_hr_this_month == null ? "-" : fmtNum(Number(summary.avg_hr_this_month), 1)}
+            subtitle={hrChangeText(summary?.avg_hr_this_month, summary?.avg_hr_prev_month)}
+          />
+        )}
         <SummaryCard
           title="Planen denne uge"
           value={`${summary?.adherence_pct_current_week ?? 0}%`}

@@ -15,4 +15,7 @@ export const SHARING_LEVELS: { key: SharingLevel; label: string; summary: string
   },
 ];
 
-export const levelLabel = (level: string) => SHARING_LEVELS.find((l) => l.key === level)?.label ?? level;
+/** Levels the server can give that a person cannot choose: a child seen by others, and a child seen by a parent. */
+const EXTRA_LEVELS: Record<string, string> = { milestones: "Milepæle", guardian: "Forældreoversigt" };
+
+export const levelLabel = (level: string) => SHARING_LEVELS.find((l) => l.key === level)?.label ?? EXTRA_LEVELS[level] ?? level;
