@@ -9,7 +9,7 @@ from app.domain.statuses import STATUS_FLYTTET
 from app.errors import ForbiddenError
 from app.repositories import activities as activity_repo
 from app.repositories import planned_runs as plan_repo
-from app.services import garmin_service, reporting_service, splits_service, user_service
+from app.services import firsts_service, garmin_service, reporting_service, splits_service, user_service
 from app.services.user_service import CurrentUser
 
 RECENT_RUNS = 8
@@ -58,6 +58,7 @@ def _member(viewer: CurrentUser, target: CurrentUser) -> dict:
             "month_runs": None,
             "streak_weeks": None,
             "recent_runs": None,
+            "new_milestones": None,
         }
         if not entry["shared"]:
             return entry
@@ -71,6 +72,7 @@ def _member(viewer: CurrentUser, target: CurrentUser) -> dict:
     month = reporting_service.summary(target.id)
     entry["month_km"] = month["km_this_month"]
     entry["month_runs"] = month["runs_this_month"]
+    entry["new_milestones"] = firsts_service.recent_for_family(target.id)  # labels and days only, from the overview level up
     if level == "all":
         runs = reporting_service.list_activities(target.id, limit=RECENT_RUNS)
         entry["recent_runs"] = [

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import ActivityDetail from "../components/ActivityDetail";
-import { monthShares, weekText } from "../lib/family";
+import { weekText } from "../lib/family";
 import { levelLabel } from "../lib/sharing";
 
 type Run = { id: number; date: string | null; name: string | null; distance_km: number; duration_min: number };
@@ -16,6 +16,7 @@ type Member = {
   month_runs: number | null;
   streak_weeks: number | null;
   recent_runs: Run[] | null;
+  new_milestones: { key: string; label: string; date: string }[] | null;
 };
 type Family = { members: Member[]; total_km_this_month: number; sharing_enabled: boolean };
 
@@ -26,8 +27,6 @@ function weekStartKey(now = new Date()): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
-
-const SHARE_TINTS = ["var(--data-1)", "color-mix(in srgb, var(--data-1) 62%, white)", "color-mix(in srgb, var(--data-1) 38%, white)", "color-mix(in srgb, var(--data-1) 22%, #8a96a8)"];
 
 const km = (v: number, d = 1) => v.toLocaleString("da-DK", { minimumFractionDigits: d, maximumFractionDigits: d });
 
@@ -131,24 +130,28 @@ export default function FamilyPage() {
         <h1 className="u-h1">{km(family.total_km_this_month, 0)} km sammen denne måned</h1>
       </section>
 
-      {monthShares(family.members).length > 1 && (
-        <section className="u-card" aria-labelledby="together-title" style={{ display: "grid", gap: 10 }}>
-          <h2 id="together-title" className="u-h2">Sammen om kilometerne</h2>
-          <div role="img" aria-label={monthShares(family.members).map((x) => `${x.name} ${km(x.km)} kilometer`).join(", ")} style={{ display: "flex", height: 18, borderRadius: 9, overflow: "hidden", gap: 2 }}>
-            {monthShares(family.members).map((x, i) => (
-              <div key={x.user_id} style={{ width: `${x.pct}%`, background: SHARE_TINTS[i % SHARE_TINTS.length] }} />
-            ))}
-          </div>
-          <ul style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", listStyle: "none", margin: 0, padding: 0 }}>
-            {monthShares(family.members).map((x, i) => (
-              <li key={x.user_id} className="u-card__meta" style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <span aria-hidden style={{ width: 10, height: 10, borderRadius: 5, background: SHARE_TINTS[i % SHARE_TINTS.length] }} />
-                {x.name} · {km(x.km)} km
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {(() => {
+        const items = family.members
+          .flatMap((m) => (m.new_milestones ?? []).map((x) => ({ ...x, name: m.is_me ? "Du" : m.name })))
+          .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.label < b.label ? -1 : 1));
+        if (items.length === 0) return null;
+        return (
+          <section className="u-card" aria-labelledby="news-title" style={{ display: "grid", gap: 10 }}>
+            <h2 id="news-title" className="u-h2">Nyt i familien</h2>
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+              {items.map((x) => (
+                <li key={`${x.name}-${x.key}`} style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
+                  <span aria-hidden>🎉</span>
+                  <span style={{ fontWeight: 600 }}>{x.name}:</span>
+                  <span>{x.label.charAt(0).toLowerCase() + x.label.slice(1)}</span>
+                  <span className="u-card__meta">{new Date(x.date).toLocaleDateString("da-DK", { day: "numeric", month: "short" })}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="u-card__meta" style={{ margin: 0 }}>Kun milepæle, ingen kilometer og ingen rangliste.</p>
+          </section>
+        );
+      })()}
 
       {!family.sharing_enabled && (
         <div className="u-notice u-notice--warning" role="status">

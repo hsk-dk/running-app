@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import current_user
-from app.api.schemas import ActivityDetailOut, ActivityOut, IndoorOut, MonthlyVolumeOut, OtherOut, ProfileOut, RouteOut, RunProfileOut, SplitsOut
-from app.services import garmin_service, reporting_service, splits_service
+from app.api.schemas import ActivityDetailOut, ActivityOut, FirstsOut, IndoorOut, MonthlyVolumeOut, OtherOut, ProfileOut, RouteOut, RunProfileOut, SplitsOut
+from app.services import firsts_service, garmin_service, reporting_service, splits_service
 from app.services.user_service import CurrentUser
 
 router = APIRouter(prefix="/api", tags=["activities"])
@@ -29,6 +29,12 @@ def indoor(limit: int = Query(2000, ge=1, le=5000), user: CurrentUser = Depends(
 def other(limit: int = Query(3000, ge=1, le=10000), user: CurrentUser = Depends(current_user)):
     """Walks, rides, rowing and the rest: not runs. Declared before /activities/{activity_id}."""
     return reporting_service.other(user.id, limit=limit)
+
+
+@router.get("/activities/firsts", response_model=FirstsOut)
+def firsts(user: CurrentUser = Depends(current_user)):
+    """First times (first 5 km, first week with 3 runs...) and what is next. Declared before /activities/{activity_id}."""
+    return firsts_service.for_user(user.id)
 
 
 @router.get("/activities/profiles", response_model=list[RunProfileOut])

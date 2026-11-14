@@ -31,6 +31,7 @@ export const api = {
   getRoutes: () => getJson("/activities/routes"),
   getIndoor: () => getJson("/activities/indoor"),
   getOther: () => getJson("/activities/other"),
+  getFirsts: () => getJson("/activities/firsts"),
   getActivity: (id: number) => getJson(`/activities/${id}`),
 
   // Me, sources and family

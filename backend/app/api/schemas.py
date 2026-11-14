@@ -290,6 +290,32 @@ class FamilyWeekOut(BaseModel):
     open: int
 
 
+class FirstOut(BaseModel):
+    key: str
+    label: str
+    date: str
+    is_new: bool = False
+
+
+class NextUpOut(BaseModel):
+    key: str
+    label: str
+    current: float
+    target: float
+    unit: str
+
+
+class FirstsOut(BaseModel):
+    achieved: list[FirstOut]
+    next: list[NextUpOut]
+
+
+class FamilyMilestoneOut(BaseModel):
+    key: str
+    label: str
+    date: str
+
+
 class FamilyMemberOut(BaseModel):
     user_id: int
     name: str
@@ -301,6 +327,7 @@ class FamilyMemberOut(BaseModel):
     month_runs: int | None
     streak_weeks: int | None
     recent_runs: list[FamilyRunOut] | None
+    new_milestones: list[FamilyMilestoneOut] | None = None
 
 
 class FamilyOut(BaseModel):

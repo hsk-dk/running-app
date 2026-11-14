@@ -87,6 +87,12 @@ Hver person vælger under **Mere → Mig**:
 
 Admin har ingen ekstra indsigt i andres løb. `FAMILY_SHARING_ENABLED=false` slår al deling fra for alle.
 
+## Opbygning og første gange (støtte, ikke konkurrence)
+
+- **Din opbygning** og **Dine første gange** (Udforsk) måler kun dig mod din egen start: uger i gang, længste løb måned for måned, første 3/5/8/10 km, første uge med 3 løb, 10/25/50/100 løb, 4/8/12 uger i træk. Er man ny (under 20 løb eller højst 12 uger inde), vises de øverst i stedet for rekorderne.
+- **Nyt i familien** (Familie) viser kun milepæle fra de seneste 21 dage ("Mads: første løb på 5 km"), fra delingsniveauet "overblik" og op. Ingen kilometer, tider eller puls, og ingen rangliste.
+- Familiesiden har ikke længere en kilometerfordeling mellem personer. Samlet kilometertal pr. måned står stadig øverst.
+
 ## Anden træning (roning, gang, cykling)
 
 Garmin-synkroniseringen gemmer også det, der ikke er løb: gang, cykling, roning, padling, svømning og styrketræning. De gemmes under deres gruppe som sportstype, så alle løbetal, rekorder, planmatch og ruter er uændrede. De vises som små prikker på årsringen og på delekortet, og de nævnes i årsfilmen og under Belastning. `GET /api/activities/other` giver kun hvad og hvornår, aldrig puls eller rute.

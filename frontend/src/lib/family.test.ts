@@ -1,22 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monthShares, weekText } from "./family";
-
-const m = (id: number, name: string, shared: boolean, km: number | null) => ({ user_id: id, name, shared, month_km: km });
-
-describe("monthShares", () => {
-  it("splits the month between those who share, keeping the order", () => {
-    const s = monthShares([m(1, "Henrik", true, 60), m(2, "Anna", true, 20), m(3, "Cecilie", false, null), m(4, "Bo", true, 20)]);
-    expect(s.map((x) => x.name)).toEqual(["Henrik", "Anna", "Bo"]);
-    expect(s.map((x) => x.pct)).toEqual([60, 20, 20]);
-  });
-  it("leaves out people with no kilometres and returns nothing when nobody ran", () => {
-    expect(monthShares([m(1, "A", true, 0), m(2, "B", true, null)])).toEqual([]);
-    expect(monthShares([m(1, "A", true, 0), m(2, "B", true, 10)]).map((x) => x.name)).toEqual(["B"]);
-  });
-  it("does not count a private member's kilometres even if they were sent", () => {
-    expect(monthShares([m(1, "A", false, 99), m(2, "B", true, 10)])[0].pct).toBe(100);
-  });
-});
+import { weekText } from "./family";
 
 describe("weekText", () => {
   it("shows the plan when there is one", () => {
