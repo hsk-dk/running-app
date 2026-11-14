@@ -97,10 +97,10 @@ ruter (`source = 'strava'`). Strava-variablerne i `.env` bruges ikke længere og
 
 Udforsk viser et stiliseret kort, hvor kameraet flyver mellem de steder, du har løbet. Kortet tegnes helt i browseren:
 
-- Landegrænser kommer fra Natural Earth (public domain) og ligger som en statisk fil (`frontend/src/assets/europe-land.json`, ca. 113 KB). Der hentes ingen kortfliser, og ingen positioner sendes til tredjepart.
-- Stednavne tages fra dine løbs navne ("Horsens - …", "Horsens Løb"). Mangler de, bruges "nær <by>" ud fra en lille liste af byer (`europe-towns.json`).
-- Filerne genereres med `python tools/build_map_data.py ne_50m_admin_0_countries.geojson ne_10m_populated_places_simple.geojson`.
-- Kysten er grov og tones ud, når du er tæt på. Med "reducer bevægelse" vises et stillbillede i stedet for animation.
+- Landegrænser kommer fra Natural Earth (public domain) og ligger som statiske filer: `europe-land.json` (ca. 113 KB, hele Europa) og `denmark-coast.json` (ca. 47 KB, detaljeret kyst om Danmark, som tones ind, når kameraet er over Danmark). Der hentes ingen kortfliser, og ingen positioner sendes til tredjepart.
+- Stednavne tages fra dine løbs navne ("Horsens - …", "Horsens Løb"). Mangler de, bruges "nær <by>" ud fra `europe-towns.json`: alle danske byer over 1000 indbyggere fra GeoNames (CC BY 4.0, via github.com/lutangar/cities.json) plus et udvalg af svenske, norske og tyske byer fra Natural Earth.
+- Filerne genereres med `python tools/build_map_data.py ne_50m_admin_0_countries.geojson ne_10m_populated_places_simple.geojson ne_10m_admin_0_countries.geojson cities.json` (de to sidste er valgfrie).
+- Uden for Danmark er kysten grov og tones ud, når du er tæt på. Med "reducer bevægelse" vises et stillbillede i stedet for animation.
 
 ## Kendte begrænsninger
 
