@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Area } from "./areas";
-import { arcPoint, arcPoints, boxOf, buildTour, dwellMs, fitBox, flightAreas, flyPath, mercator, nearestTown, placeLabel, stateAt, startOfArrival, startOfHold, unmercator } from "./flight";
+import { arcPoint, arcPoints, boxOf, buildTour, dwellMs, fitBox, flightAreas, flyPath, mercator, nearestTown, placeLabel, stateAt, startOfArrival, startOfHold, startOfIndoor, indoorMs, unmercator } from "./flight";
 
 function enc(points: [number, number][]): string {
   let out = "", pLat = 0, pLng = 0;
@@ -99,6 +99,44 @@ describe("arcs", () => {
     const pts = arcPoints([0, 0], [10, 0], 0.5);
     expect(pts[0]).toEqual([0, 0]);
     expect(pts[pts.length - 1][0]).toBeCloseTo(arcPoint([0, 0], [10, 0], 0.5)[0], 6);
+  });
+});
+
+describe("the tour with treadmill runs and a faster pace", () => {
+  const fa = flightAreas([area("a1", "Vejle", [route(1, 55.71, 9.53, "2026-08-01"), route(2, 55.712, 9.535, "2026-09-01")]), area("a0", "Horsens", [route(3, 55.86, 9.85, "2026-04-01")])], 1.6, TOWNS);
+  const indoor = { runs: 30, km: 180, min: 1000 };
+
+  it("adds a treadmill stop between flying back and the final picture, and nothing without treadmill runs", () => {
+    const t = buildTour(fa, 1.6, { indoor });
+    expect(t.segments.map((s) => s.kind)).toEqual(["hold", "fly", "dwell", "fly", "dwell", "fly", "indoor", "hold"]);
+    expect(buildTour(fa, 1.6, { indoor: { runs: 0, km: 0, min: 0 } }).segments.map((s) => s.kind)).not.toContain("indoor");
+    expect(buildTour(fa, 1.6, { indoor: null }).segments.map((s) => s.kind)).not.toContain("indoor");
+  });
+  it("keeps the map as it was during the treadmill stop and has no gaps", () => {
+    const t = buildTour(fa, 1.6, { indoor });
+    const seg = t.segments.find((s) => s.kind === "indoor")!;
+    const st = stateAt(t, (seg.startMs + seg.endMs) / 2);
+    expect(st.segment.kind).toBe("indoor");
+    expect(st.camera.w).toBeCloseTo(t.overview.w, 3);
+    expect(st.reached).toBe(Infinity);
+    t.segments.forEach((s, i) => { if (i) expect(s.startMs).toBeCloseTo(t.segments[i - 1].endMs, 6); });
+    expect(startOfIndoor(t)).toBe(seg.startMs);
+    expect(startOfIndoor(buildTour(fa, 1.6))).toBeNull();
+  });
+  it("stays longer for more runs, up to a limit", () => {
+    expect(indoorMs({ runs: 100, km: 1, min: 1 })).toBeGreaterThan(indoorMs({ runs: 5, km: 1, min: 1 }));
+    expect(indoorMs({ runs: 100000, km: 1, min: 1 })).toBe(7000);
+  });
+  it("runs faster when asked, and treats a bad speed as normal", () => {
+    const normal = buildTour(fa, 1.6, { indoor }).totalMs;
+    expect(buildTour(fa, 1.6, { indoor, speed: 2 }).totalMs).toBeCloseTo(normal / 2, 3);
+    expect(buildTour(fa, 1.6, { indoor, speed: 0 }).totalMs).toBe(normal);
+    expect(buildTour(fa, 1.6, { indoor, speed: -3 }).totalMs).toBe(normal);
+  });
+  it("remembers the longest run at each place", () => {
+    const vejle = fa.find((a) => a.name === "Vejle")!;
+    expect(vejle.longest.km).toBeGreaterThan(0);
+    expect(vejle.longest.date === "2026-08-01" || vejle.longest.date === "2026-09-01").toBe(true);
   });
 });
 

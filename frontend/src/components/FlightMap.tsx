@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Area } from "../lib/areas";
-import { Camera, FlightArea, Point, Segment, Town, Tour, arcPoint, arcPoints, buildTour, dwellMs, flightAreas, mercator, smooth, stateAt, startOfArrival, startOfHold } from "../lib/flight";
+import { Camera, FlightArea, Indoor, Point, Segment, Town, Tour, arcPoint, arcPoints, buildTour, dwellMs, flightAreas, mercator, smooth, stateAt, startOfArrival, startOfHold, startOfIndoor } from "../lib/flight";
 import { prefersReducedMotion } from "../lib/motion";
 import { frameAt, partial, timeline } from "../lib/playback";
 import { useWidth } from "../lib/useWidth";
@@ -47,7 +47,100 @@ const niceStep = (target: number) => {
 };
 const dateText = (d: string) => parseDateKey(d).toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" });
 
-type Frame = { W: number; H: number; cam: Camera; tour: Tour; areas: FlightArea[]; assets: Assets | null; ms: number; playbacks: ReturnType<typeof timeline>[] };
+type Frame = { W: number; H: number; cam: Camera; tour: Tour; areas: FlightArea[]; assets: Assets | null; ms: number; playbacks: ReturnType<typeof timeline>[]; indoor: Indoor | null };
+
+const shortDate = (d: string | null) => (d ? parseDateKey(d).toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" }) : "");
+const km1 = (v: number) => v.toLocaleString("da-DK", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+/** A point on a running track (a stadium: two straights and two half circles), t from 0 to 1 once round. */
+function trackPoint(cx: number, cy: number, w: number, h: number, t: number): Point {
+  const r = h / 2;
+  const L = w - h;
+  const perim = 2 * L + 2 * Math.PI * r;
+  let d = (((t % 1) + 1) % 1) * perim;
+  if (d < L) return [cx - L / 2 + d, cy - r]; // top, left to right
+  d -= L;
+  if (d < Math.PI * r) {
+    const a = -Math.PI / 2 + d / r; // right end, downwards
+    return [cx + L / 2 + r * Math.cos(a), cy + r * Math.sin(a)];
+  }
+  d -= Math.PI * r;
+  if (d < L) return [cx + L / 2 - d, cy + r]; // bottom, right to left
+  d -= L;
+  const a = Math.PI / 2 + d / r; // left end, upwards
+  return [cx - L / 2 + r * Math.cos(a), cy + r * Math.sin(a)];
+}
+
+/** The treadmill stop: the map steps back, and a track fills up with one mark per run while the distance counts up. */
+function drawTreadmill(ctx: CanvasRenderingContext2D, W: number, H: number, progress: number, indoor: Indoor) {
+  const dim = Math.min(ramp(progress, 0, 0.14), 1 - ramp(progress, 0.9, 1));
+  if (dim <= 0.01) return;
+  ctx.fillStyle = `rgba(16,32,54,${0.86 * dim})`;
+  ctx.fillRect(0, 0, W, H);
+  const p = ramp(progress, 0.12, 0.88);
+  const tw = Math.min(W * 0.68, 480);
+  const th = Math.min(tw * 0.42, H * 0.5);
+  const cx = W / 2;
+  const cy = H * 0.46;
+  const path = (inset: number) => {
+    const r = th / 2 - inset;
+    const L = tw - th;
+    ctx.beginPath();
+    ctx.moveTo(cx - L / 2, cy - r);
+    ctx.lineTo(cx + L / 2, cy - r);
+    ctx.arc(cx + L / 2, cy, r, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(cx - L / 2, cy + r);
+    ctx.arc(cx - L / 2, cy, r, Math.PI / 2, (3 * Math.PI) / 2);
+    ctx.closePath();
+  };
+  ctx.globalAlpha = dim;
+  ctx.lineCap = "round";
+  ctx.setLineDash([]);
+  ctx.strokeStyle = "rgba(255,255,255,0.14)";
+  ctx.lineWidth = 22;
+  path(11);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.32)";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 6]);
+  path(11);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  const n = Math.min(indoor.runs, 48);
+  const lit = Math.floor(p * n + 1e-9);
+  for (let i = 0; i < n; i++) {
+    const [x, y] = trackPoint(cx, cy, tw - 22, th - 22, i / n);
+    ctx.fillStyle = i < lit ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.2)";
+    ctx.beginPath();
+    ctx.arc(x, y, i < lit ? 3.6 : 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const [dx, dy] = trackPoint(cx, cy, tw - 22, th - 22, p * Math.min(n, 12));
+  ctx.fillStyle = "rgba(156,196,255,0.4)";
+  ctx.beginPath();
+  ctx.arc(dx, dy, 11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(dx, dy, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#fff";
+  ctx.font = `700 ${Math.round(Math.min(40, th * 0.34))}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+  ctx.fillText(`${Math.round(indoor.km * p).toLocaleString("da-DK")} km`, cx, cy + th * 0.06);
+  ctx.fillStyle = "rgba(255,255,255,0.65)";
+  ctx.font = `400 12px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+  ctx.fillText(`${Math.round(indoor.runs * p)} af ${indoor.runs} løb`, cx, cy + th * 0.06 + 20);
+  const ls = ctx as any;
+  if ("letterSpacing" in ls) ls.letterSpacing = "0.22em";
+  ctx.fillStyle = "rgba(255,255,255,0.78)";
+  ctx.font = `600 13px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+  ctx.fillText("LØBEBÅND OG INDENDØRS", cx, cy + th / 2 + 40);
+  if ("letterSpacing" in ls) ls.letterSpacing = "0px";
+  ctx.globalAlpha = 1;
+}
 
 /** Draws one frame. Pure drawing: everything it needs is in `f`. */
 function draw(ctx: CanvasRenderingContext2D, f: Frame) {
@@ -165,7 +258,7 @@ function draw(ctx: CanvasRenderingContext2D, f: Frame) {
   }
   if (dwell) {
     const area = areas[dwell.area];
-    const total = dwellMs(area);
+    const total = Math.max(1, dwell.endMs - dwell.startMs);
     const drawMs = total * DRAW_SHARE;
     const frame = frameAt(f.playbacks[dwell.area], Math.min(drawMs, st.progress * total) * (f.playbacks[dwell.area].totalMs / drawMs));
     const byId = new Map(area.routes.map((r) => [r.id, r]));
@@ -231,15 +324,26 @@ function draw(ctx: CanvasRenderingContext2D, f: Frame) {
     const a = areas[dwell.area];
     const alpha = Math.min(ramp(st.progress, 0.04, 0.2), 1 - ramp(st.progress, 0.9, 1));
     if (alpha > 0.01) {
+      const base = H - pad;
       ctx.textBaseline = "alphabetic";
+      ctx.textAlign = "left";
       ctx.fillStyle = `rgba(255,255,255,${0.78 * alpha})`;
       spaced(13);
-      ctx.textAlign = "left";
-      ctx.fillText(a.name.toUpperCase(), pad + 34, H - pad - 14);
-      ctx.fillRect(pad, H - pad - 18, 24, 1);
+      ctx.fillText(a.name.toUpperCase(), pad + 34, base - 56);
+      ctx.fillRect(pad, base - 60, 24, 1);
       spaced(11, 400);
       ctx.fillStyle = `rgba(255,255,255,${0.55 * alpha})`;
-      ctx.fillText(`${a.routes.length} løb · ${Math.round(a.km)} km`.toUpperCase(), pad + 34, H - pad + 2);
+      ctx.fillText(`${a.routes.length} løb · ${Math.round(a.km)} km`.toUpperCase(), pad + 34, base - 36);
+      ctx.fillText(`FØRST ${shortDate(a.firstDate)} · LÆNGST ${km1(a.longest.km)} KM`.toUpperCase(), pad + 34, base - 18);
+      const now = (() => {
+        const total = Math.max(1, dwell.endMs - dwell.startMs);
+        const fr = frameAt(f.playbacks[dwell.area], Math.min(total * DRAW_SHARE, st.progress * total) * (f.playbacks[dwell.area].totalMs / (total * DRAW_SHARE)));
+        return fr.currentId !== null ? a.routes.find((r) => r.id === fr.currentId) ?? null : null;
+      })();
+      if (now) {
+        ctx.fillStyle = `rgba(255,255,255,${0.85 * alpha})`;
+        ctx.fillText(`${shortDate(now.date)} · ${km1(now.km)} km`.toUpperCase(), pad + 34, base);
+      }
     }
   } else if (far > 0.4 && cam.w > 0.25) {
     spaced(11, 500);
@@ -251,17 +355,36 @@ function draw(ctx: CanvasRenderingContext2D, f: Frame) {
     }
   }
   if ("letterSpacing" in ls) ls.letterSpacing = "0px";
+  if (st.segment.kind === "indoor" && f.indoor) drawTreadmill(ctx, W, H, st.progress, f.indoor);
 }
 
 const jumpMs = (tour: Tour, i: number) => startOfArrival(tour, i);
 
 /** A stylised map. The camera flies between the places you have run: out, across, in, with a dotted line behind it. */
-export default function FlightMap({ areas }: { areas: Area[] }) {
+export default function FlightMap({
+  areas,
+  indoor = null,
+  speed = 1,
+  autoplay = true,
+  bare = false,
+  onDone,
+}: {
+  areas: Area[];
+  /** Runs without a route: they get a treadmill stop at the end. */
+  indoor?: Indoor | null;
+  speed?: number;
+  autoplay?: boolean;
+  /** No controls, no slider and no notes: for the year film, which has its own. */
+  bare?: boolean;
+  onDone?: () => void;
+}) {
   const [box, W] = useWidth<HTMLDivElement>();
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const [assets, setAssets] = useState<Assets | null>(null);
   const reduced = useMemo(() => prefersReducedMotion(), []);
-  const [playing, setPlaying] = useState(!reduced);
+  const [playing, setPlaying] = useState(autoplay && !reduced);
+  const done = useRef(onDone);
+  done.current = onDone;
   const [uiMs, setUiMs] = useState(0);
 
   useEffect(() => {
@@ -281,7 +404,7 @@ export default function FlightMap({ areas }: { areas: Area[] }) {
   const narrow = W < 520;
   const H = Math.round(Math.min(560, Math.max(280, W * (narrow ? 0.95 : 0.58))));
   const fa = useMemo(() => (assets ? flightAreas(areas, W / H, assets.towns) : []), [areas, assets, W, H]);
-  const tour = useMemo(() => (fa.length ? buildTour(fa, W / H) : null), [fa, W, H]);
+  const tour = useMemo(() => (fa.length ? buildTour(fa, W / H, { indoor, speed }) : null), [fa, W, H, indoor, speed]);
   const playbacks = useMemo(
     () => fa.map((a) => timeline(a.routes.map((r) => ({ id: r.id, date: r.date, distance_km: r.km, route: "" })), dwellMs(a) * DRAW_SHARE)),
     [fa],
@@ -305,8 +428,8 @@ export default function FlightMap({ areas }: { areas: Area[] }) {
     const ctx = el.getContext("2d");
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    draw(ctx, { W, H, cam: tour.overview, tour, areas: fa, assets, ms: msRef.current, playbacks });
-  }, [W, H, tour, fa, assets, playbacks]);
+    draw(ctx, { W, H, cam: tour.overview, tour, areas: fa, assets, ms: msRef.current, playbacks, indoor });
+  }, [W, H, tour, fa, assets, playbacks, indoor]);
 
   // the loop: runs while playing, and once more whenever something changed while paused
   useEffect(() => {
@@ -317,7 +440,10 @@ export default function FlightMap({ areas }: { areas: Area[] }) {
         const dt = last.current ? now - last.current : 0;
         msRef.current = Math.min(tour.totalMs, msRef.current + dt);
         dirty.current = true;
-        if (msRef.current >= tour.totalMs) setPlaying(false);
+        if (msRef.current >= tour.totalMs) {
+          setPlaying(false);
+          done.current?.();
+        }
       }
       last.current = now;
       if (dirty.current) {
@@ -354,6 +480,15 @@ export default function FlightMap({ areas }: { areas: Area[] }) {
     }
   };
 
+  const flyToIndoor = () => {
+    if (!tour) return;
+    const at = startOfIndoor(tour);
+    if (at === null) return;
+    const seg = tour.segments.find((x) => x.kind === "indoor")!;
+    seek(reduced ? seg.startMs + (seg.endMs - seg.startMs) * 0.85 : at);
+    setPlaying(!reduced);
+  };
+
   const st = tour ? stateAt(tour, uiMs) : null;
   const here = st && st.segment.kind === "dwell" ? fa[st.segment.area] : null;
   const finished = tour ? uiMs >= tour.totalMs : false;
@@ -366,18 +501,20 @@ export default function FlightMap({ areas }: { areas: Area[] }) {
         <canvas
           ref={canvas}
           role="img"
-          aria-label={`Animeret kort, der flyver mellem de ${fa.length} steder, du har løbet: ${fa.map((a) => a.name).join(", ")}.`}
+          aria-label={`Animeret kort, der flyver mellem de ${fa.length} steder, du har løbet: ${fa.map((a) => a.name).join(", ")}.${indoor ? ` Til sidst vises ${indoor.runs} løb indendørs.` : ""}`}
           style={{ display: "block", width: "100%", height: H, borderRadius: 12, background: "#22405f" }}
         />
       </div>
 
-      {tour && (
+      {tour && !bare && (
         <>
           <p className="u-card__meta" role="status" aria-live="polite">
             {here
               ? `${here.name} · ${here.routes.length} løb · ${Math.round(here.km)} km`
-              : finished || (st && st.segment.kind === "hold")
-                ? `${fa.length} ${fa.length === 1 ? "sted" : "steder"} · ${totalRuns} løb · ${Math.round(totalKm)} km`
+              : st && st.segment.kind === "indoor" && indoor
+                ? `Løbebånd og indendørs · ${indoor.runs} løb · ${Math.round(indoor.km)} km`
+                : finished || (st && st.segment.kind === "hold")
+                ? `${fa.length} ${fa.length === 1 ? "sted" : "steder"} · ${totalRuns} løb · ${Math.round(totalKm)} km${indoor ? ` · og ${indoor.runs} indendørs` : ""}`
                 : st && st.segment.kind === "fly"
                   ? "Flyver videre…"
                   : ""}
@@ -388,18 +525,19 @@ export default function FlightMap({ areas }: { areas: Area[] }) {
             ) : (
               <button type="button" className="u-btn u-btn--secondary" onClick={() => setPlaying((p) => !p)}>{playing ? "Pause" : "Fortsæt"}</button>
             )}
-            {fa.length > 1 && (
+            {(fa.length > 1 || indoor) && (
               <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span className="u-card__meta">Fly til</span>
                 <select
                   value=""
-                  onChange={(e) => e.target.value !== "" && flyTo(Number(e.target.value))}
+                  onChange={(e) => (e.target.value === "indoor" ? flyToIndoor() : e.target.value !== "" && flyTo(Number(e.target.value)))}
                   style={{ minHeight: 44, padding: "0 10px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", background: "var(--color-surface)" }}
                 >
                   <option value="">Vælg sted</option>
                   {fa.map((a, i) => (
                     <option key={a.key} value={i}>{a.name}</option>
                   ))}
+                  {indoor && <option value="indoor">Løbebånd og indendørs</option>}
                 </select>
               </label>
             )}

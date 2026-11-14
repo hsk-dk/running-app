@@ -74,3 +74,31 @@ def test_a_run_with_a_damaged_stored_profile_is_left_out_not_a_crash(proxy, db):
     add_activity(db, 1, "2026-11-01T08:00:00Z", user_id=1)
     c = db.get_conn(); c.execute("UPDATE activities SET profile_json = 'not json' WHERE id = 1"); c.commit(); c.close()
     assert proxy.get("/api/activities/profiles", headers=ADMIN).json() == []
+
+
+def test_indoor_lists_runs_without_a_route_newest_first_and_never_a_run_that_has_one(proxy, db):
+    proxy.get("/api/me", headers=ADMIN)
+    add_activity(db, 1, "2026-11-01T08:00:00Z", distance_m=5000, moving_time_s=1800, name="Outdoors", raw={"map": {"summary_polyline": LINE}})
+    add_activity(db, 2, "2026-11-05T08:00:00Z", distance_m=8000, moving_time_s=2700, name="Løbebånd", raw={"map": {"summary_polyline": None}})
+    add_activity(db, 3, "2026-11-06T08:00:00Z", distance_m=6000, moving_time_s=2100, name="No map", raw={})
+    add_activity(db, 4, "2026-11-08T08:00:00Z", sport_type="Ride", raw={})
+    r = proxy.get("/api/activities/indoor", headers=ADMIN)
+    assert r.status_code == 200
+    assert [(x["id"], x["name"], x["distance_km"], x["duration_min"], x["date"]) for x in r.json()] == [
+        (3, "No map", 6.0, 35.0, "2026-11-06"),
+        (2, "Løbebånd", 8.0, 45.0, "2026-11-05"),
+    ]
+    # between them, routes and indoor cover every run exactly once
+    ids = {x["id"] for x in proxy.get("/api/activities/routes", headers=ADMIN).json()} | {x["id"] for x in r.json()}
+    assert ids == {1, 2, 3}
+
+
+def test_indoor_is_only_the_signed_in_persons_own_and_validates_the_limit(proxy, db):
+    proxy.get("/api/me", headers=ADMIN)
+    proxy.get("/api/me", headers=FAMILY)
+    add_activity(db, 1, "2026-11-01T08:00:00Z", user_id=1)
+    add_activity(db, 2, "2026-11-02T08:00:00Z", user_id=2)
+    assert [x["id"] for x in proxy.get("/api/activities/indoor", headers=ADMIN).json()] == [1]
+    assert [x["id"] for x in proxy.get("/api/activities/indoor", headers=FAMILY).json()] == [2]
+    assert len(proxy.get("/api/activities/indoor?limit=1", headers=ADMIN).json()) == 1
+    assert proxy.get("/api/activities/indoor?limit=0", headers=ADMIN).status_code == 422

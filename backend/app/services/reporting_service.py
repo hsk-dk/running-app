@@ -173,6 +173,30 @@ def routes(user_id: int, limit: int = 400):
     return out
 
 
+def indoor(user_id: int, limit: int = 2000):
+    """Runs that have no GPS route (treadmill, manual entries), newest first. The mirror image of routes()."""
+    conn = get_conn()
+    try:
+        rows = activity_repo.list_with_raw(conn, user_id, limit)
+    finally:
+        conn.close()
+    out = []
+    for row in rows:
+        if row["route_polyline"] or _route_of(row["raw_json"]):
+            continue
+        day = timeutil.activity_local_date(row)
+        out.append(
+            {
+                "id": row["id"],
+                "date": day.isoformat() if day else None,
+                "name": row["name"],
+                "distance_km": round(float(row["distance_m"] or 0) / 1000.0, 2),
+                "duration_min": round(float(row["moving_time_s"] or 0) / 60.0, 1),
+            }
+        )
+    return out
+
+
 def profiles(user_id: int, limit: int = 16):
     """Newest runs that have a profile, for the pace landscape. Includes heart rate: only ever the person's own."""
     conn = get_conn()
