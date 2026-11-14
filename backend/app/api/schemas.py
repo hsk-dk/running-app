@@ -123,6 +123,14 @@ class RouteOut(BaseModel):
     route: str
 
 
+class IndoorOut(BaseModel):
+    id: int
+    date: str | None
+    name: str | None = None
+    distance_km: float
+    duration_min: float = 0
+
+
 class SplitOut(BaseModel):
     km: int
     distance_m: float

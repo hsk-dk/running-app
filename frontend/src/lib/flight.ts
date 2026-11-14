@@ -94,6 +94,8 @@ export type FlightArea = {
   routes: FlightRoute[];
   km: number;
   firstDate: string | null;
+  /** The longest run here, for the caption. */
+  longest: { km: number; date: string | null };
 };
 
 const MAX_POINTS = 200;
@@ -155,6 +157,7 @@ export function flightAreas(areas: Area[], aspect: number, towns: Town[] = []): 
       routes,
       km: routes.reduce((s, r) => s + r.km, 0),
       firstDate: routes[0].date,
+      longest: routes.reduce((best, r) => (r.km > best.km ? { km: r.km, date: r.date } : best), { km: 0, date: null as string | null }),
     });
   }
   return out.sort((a, b) => ((a.firstDate ?? "") < (b.firstDate ?? "") ? -1 : 1));
@@ -191,9 +194,20 @@ export function arcPoints(a: Point, b: Point, upTo = 1, steps = 40): Point[] {
 export type Segment =
   | { kind: "fly"; from: Camera; to: Camera; path: FlightPath; startMs: number; endMs: number; fromArea: number | null; toArea: number | null }
   | { kind: "dwell"; camera: Camera; startMs: number; endMs: number; area: number }
-  | { kind: "hold"; camera: Camera; startMs: number; endMs: number };
+  | { kind: "hold"; camera: Camera; startMs: number; endMs: number }
+  /** The runs with no GPS route: no place on the map, so the map steps back and a treadmill track takes over. */
+  | { kind: "indoor"; camera: Camera; startMs: number; endMs: number };
 
 export type Tour = { segments: Segment[]; totalMs: number; overview: Camera };
+
+/** The runs that have no route. */
+export type Indoor = { runs: number; km: number; min: number };
+
+export type TourOptions = {
+  indoor?: Indoor | null;
+  /** 1 is the normal pace; 2 makes everything twice as fast (the year film). */
+  speed?: number;
+};
 
 const FLY_MIN_MS = 1700;
 const FLY_MAX_MS = 4600;
@@ -209,36 +223,48 @@ export function flightMs(path: FlightPath): number {
   return Math.min(FLY_MAX_MS, Math.max(FLY_MIN_MS, path.length * FLY_PER_UNIT));
 }
 
+export const INDOOR_BASE_MS = 3200;
+export const INDOOR_PER_RUN_MS = 45;
+export const INDOOR_MAX_MS = 7000;
+export const indoorMs = (i: Indoor): number => Math.min(INDOOR_MAX_MS, INDOOR_BASE_MS + i.runs * INDOOR_PER_RUN_MS);
+
 export const dwellMs = (area: FlightArea): number => Math.min(DWELL_MAX_MS, DWELL_BASE_MS + area.routes.length * DWELL_PER_ROUTE_MS);
 
-/** Overview -> place 1 -> place 2 -> ... -> overview. */
-export function buildTour(areas: FlightArea[], aspect: number): Tour {
+/** Overview -> place 1 -> place 2 -> ... -> overview -> (the treadmill) -> the whole picture. */
+export function buildTour(areas: FlightArea[], aspect: number, options: TourOptions = {}): Tour {
+  const speed = options.speed && options.speed > 0 ? options.speed : 1;
+  const indoor = options.indoor && options.indoor.runs > 0 ? options.indoor : null;
   const overview = overviewCamera(areas, aspect);
   const segments: Segment[] = [];
   let t = 0;
   let at: Camera = overview;
   let fromArea: number | null = null;
   if (areas.length > 0) {
-    segments.push({ kind: "hold", camera: overview, startMs: 0, endMs: INTRO_MS });
-    t = INTRO_MS;
+    segments.push({ kind: "hold", camera: overview, startMs: 0, endMs: INTRO_MS / speed });
+    t = INTRO_MS / speed;
   }
   areas.forEach((area, i) => {
     const path = flyPath(at, area.camera);
-    const fly = flightMs(path);
+    const fly = flightMs(path) / speed;
     segments.push({ kind: "fly", from: at, to: area.camera, path, startMs: t, endMs: t + fly, fromArea, toArea: i });
     t += fly;
-    const stay = dwellMs(area);
+    const stay = dwellMs(area) / speed;
     segments.push({ kind: "dwell", camera: area.camera, startMs: t, endMs: t + stay, area: i });
     t += stay;
     at = area.camera;
     fromArea = i;
   });
   const back = flyPath(at, overview);
-  const backMs = flightMs(back);
+  const backMs = flightMs(back) / speed;
   segments.push({ kind: "fly", from: at, to: overview, path: back, startMs: t, endMs: t + backMs, fromArea, toArea: null });
   t += backMs;
-  segments.push({ kind: "hold", camera: overview, startMs: t, endMs: t + HOLD_MS });
-  t += HOLD_MS;
+  if (indoor) {
+    const len = indoorMs(indoor) / speed;
+    segments.push({ kind: "indoor", camera: overview, startMs: t, endMs: t + len });
+    t += len;
+  }
+  segments.push({ kind: "hold", camera: overview, startMs: t, endMs: t + HOLD_MS / speed });
+  t += HOLD_MS / speed;
   return { segments, totalMs: t, overview };
 }
 
@@ -271,13 +297,18 @@ export function stateAt(tour: Tour, ms: number): State {
   if (seg.kind === "dwell") {
     return { camera: seg.camera, segment: seg, progress, area: seg.area, reached: seg.area + 1, linesDrawn: seg.area };
   }
-  return { camera: seg.camera, segment: seg, progress, area: null, reached: Infinity, linesDrawn: Infinity };
+  return { camera: seg.camera, segment: seg, progress, area: null, reached: Infinity, linesDrawn: Infinity }; // hold and indoor
 }
 
 /** The start of the flight that ends at place `i`, so a jump to it still arrives by flying. */
 export function startOfArrival(tour: Tour, i: number): number {
   const seg = tour.segments.find((s) => s.kind === "fly" && s.toArea === i);
   return seg ? seg.startMs : 0;
+}
+
+export function startOfIndoor(tour: Tour): number | null {
+  const seg = tour.segments.find((s) => s.kind === "indoor");
+  return seg ? seg.startMs : null;
 }
 
 /** Where the "hold" at the end begins: the whole picture. */

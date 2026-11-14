@@ -29,6 +29,7 @@ export const api = {
   getProfiles: (limit = 16) => getJson(`/activities/profiles?limit=${limit}`),
   garminReadDetails: (limit = 25) => getJson(`/garmin/read-details?limit=${limit}`, { method: "POST" }),
   getRoutes: () => getJson("/activities/routes"),
+  getIndoor: () => getJson("/activities/indoor"),
   getActivity: (id: number) => getJson(`/activities/${id}`),
 
   // Me, sources and family
