@@ -1,3 +1,4 @@
+import { sessionLabel } from "../lib/sessionTypes";
 import { ReactNode, useMemo, useState } from "react";
 import {
   Activity,
@@ -83,7 +84,7 @@ export default function WeekPlanChart({
             {offset === 0 && badge}
           </h2>
           <p className="u-card__meta">
-            {rangeLabel(start)} · {week.total === 0 ? "ingen obligatoriske løb" : `${week.done} af ${week.total} obligatoriske løb i hus`}
+            {rangeLabel(start)} · {week.total === 0 ? "ingen vigtige løb" : `${week.done} af ${week.total} vigtige løb i hus`}
             {week.shortened > 0 ? `, heraf ${week.shortened} forkortet` : ""}
           </p>
         </div>
@@ -174,7 +175,7 @@ export default function WeekPlanChart({
                 return (
                   <tr key={d.date} style={{ borderTop: "1px solid var(--color-border)" }}>
                     <td style={{ padding: "6px 8px" }}>{weekdayName(d.weekday)}</td>
-                    <td style={{ padding: "6px 8px" }}>{r ? `${r.session_type}, ${runValueLabel(r)}` : "–"}</td>
+                    <td style={{ padding: "6px 8px" }}>{r ? `${sessionLabel(r.session_type)}, ${runValueLabel(r)}` : "–"}</td>
                     <td style={{ padding: "6px 8px" }}>{STATUS_TEXT[d.kind]}</td>
                     <td style={{ padding: "6px 8px" }}>
                       {d.extras.length ? d.extras.map((a) => `${Math.round(a.duration_min)} min`).join(", ") : "–"}

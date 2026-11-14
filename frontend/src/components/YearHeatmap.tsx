@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DayCell, levelFn } from "../lib/year";
 
 const CELL = 12;
@@ -12,6 +12,11 @@ const LEVEL_PCT = [0, 28, 50, 75, 100];
 export default function YearHeatmap({ days, label }: { days: DayCell[]; label: string }) {
   const [metric, setMetric] = useState<"km" | "min">("km");
   const level = useMemo(() => levelFn(days.map((d) => d[metric])), [days, metric]);
+  const scroller = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    // the newest weeks are on the right: start there, so a narrow screen shows the present
+    if (scroller.current) scroller.current.scrollLeft = scroller.current.scrollWidth;
+  }, [days]);
   const cols = days.length ? days[days.length - 1].weekIndex + 1 : 0;
   const width = LEFT + cols * (CELL + GAP);
 
@@ -30,13 +35,13 @@ export default function YearHeatmap({ days, label }: { days: DayCell[]; label: s
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-        <p className="u-card__meta" style={{ margin: 0 }}>Hver firkant er en dag. Mørkere er længere.</p>
+        <p className="u-card__meta" style={{ margin: 0 }}>Hver firkant er en dag. Mørkere er længere. På en lille skærm kan du stryge sidelæns.</p>
         <div role="group" aria-label="Vælg mål" style={{ display: "flex", gap: 8 }}>
           <button type="button" className="u-btn u-btn--secondary" aria-pressed={metric === "km"} onClick={() => setMetric("km")}>Kilometer</button>
           <button type="button" className="u-btn u-btn--secondary" aria-pressed={metric === "min"} onClick={() => setMetric("min")}>Minutter</button>
         </div>
       </div>
-      <div style={{ overflowX: "auto" }}>
+      <div ref={scroller} style={{ overflowX: "auto" }} tabIndex={0} aria-label="Kalender, kan rulles sidelæns">
         <svg viewBox={`0 0 ${width} ${TOP + 7 * (CELL + GAP) + 28}`} role="img" aria-label={label} style={{ display: "block", width: "100%", minWidth: 720, height: "auto" }}>
           {monthLabels.map((m) => (
             <text key={m.x} x={m.x} y={14} fontSize={11} fill="var(--color-text-muted)">{m.text}</text>

@@ -114,18 +114,25 @@ describe("the tour", () => {
     expect(fa.map((a) => a.name)).toEqual(["Horsens", "Vejle"]);
     expect(fa[0].routes.length).toBe(1);
   });
-  it("has no gaps: fly, stay, fly, stay, fly back, hold", () => {
-    expect(tour.segments.map((s) => s.kind)).toEqual(["fly", "dwell", "fly", "dwell", "fly", "hold"]);
+  it("has no gaps: intro, fly, stay, fly, stay, fly back, hold", () => {
+    expect(tour.segments.map((s) => s.kind)).toEqual(["hold", "fly", "dwell", "fly", "dwell", "fly", "hold"]);
     expect(tour.segments[0].startMs).toBe(0);
     tour.segments.forEach((s, i) => { if (i) expect(s.startMs).toBe(tour.segments[i - 1].endMs); });
     expect(tour.totalMs).toBe(tour.segments[tour.segments.length - 1].endMs);
+  });
+  it("opens on the whole picture with every place shown, before setting off", () => {
+    const open = stateAt(tour, 100);
+    expect(open.segment.kind).toBe("hold");
+    expect(open.reached).toBe(Infinity);
+    expect(open.camera.w).toBeCloseTo(tour.overview.w, 3);
+    expect(stateAt(tour, tour.segments[0].endMs + 1).segment.kind).toBe("fly");
   });
   it("stays longer where there are more runs", () => {
     expect(dwellMs(fa[1])).toBeGreaterThan(dwellMs(fa[0]));
   });
   it("starts zoomed out, is zoomed in at a place, and finishes zoomed out showing everything", () => {
     expect(stateAt(tour, 0).camera.w).toBeCloseTo(tour.overview.w, 3);
-    const dwell = tour.segments[1];
+    const dwell = tour.segments[2];
     const inPlace = stateAt(tour, (dwell.startMs + dwell.endMs) / 2);
     expect(inPlace.camera.w).toBeCloseTo(fa[0].camera.w, 6);
     expect(inPlace.area).toBe(0);
@@ -134,13 +141,13 @@ describe("the tour", () => {
     expect(end.reached).toBe(Infinity);
   });
   it("draws the line to the next place while flying and keeps the finished ones", () => {
-    const fly = tour.segments[2];
+    const fly = tour.segments[3];
     const mid = stateAt(tour, (fly.startMs + fly.endMs) / 2);
     expect(mid.reached).toBe(1);
     expect(mid.linesDrawn).toBeGreaterThan(0);
     expect(mid.linesDrawn).toBeLessThan(1);
     expect(stateAt(tour, fly.endMs - 1).linesDrawn).toBeGreaterThan(0.95);
-    expect(stateAt(tour, tour.segments[3].startMs + 10).linesDrawn).toBe(1);
+    expect(stateAt(tour, tour.segments[4].startMs + 10).linesDrawn).toBe(1);
   });
   it("lets you jump to a place and still arrive by flying", () => {
     const t = startOfArrival(tour, 1);
@@ -150,7 +157,7 @@ describe("the tour", () => {
   });
   it("survives a single place, no places, and times outside the tour", () => {
     const one = buildTour([fa[0]], 1.6);
-    expect(one.segments.map((s) => s.kind)).toEqual(["fly", "dwell", "fly", "hold"]);
+    expect(one.segments.map((s) => s.kind)).toEqual(["hold", "fly", "dwell", "fly", "hold"]);
     expect(flightAreas([], 1.6)).toEqual([]);
     expect(stateAt(tour, -50).camera.w).toBeCloseTo(tour.overview.w, 3);
     expect(stateAt(tour, 1e9).segment.kind).toBe("hold");

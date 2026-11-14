@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chipClass, statusVariant } from "./status";
+import { chipClass, statusLabel, statusVariant } from "./status";
 
 describe("statusVariant", () => {
   it.each([
@@ -19,5 +19,14 @@ describe("statusVariant", () => {
   it("builds class names, with neutral as the plain chip", () => {
     expect(chipClass("neutral")).toBe("u-chip");
     expect(chipClass("warn")).toBe("u-chip u-chip--warn");
+  });
+});
+
+describe("statusLabel", () => {
+  it("turns the week colours into words and leaves everything else alone", () => {
+    expect(statusLabel("Grøn")).toBe("På sporet");
+    expect(statusLabel("gul")).toBe("Lidt bagud");
+    expect(statusLabel("Rød")).toBe("Bagud");
+    expect(statusLabel("planlagt")).toBe("planlagt");
   });
 });

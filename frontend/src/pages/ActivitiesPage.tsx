@@ -1,3 +1,4 @@
+import { sessionLabel } from "../lib/sessionTypes";
 import { useMemo, useState } from "react";
 import ActivityDetail from "../components/ActivityDetail";
 import StatusBadge from "../components/StatusBadge";
@@ -232,7 +233,7 @@ export default function ActivitiesPage({
                     {a.matchedPlan ? (
                       <div style={{ display: "grid", gap: 2 }}>
                         <span style={{ color: "var(--color-text)", fontWeight: 600 }}>
-                          {a.matchedPlan.session_type}
+                          {sessionLabel(a.matchedPlan.session_type)}
                         </span>
                         <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
                           {formatDate(a.matchedPlan.planned_date)}

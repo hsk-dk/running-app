@@ -202,6 +202,8 @@ const DWELL_BASE_MS = 2200;
 const DWELL_PER_ROUTE_MS = 260;
 const DWELL_MAX_MS = 5600;
 const HOLD_MS = 5000;
+/** The opening: the whole picture, every place marked, before the camera sets off. */
+const INTRO_MS = 2400;
 
 export function flightMs(path: FlightPath): number {
   return Math.min(FLY_MAX_MS, Math.max(FLY_MIN_MS, path.length * FLY_PER_UNIT));
@@ -216,6 +218,10 @@ export function buildTour(areas: FlightArea[], aspect: number): Tour {
   let t = 0;
   let at: Camera = overview;
   let fromArea: number | null = null;
+  if (areas.length > 0) {
+    segments.push({ kind: "hold", camera: overview, startMs: 0, endMs: INTRO_MS });
+    t = INTRO_MS;
+  }
   areas.forEach((area, i) => {
     const path = flyPath(at, area.camera);
     const fly = flightMs(path);
@@ -276,6 +282,6 @@ export function startOfArrival(tour: Tour, i: number): number {
 
 /** Where the "hold" at the end begins: the whole picture. */
 export function startOfHold(tour: Tour): number {
-  const seg = tour.segments.find((s) => s.kind === "hold");
+  const seg = [...tour.segments].reverse().find((s) => s.kind === "hold");
   return seg ? seg.startMs : tour.totalMs;
 }

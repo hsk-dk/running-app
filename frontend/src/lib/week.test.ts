@@ -109,7 +109,7 @@ describe("summarizeWeek and headline", () => {
   });
   it("handles an empty week", () => {
     expect(weekHeadline({ total: 0, done: 0, shortened: 0, skipped: 0, open: 0 }, null, THU)).toBe(
-      "Ingen obligatoriske løb planlagt i denne uge."
+      "Ingen vigtige løb planlagt i denne uge."
     );
   });
   it("says the week is done or over when nothing is open", () => {

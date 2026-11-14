@@ -482,7 +482,7 @@ return (
         badge={<StatusBadge value={currentWeek.score} />}
       />
       <p className="u-card__meta" style={{ marginTop: -8 }}>
-        {currentWeek.awaiting} obligatoriske pas afventer stadig og tæller ikke negativt endnu. Valgfrie
+        {currentWeek.awaiting} vigtige løb venter stadig og tæller ikke negativt endnu. Valgfrie
         træninger vises i planen, men påvirker ikke ugefarven negativt.
       </p>
 

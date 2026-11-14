@@ -42,7 +42,7 @@ export default function PaceLandscape() {
   }
 
   const narrow = W < 520;
-  const left = narrow ? 0 : 176;
+  const left = narrow ? 0 : 230;
   const rowH = narrow ? 30 : 36;
   const data = useMemo(() => (runs ? ridges(runs, W, rowH, left, 0) : []), [runs, W, rowH, left]);
   const cap = useMemo(() => (runs ? speedCap(runs) : 4), [runs]);
@@ -102,7 +102,8 @@ export default function PaceLandscape() {
                         strokeWidth={narrow ? 3 : 0}
                         paintOrder="stroke"
                       >
-                        {narrow ? `${dateText(r.date)} · ${shortName(r.name, 22)}` : `${dateText(r.date)}  ${shortName(r.name, 18)}`}
+                        <title>{`${dateText(r.date)}, ${r.name}`}</title>
+                        {narrow ? `${dateText(r.date)} · ${shortName(r.name, 22)}` : `${dateText(r.date)}  ${shortName(r.name, 28)}`}
                       </text>
                     )}
                   </g>

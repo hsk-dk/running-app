@@ -146,7 +146,7 @@ export function dayLabel(plannedDate: string, today: Date): string {
 
 /** The sentence at the top of "Nu": says how the week is going before any number. */
 export function weekHeadline(summary: WeekSummary, next: PlannedRun | null, today: Date): string {
-  if (summary.total === 0) return "Ingen obligatoriske løb planlagt i denne uge.";
+  if (summary.total === 0) return "Ingen vigtige løb planlagt i denne uge.";
   const base = `${summary.done} af ${summary.total} løb i hus.`;
   if (summary.open === 0) {
     return summary.done === summary.total ? `${base} Ugen er klaret.` : `${base} Ugen er slut.`;

@@ -13,7 +13,7 @@ import MorePage from "./pages/MorePage";
 type PageKey = "overview" | "plan" | "year" | "family" | "more";
 
 function formatDateTime(value?: string) {
-  if (!value) return "-";
+  if (!value) return "aldrig";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   return d.toLocaleString("da-DK", {
@@ -243,7 +243,7 @@ export default function App() {
         </div>
 
         <footer className="app-footer">
-          Sidst synkroniseret: {formatDateTime(adminStatus?.last_sync_at?.value)}
+          Sidst opdateret: {formatDateTime(adminStatus?.last_sync_at?.value)}
         </footer>
       </main>
     </>
