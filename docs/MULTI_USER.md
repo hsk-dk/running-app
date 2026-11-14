@@ -100,6 +100,14 @@ En forælder (admin) markerer et familiemedlem som barn under Familie → Indsti
 
 Appen giver ikke lægelige råd. Tjek selv Garmins og Smashruns aldersgrænser og vilkår, før et barn forbinder sin egen konto.
 
+## Daglige udfordringer (armbøjninger, planke...)
+
+Hver person kan lave en daglig udfordring på Nu-siden: et navn, en enhed (stk., sekunder, minutter), et startmål, hvor meget det vokser og hvor tit (fx 5 armbøjninger, 1 mere hver 7. dag), evt. et loft og fridage. Dagens mål står øverst. Man trykker "Jeg klarede 5" eller skriver selv et tal. Ugen vises som runde mærker. En dag uden tal er bare en dag uden mærke, og der står aldrig noget nedslående.
+
+- Man kan skrive i dag og de seneste 14 dage, ikke fremtiden og ikke længere tilbage. Op til 10 udfordringer ad gangen. At lægge en udfordring væk gemmer tallene.
+- Udfordringer er altid dine egne. Ingen andre kan læse eller ændre dem.
+- Forældre ser for et barn kun "N af M dage denne uge" og antal dage i træk, aldrig tallene. Resten af familien ser kun en milepæl ("7 dage i træk: Armbøjninger"), hvis barnet deler.
+
 ## Opbygning og første gange (støtte, ikke konkurrence)
 
 - **Din opbygning** og **Dine første gange** (Udforsk) måler kun dig mod din egen start: uger i gang, længste løb måned for måned, første 3/5/8/10 km, første uge med 3 løb, 10/25/50/100 løb, 4/8/12 uger i træk. Er man ny (under 20 løb eller højst 12 uger inde), vises de øverst i stedet for rekorderne.

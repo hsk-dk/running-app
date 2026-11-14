@@ -1,3 +1,4 @@
+import ChallengeCard from "../components/ChallengeCard";
 import WeekStoryCard from "../components/WeekStoryCard";
 import { sessionLabel } from "../lib/sessionTypes";
 import NowHero from "../components/NowHero";
@@ -184,6 +185,8 @@ export default function OverviewPage({
         activities={activities}
         monthlyVolume={monthlyVolume}
       />
+
+      <ChallengeCard />
 
       <WeekStoryCard activities={activities} />
 

@@ -62,6 +62,15 @@ function GuardianSummary({ g }: { g: Guardian }) {
         </div>
       </dl>
       <p className="u-card__meta" style={{ margin: 0 }}>{guardianNote(g, todayKey())}</p>
+      {g.challenges && g.challenges.length > 0 && (
+        <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 2 }}>
+          {g.challenges.map((c) => (
+            <li key={c.name} className="u-card__meta">
+              {c.name}: {c.done_week} af {c.planned_week} {c.planned_week === 1 ? "dag" : "dage"} denne uge{c.streak_days > 1 ? `, ${c.streak_days} dage i træk` : ""}
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   );
 }

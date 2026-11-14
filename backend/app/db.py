@@ -407,6 +407,41 @@ def _migration_13_children(conn: sqlite3.Connection) -> None:
     _add_column_if_missing(conn, "users", "is_child", "INTEGER NOT NULL DEFAULT 0")
 
 
+def _migration_14_challenges(conn: sqlite3.Connection) -> None:
+    """Daily challenges (push-ups, a plank...): a plan that grows slowly, and one count per day."""
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS challenges (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            unit TEXT NOT NULL,
+            start_date TEXT NOT NULL,
+            start_value INTEGER NOT NULL,
+            step INTEGER NOT NULL,
+            step_every_days INTEGER NOT NULL,
+            cap INTEGER,
+            rest_weekdays TEXT NOT NULL DEFAULT '',
+            archived INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS challenge_logs (
+            challenge_id INTEGER NOT NULL,
+            day TEXT NOT NULL,
+            count INTEGER NOT NULL,
+            PRIMARY KEY (challenge_id, day),
+            FOREIGN KEY (challenge_id) REFERENCES challenges(id) ON DELETE CASCADE
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_challenges_user ON challenges(user_id, archived)")
+
+
 MIGRATIONS = [
     _migration_1_add_missing_columns,
     _migration_2_add_indexes,
@@ -421,6 +456,7 @@ MIGRATIONS = [
     _migration_11_garmin,
     _migration_12_drop_strava,
     _migration_13_children,
+    _migration_14_challenges,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

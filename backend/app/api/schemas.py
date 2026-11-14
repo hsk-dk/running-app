@@ -329,6 +329,71 @@ class FamilyMilestoneOut(BaseModel):
     date: str
 
 
+Weekday = Literal[0, 1, 2, 3, 4, 5, 6]
+
+
+class ChallengePlan(BaseModel):
+    """What a daily challenge is: a name, a unit, a start that grows a little every so many days, and the days off."""
+
+    name: str = Field(min_length=1, max_length=40)
+    unit: Literal["stk", "sek", "min"] = "stk"
+    start_value: int = Field(ge=1, le=10000)
+    step: int = Field(default=1, ge=0, le=1000)
+    step_every_days: int = Field(default=7, ge=1, le=60)
+    cap: int | None = Field(default=None, ge=1, le=100000)
+    rest_weekdays: list[Weekday] = Field(default_factory=list, max_length=6)
+
+
+class ChallengeCreate(ChallengePlan):
+    start_date: date | None = None
+
+
+class ChallengeLog(BaseModel):
+    count: int = Field(ge=0, le=100000)
+    day: date | None = None  # today when left out
+
+
+class ChallengeDayOut(BaseModel):
+    date: str
+    target: int | None
+    count: int | None
+    status: str
+
+
+class ChallengePlanOut(BaseModel):
+    start_value: int
+    step: int
+    step_every_days: int
+    cap: int | None
+    rest_weekdays: list[int]
+    start_date: str
+
+
+class ChallengeOut(BaseModel):
+    id: int
+    name: str
+    unit: str
+    today_target: int | None
+    today_count: int | None
+    today_done: bool
+    rest_today: bool
+    not_started: bool
+    streak_days: int
+    done_week: int
+    planned_week: int
+    best_day: int
+    total: int
+    week: list[ChallengeDayOut]
+    plan: ChallengePlanOut
+
+
+class GuardianChallengeOut(BaseModel):
+    name: str
+    done_week: int
+    planned_week: int
+    streak_days: int
+
+
 class GuardianOut(BaseModel):
     """What a parent sees about a child: how often and for how long, not how far or how fast."""
 
@@ -339,6 +404,7 @@ class GuardianOut(BaseModel):
     minutes_month: int
     last_run_date: str | None
     streak_weeks: int
+    challenges: list[GuardianChallengeOut] = Field(default_factory=list)
 
 
 class GoalOut(BaseModel):

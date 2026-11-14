@@ -13,7 +13,7 @@ from app.errors import ForbiddenError
 from app.repositories import activities as activity_repo
 from app.repositories import planned_runs as plan_repo
 from app.repositories import sync_state
-from app.services import firsts_service, garmin_service, reporting_service, splits_service, user_service
+from app.services import challenge_service, firsts_service, garmin_service, reporting_service, splits_service, user_service
 from app.services.user_service import CurrentUser
 
 RECENT_RUNS = 8
@@ -107,20 +107,22 @@ def _member(viewer: CurrentUser, target: CurrentUser) -> dict:
         today = timeutil.today()
         if level == "guardian":
             entry["guardian"] = _guardian_view(conn, target.id, today)
-            entry["new_milestones"] = firsts_service.recent_for_family(target.id)
+            extra = challenge_service.for_family(target.id)
+            entry["guardian"]["challenges"] = extra["items"]
+            entry["new_milestones"] = firsts_service.recent_for_family(target.id) + extra["milestones"]
             return entry
         if level == "milestones":
-            entry["new_milestones"] = firsts_service.recent_for_family(target.id)
+            entry["new_milestones"] = firsts_service.recent_for_family(target.id) + challenge_service.for_family(target.id)["milestones"]
             return entry
         entry["week"] = _week_numbers(conn, target.id, today)
         entry["streak_weeks"] = _streak(conn, target.id, today)
+        entry["new_milestones"] = firsts_service.recent_for_family(target.id) + challenge_service.for_family(target.id)["milestones"]
     finally:
         conn.close()
 
     month = reporting_service.summary(target.id)
     entry["month_km"] = month["km_this_month"]
     entry["month_runs"] = month["runs_this_month"]
-    entry["new_milestones"] = firsts_service.recent_for_family(target.id)  # labels and days only, from the overview level up
     if level == "all":
         runs = reporting_service.list_activities(target.id, limit=RECENT_RUNS)
         entry["recent_runs"] = [
