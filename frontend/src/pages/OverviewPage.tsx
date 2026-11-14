@@ -1,5 +1,7 @@
+import WeekStoryCard from "../components/WeekStoryCard";
 import { sessionLabel } from "../lib/sessionTypes";
 import NowHero from "../components/NowHero";
+import { scoreNote } from "../lib/week";
 import StatusBadge from "../components/StatusBadge";
 import {
   AreaChart,
@@ -181,6 +183,8 @@ export default function OverviewPage({
         monthlyVolume={monthlyVolume}
       />
 
+      <WeekStoryCard activities={activities} />
+
       {error && (
         <section
           style={{
@@ -201,7 +205,7 @@ export default function OverviewPage({
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 11rem), 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr))",
           gap: 16,
         }}
       >
@@ -241,6 +245,10 @@ export default function OverviewPage({
             <StatusBadge value={currentWeekScore} />
             <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{currentWeekKey}</span>
           </div>
+
+          <p className="u-card__meta" style={{ margin: "0 0 8px" }}>
+            {scoreNote(currentWeekCompleted, currentWeekShortened, currentWeekRelevant.length, currentWeekAwaiting)}
+          </p>
 
           <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text)", marginBottom: 4 }}>
             {currentWeekCompleted}/{currentWeekRelevant.length}

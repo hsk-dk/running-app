@@ -24,7 +24,7 @@ const VARIANTS: Record<string, ChipVariant> = {
 
 /** What a status chip says. The week colours become words everyone understands. */
 const LABELS: Record<string, string> = { "grøn": "På sporet", "gul": "Lidt bagud", "rød": "Bagud" };
-export const statusLabel = (value: string) => LABELS[value.trim().toLowerCase()] ?? value;
+export const statusLabel = (value: string) => LABELS[value.trim().toLowerCase()] ?? (value ? value.charAt(0).toUpperCase() + value.slice(1) : value);
 
 export function statusVariant(value: string): ChipVariant {
   return VARIANTS[value.trim().toLowerCase()] ?? "neutral";

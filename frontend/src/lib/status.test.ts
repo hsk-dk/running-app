@@ -23,10 +23,12 @@ describe("statusVariant", () => {
 });
 
 describe("statusLabel", () => {
-  it("turns the week colours into words and leaves everything else alone", () => {
+  it("turns the week colours into words and capitalises everything else", () => {
     expect(statusLabel("Grøn")).toBe("På sporet");
     expect(statusLabel("gul")).toBe("Lidt bagud");
     expect(statusLabel("Rød")).toBe("Bagud");
-    expect(statusLabel("planlagt")).toBe("planlagt");
+    expect(statusLabel("planlagt")).toBe("Planlagt");
+    expect(statusLabel("sprunget over")).toBe("Sprunget over");
+    expect(statusLabel("")).toBe("");
   });
 });

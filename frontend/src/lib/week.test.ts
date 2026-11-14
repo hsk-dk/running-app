@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  scoreNote,
   Activity,
   PlannedRun,
   dateKey,
@@ -163,5 +164,16 @@ describe("runValueLabel", () => {
   });
   it("shows the target as planned when nothing is matched", () => {
     expect(runValueLabel(run({ target_value: 30, actual_value: null }))).toBe("30 min planlagt");
+  });
+});
+
+describe("scoreNote", () => {
+  it("is kind in every case and says nothing when there is no plan", () => {
+    expect(scoreNote(0, 0, 0, 0)).toBe("");
+    expect(scoreNote(4, 0, 4, 0)).toBe("Hele ugen er klaret. Flot!");
+    expect(scoreNote(1, 1, 4, 2)).toBe("Godt i gang: 2 af 4 er med, og 2 venter stadig.");
+    expect(scoreNote(1, 0, 3, 0)).toBe("Du nåede 1 af 3 i denne uge.");
+    expect(scoreNote(0, 0, 3, 3)).toContain("lige begyndt");
+    expect(scoreNote(0, 0, 3, 0)).toContain("god start");
   });
 });

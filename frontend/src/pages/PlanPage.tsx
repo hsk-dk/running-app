@@ -1,4 +1,4 @@
-import { sessionTypeOptions } from "../lib/sessionTypes";
+import { sessionTypeOptions, sessionLabel } from "../lib/sessionTypes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api";
@@ -498,7 +498,7 @@ return (
               flexWrap: "wrap",
             }}
           >
-            <div style={{ fontWeight: 600, color: "var(--color-text)" }}>Planevaluering</div>
+            <div style={{ fontWeight: 600, color: "var(--color-text)" }}>Planlagte løb</div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {filters.map((f) => (
@@ -532,7 +532,7 @@ return (
                     Faktisk
                   </th>
                   <th style={{ padding: "9px 8px", borderBottom: "1px solid var(--color-border)" }}>
-                    Match
+                    Løbet
                   </th>
                   <th style={{ padding: "9px 8px", borderBottom: "1px solid var(--color-border)" }}>
                     Status
@@ -553,7 +553,7 @@ return (
                         {formatDate(p.planned_date)}
                       </td>
                       <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
-                        {p.session_type}
+                        {sessionLabel(p.session_type)}
                       </td>
                                       <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                         {p.display_target}
@@ -752,7 +752,7 @@ return (
                 Rediger træning
               </div>
               <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
-                {formatDate(editing.planned_date)} · {editing.session_type}
+                {formatDate(editing.planned_date)} · {sessionLabel(editing.session_type)}
               </div>
             </div>
 

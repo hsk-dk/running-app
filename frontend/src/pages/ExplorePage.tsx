@@ -2,6 +2,7 @@ import MilestoneCard from "../components/MilestoneCard";
 import RaceCard from "../components/RaceCard";
 import PaceLandscape from "../components/PaceLandscape";
 import RoutesCard from "../components/RoutesCard";
+import TrophyShelf from "../components/TrophyShelf";
 import YearRing from "../components/YearRing";
 import { Activity, PlannedRun } from "../lib/week";
 
@@ -16,6 +17,7 @@ export default function ExplorePage({ activities, plannedRuns }: { activities: A
       <RaceCard activities={activities} plannedRuns={plannedRuns} />
       <RoutesCard />
       <PaceLandscape />
+      <TrophyShelf activities={activities} />
       <YearRing activities={activities} />
       <MilestoneCard activities={activities} />
     </div>
