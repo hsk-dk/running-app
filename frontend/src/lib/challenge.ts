@@ -1,5 +1,7 @@
 export type ChallengePlan = { start_value: number; step: number; step_every_days: number; cap: number | null; rest_weekdays: number[]; start_date: string };
 export type ChallengeDay = { date: string; target: number | null; count: number | null; status: string };
+export type ChallengeProgress = { first_count: number; recent_best: number | null; weeks: number };
+export type ChallengeHistoryDay = { date: string; target: number | null; count: number | null };
 export type Challenge = {
   id: number;
   name: string;
@@ -13,6 +15,10 @@ export type Challenge = {
   done_week: number;
   planned_week: number;
   best_day: number;
+  new_best_today: boolean;
+  shared_today: boolean;
+  progress: ChallengeProgress | null;
+  history: ChallengeHistoryDay[];
   total: number;
   week: ChallengeDay[];
   plan: ChallengePlan;
@@ -48,4 +54,31 @@ export function dayMessage(c: Pick<Challenge, "today_target" | "today_count" | "
   if (c.today_done) return c.today_count !== null && c.today_target !== null && c.today_count > c.today_target ? "Du slog dagens mål. Flot!" : "Dagens mål er klaret. Flot!";
   if (c.today_count && c.today_target) return `Du er godt i gang: ${c.today_count} af ${c.today_target}.`;
   return c.streak_days > 0 ? `${c.streak_days} ${c.streak_days === 1 ? "dag" : "dage"} i træk. Hvad bliver det i dag?` : "Hvad bliver det i dag?";
+}
+
+const weeksText = (w: number) => `${w} ${w === 1 ? "uge" : "uger"}`;
+
+/** "fra 5 til 14 stk. på 4 uger", or "" when there is no progress to speak of (never a "you went down"). */
+export function rangeText(first: number | null | undefined, best: number | null | undefined, weeks: number | null | undefined, unit: string): string {
+  if (first == null || best == null || weeks == null || best <= first) return "";
+  return `fra ${first} til ${best} ${unitText(unit)} på ${weeksText(weeks)}`;
+}
+
+/** "Du er gået fra 5 til 14 stk. på 4 uger." */
+export function progressText(p: ChallengeProgress | null, unit: string): string {
+  const r = p ? rangeText(p.first_count, p.recent_best, p.weeks, unit) : "";
+  return r ? `Du er gået ${r}.` : "";
+}
+
+/** The same for a parent, in the third person. */
+export function parentProgressText(name: string, firstCount: number | null, recentBest: number | null, weeks: number | null, unit: string): string {
+  const r = rangeText(firstCount, recentBest, weeks, unit);
+  return r ? `${name}: ${r}` : "";
+}
+
+export type Brag = { user_id: number; name: string; is_me: boolean; challenge: string; unit: string; count: number; date: string };
+
+/** What the family reads when someone chose to show off: "Mads: 14 stk. Armbøjninger!" */
+export function bragText(b: Pick<Brag, "name" | "is_me" | "challenge" | "unit" | "count">): string {
+  return `${b.is_me ? "Du" : b.name}: ${b.count} ${unitText(b.unit)} ${b.challenge.charAt(0).toLowerCase()}${b.challenge.slice(1)}!`;
 }

@@ -112,3 +112,43 @@ def test_a_challenge_without_logs_has_a_best_day_of_zero_and_today_is_just_today
     s = c.summary(ch(), {}, d("2026-11-05"))
     assert s["best_day"] == 0 and s["total"] == 0 and s["streak_days"] == 0
     assert c.day_status(ch(), {}, d("2026-11-05"), d("2026-11-05")) == "today"
+
+
+def test_a_new_best_is_more_than_every_earlier_day_and_the_first_day_is_the_start():
+    p = ch()
+    logs = {d("2026-11-02"): 5, d("2026-11-03"): 7, d("2026-11-04"): 6, d("2026-11-05"): 7, d("2026-11-06"): 9}
+    assert c.best_days(p, logs) == [d("2026-11-03"), d("2026-11-06")]
+    assert c.best_days(p, {d("2026-11-02"): 5}) == []
+    assert c.best_days(p, {d("2026-10-01"): 50, d("2026-11-02"): 5, d("2026-11-03"): 6}) == [d("2026-11-03")]  # a day before the start is ignored
+
+
+def test_doubling_the_start_value_is_dated_by_the_first_day_that_reached_it():
+    p = ch()  # start 5
+    assert c.doubled_on(p, {d("2026-11-02"): 5, d("2026-11-04"): 9, d("2026-11-05"): 10, d("2026-11-06"): 12}) == d("2026-11-05")
+    assert c.doubled_on(p, {d("2026-11-02"): 9}) is None
+
+
+def test_improvement_milestones_say_it_in_words_and_only_the_latest_best_counts():
+    p = ch()
+    logs = {d("2026-11-02"): 5, d("2026-11-03"): 6, d("2026-11-04"): 7, d("2026-11-10"): 10}
+    got = {m["key"]: m for m in c.improvement_milestones(p, logs, d("2026-11-12"))}
+    assert got["challenge_1_best"]["date"] == d("2026-11-10") and got["challenge_1_best"]["label"] == "Ny bedste dag: Armbøjninger"
+    assert got["challenge_1_double"]["label"] == "Fordoblet startmålet: Armbøjninger"
+    assert c.improvement_milestones(p, logs, d("2026-12-31")) == []  # long ago: nothing to announce
+
+
+def test_progress_needs_three_days_and_says_from_where_to_where_and_how_long():
+    p = ch()
+    assert c.progress(p, {d("2026-11-02"): 5, d("2026-11-03"): 6}, d("2026-11-04")) is None
+    logs = {d("2026-11-02"): 5, d("2026-11-03"): 6, d("2026-11-04"): 7, d("2026-11-16"): 12}
+    assert c.progress(p, logs, d("2026-11-17")) == {"first_count": 5, "recent_best": 12, "weeks": 3}
+    assert c.progress(p, logs, d("2026-12-30"))["recent_best"] is None  # nothing in the last week
+    assert c.progress(p, {d("2026-11-02"): 0, d("2026-11-03"): 6, d("2026-11-04"): 7}, d("2026-11-05")) is None  # a zero is not a day
+
+
+def test_the_history_covers_eight_weeks_at_most_and_starts_at_the_start():
+    p = ch(start_date=d("2026-01-01"))
+    h = c.history(p, {d("2026-11-17"): 12}, d("2026-11-17"))
+    assert len(h) == 56 and h[0]["date"] == "2026-09-23" and h[-1] == {"date": "2026-11-17", "target": c.target_for(p, d("2026-11-17")), "count": 12}
+    short = c.history(ch(start_date=d("2026-11-15")), {}, d("2026-11-17"))
+    assert [x["date"] for x in short] == ["2026-11-15", "2026-11-16", "2026-11-17"]

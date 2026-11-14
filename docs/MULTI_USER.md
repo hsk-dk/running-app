@@ -105,8 +105,11 @@ Appen giver ikke lægelige råd. Tjek selv Garmins og Smashruns aldersgrænser o
 Hver person kan lave en daglig udfordring på Nu-siden: et navn, en enhed (stk., sekunder, minutter), et startmål, hvor meget det vokser og hvor tit (fx 5 armbøjninger, 1 mere hver 7. dag), evt. et loft og fridage. Dagens mål står øverst. Man trykker "Jeg klarede 5" eller skriver selv et tal. Ugen vises som runde mærker. En dag uden tal er bare en dag uden mærke, og der står aldrig noget nedslående.
 
 - Man kan skrive i dag og de seneste 14 dage, ikke fremtiden og ikke længere tilbage. Op til 10 udfordringer ad gangen. At lægge en udfordring væk gemmer tallene.
-- Udfordringer er altid dine egne. Ingen andre kan læse eller ændre dem.
-- Forældre ser for et barn kun "N af M dage denne uge" og antal dage i træk, aldrig tallene. Resten af familien ser kun en milepæl ("7 dage i træk: Armbøjninger"), hvis barnet deler.
+- Udfordringer er altid dine egne. Ingen andre kan læse eller ændre dem, medmindre du selv viser noget (se nedenfor).
+- **Din udvikling:** kortet siger "Du er gået fra 5 til 14 stk. på 4 uger", markerer "Ny bedste dag!" og har en lille graf over de seneste uger mod dagens mål. Aldrig en besked om, at det går ned.
+- **Familien ser forbedringen i ord uden tal:** "Mads: ny bedste dag: Armbøjninger", "fordoblet startmålet" og "7/14/30 dage i træk", og kun hvis han deler med familien.
+- **Prale:** barnet kan selv trykke "Vis familien, at jeg klarede 14". Så står tallet i "Nyt i familien" (i tre uger), også selv om barnet ellers ikke deler. Man kan kun vise en dag, hvor man klarede målet eller satte ny bedste, og kan tage det tilbage. Ændrer man tallet bagefter, tages det tilbage, og man må vise det igen.
+- **Forældre** ser for et barn dage klaret og dage i træk, og udviklingen med tal ("fra 5 til 14 stk. på 4 uger"), aldrig de enkelte dages tal.
 
 ## Opbygning og første gange (støtte, ikke konkurrence)
 

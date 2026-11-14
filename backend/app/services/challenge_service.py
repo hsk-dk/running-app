@@ -35,11 +35,17 @@ def _store(values: dict) -> dict:
     return {**values, "rest_weekdays": ",".join(str(x) for x in sorted(set(values["rest_weekdays"])))}
 
 
+def _summary(conn, row, today) -> dict:
+    s = domain.summary(_to_domain(row), _logs(conn, row["id"]), today)
+    s["shared_today"] = today.isoformat() in repo.brag_days(conn, row["id"])
+    return s
+
+
 def list_for(user_id: int) -> list[dict]:
     today = timeutil.today()
     conn = get_conn()
     try:
-        return [domain.summary(_to_domain(r), _logs(conn, r["id"]), today) for r in repo.list_active(conn, user_id)]
+        return [_summary(conn, r, today) for r in repo.list_active(conn, user_id)]
     finally:
         conn.close()
 
@@ -51,7 +57,7 @@ def _one(user_id: int, challenge_id: int) -> dict:
         row = repo.get(conn, user_id, challenge_id)
         if row is None or row["archived"]:
             raise NotFoundError("Udfordringen findes ikke")
-        return domain.summary(_to_domain(row), _logs(conn, challenge_id), today)
+        return _summary(conn, row, today)
     finally:
         conn.close()
 
@@ -103,10 +109,59 @@ def log(user_id: int, challenge_id: int, count: int, day: date | None) -> dict:
         if row is None or row["archived"]:
             raise NotFoundError("Udfordringen findes ikke")
         repo.set_log(conn, challenge_id, day.isoformat(), count)
+        repo.delete_brag(conn, challenge_id, day.isoformat())  # a changed number is not what was shown: share it again if you like
         conn.commit()
     finally:
         conn.close()
     return _one(user_id, challenge_id)
+
+
+def share(user_id: int, challenge_id: int, day: date | None) -> dict:
+    """Show the family a day's number. Only a day you actually did, and only a goal you reached or a new best."""
+    today = timeutil.today()
+    day = day or today
+    if day > today or day < today - timedelta(days=LOG_WINDOW_DAYS):
+        raise ConflictError("Du kan kun dele i dag og de seneste dage")
+    conn = get_conn()
+    try:
+        row = repo.get(conn, user_id, challenge_id)
+        if row is None or row["archived"]:
+            raise NotFoundError("Udfordringen findes ikke")
+        ch, logs = _to_domain(row), _logs(conn, challenge_id)
+        count = logs.get(day, 0)
+        target = domain.target_for(ch, day)
+        if count <= 0 or not ((target is not None and count >= target) or day in domain.best_days(ch, logs)):
+            raise ConflictError("Du kan dele en dag, hvor du klarede målet eller satte ny rekord")
+        repo.add_brag(conn, challenge_id, day.isoformat())
+        conn.commit()
+    finally:
+        conn.close()
+    return _one(user_id, challenge_id)
+
+
+def unshare(user_id: int, challenge_id: int, day: date | None) -> dict:
+    day = day or timeutil.today()
+    conn = get_conn()
+    try:
+        row = repo.get(conn, user_id, challenge_id)
+        if row is None or row["archived"]:
+            raise NotFoundError("Udfordringen findes ikke")
+        repo.delete_brag(conn, challenge_id, day.isoformat())
+        conn.commit()
+    finally:
+        conn.close()
+    return _one(user_id, challenge_id)
+
+
+def recent_brags() -> list[dict]:
+    """What people chose to show the family, with the number, from the last three weeks."""
+    since = (timeutil.today() - timedelta(days=21)).isoformat()
+    conn = get_conn()
+    try:
+        rows = repo.recent_brags(conn, since)
+    finally:
+        conn.close()
+    return [{"user_id": r["user_id"], "challenge": r["name"], "unit": r["unit"], "count": r["count"], "date": r["day"]} for r in rows]
 
 
 def for_family(user_id: int) -> dict:
@@ -120,8 +175,13 @@ def for_family(user_id: int) -> dict:
             ch = _to_domain(r)
             logs = _logs(conn, r["id"])
             s = domain.summary(ch, logs, today)
-            items.append({"name": s["name"], "done_week": s["done_week"], "planned_week": s["planned_week"], "streak_days": s["streak_days"]})
+            p = s["progress"]
+            items.append({
+                "name": s["name"], "unit": s["unit"], "done_week": s["done_week"], "planned_week": s["planned_week"], "streak_days": s["streak_days"],
+                "first_count": p["first_count"] if p else None, "recent_best": p["recent_best"] if p else None, "weeks": p["weeks"] if p else None,
+            })
             milestones += [m for m in domain.milestone_dates(ch, logs, today) if today - m["date"] <= timedelta(days=21)]
+            milestones += domain.improvement_milestones(ch, logs, today)
     finally:
         conn.close()
     return {"items": items, "milestones": [{**m, "date": m["date"].isoformat()} for m in milestones]}

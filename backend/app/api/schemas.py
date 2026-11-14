@@ -348,6 +348,10 @@ class ChallengeCreate(ChallengePlan):
     start_date: date | None = None
 
 
+class ChallengeShare(BaseModel):
+    day: date | None = None
+
+
 class ChallengeLog(BaseModel):
     count: int = Field(ge=0, le=100000)
     day: date | None = None  # today when left out
@@ -369,6 +373,18 @@ class ChallengePlanOut(BaseModel):
     start_date: str
 
 
+class ChallengeHistoryDay(BaseModel):
+    date: str
+    target: int | None
+    count: int | None
+
+
+class ChallengeProgress(BaseModel):
+    first_count: int
+    recent_best: int | None
+    weeks: int
+
+
 class ChallengeOut(BaseModel):
     id: int
     name: str
@@ -382,6 +398,10 @@ class ChallengeOut(BaseModel):
     done_week: int
     planned_week: int
     best_day: int
+    new_best_today: bool = False
+    shared_today: bool = False
+    progress: ChallengeProgress | None = None
+    history: list[ChallengeHistoryDay] = Field(default_factory=list)
     total: int
     week: list[ChallengeDayOut]
     plan: ChallengePlanOut
@@ -389,9 +409,13 @@ class ChallengeOut(BaseModel):
 
 class GuardianChallengeOut(BaseModel):
     name: str
+    unit: str = "stk"
     done_week: int
     planned_week: int
     streak_days: int
+    first_count: int | None = None
+    recent_best: int | None = None
+    weeks: int | None = None
 
 
 class GuardianOut(BaseModel):
@@ -433,8 +457,21 @@ class FamilyMemberOut(BaseModel):
     guardian: GuardianOut | None = None
 
 
+class BragOut(BaseModel):
+    """Something a person chose to show the family, with the number."""
+
+    user_id: int
+    name: str
+    is_me: bool
+    challenge: str
+    unit: str
+    count: int
+    date: str
+
+
 class FamilyOut(BaseModel):
     members: list[FamilyMemberOut]
     total_km_this_month: float
     sharing_enabled: bool
     goal: GoalOut
+    brags: list[BragOut] = Field(default_factory=list)

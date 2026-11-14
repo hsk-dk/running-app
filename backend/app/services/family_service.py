@@ -173,11 +173,14 @@ def list_family(viewer: CurrentUser) -> dict:
     members = [_member(viewer, u) for u in users]
     members.sort(key=lambda m: (not m["is_me"], m["name"].lower()))
     goal = _goal(users)
+    names = {u.id: u.display_name for u in users}
+    brags = [{**b, "name": names.get(b["user_id"], "?"), "is_me": b["user_id"] == viewer.id} for b in challenge_service.recent_brags() if b["user_id"] in names]
     return {
         "members": members,
         "total_km_this_month": goal["km"],
         "sharing_enabled": settings.FAMILY_SHARING_ENABLED,
         "goal": goal,
+        "brags": brags,
     }
 
 

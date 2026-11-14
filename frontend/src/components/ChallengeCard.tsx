@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { Challenge, WEEKDAY_NAMES, WEEKDAY_SHORT, dayMessage, planText, unitText } from "../lib/challenge";
+import { useWidth } from "../lib/useWidth";
+import { Challenge, WEEKDAY_NAMES, WEEKDAY_SHORT, dayMessage, planText, progressText, unitText } from "../lib/challenge";
 
 const field: React.CSSProperties = { minHeight: 44, padding: "0 10px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", background: "var(--color-surface)" };
 
@@ -40,11 +41,60 @@ function WeekDots({ c }: { c: Challenge }) {
   );
 }
 
+/** The last weeks as bars (what you did) against a line (the target): you can see yourself getting stronger. */
+function History({ c }: { c: Challenge }) {
+  const [box, width] = useWidth<HTMLDivElement>(320);
+  const days = c.history;
+  const W = Math.max(240, width);
+  const H = 130;
+  const PAD = { l: 28, r: 6, t: 10, b: 20 };
+  const max = Math.max(5, ...days.map((d) => Math.max(d.count ?? 0, d.target ?? 0)));
+  const top = Math.ceil(max / 5) * 5;
+  const step = (W - PAD.l - PAD.r) / Math.max(days.length, 1);
+  const bw = Math.max(2, Math.min(14, step * 0.7));
+  const y = (v: number) => PAD.t + (1 - v / top) * (H - PAD.t - PAD.b);
+  const line = days.filter((d) => d.target !== null).map((d, i) => `${i === 0 ? "M" : "L"} ${PAD.l + days.indexOf(d) * step + step / 2} ${y(d.target!)}`).join(" ");
+  return (
+    <div ref={box}>
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Dine tal de seneste uger: ${days.filter((d) => d.count).map((d) => `${d.date.slice(8, 10)}/${d.date.slice(5, 7)} ${d.count}`).join(", ")}`} style={{ display: "block", width: "100%", height: "auto" }}>
+      {[0, top / 2, top].map((v) => (
+        <g key={v}>
+          <line x1={PAD.l} x2={W - PAD.r} y1={y(v)} y2={y(v)} stroke="var(--color-border-control)" strokeWidth={0.6} />
+          <text x={PAD.l - 5} y={y(v) + 4} textAnchor="end" fontSize={11} fill="var(--color-text-muted)">{Math.round(v)}</text>
+        </g>
+      ))}
+      {days.map((d, i) =>
+        d.count ? (
+          <rect key={d.date} x={PAD.l + i * step + (step - bw) / 2} y={y(d.count)} width={bw} height={H - PAD.b - y(d.count)} rx={2} fill={d.target !== null && d.count >= d.target ? "var(--data-1)" : "color-mix(in srgb, var(--data-1) 40%, white)"}>
+            <title>{`${d.date.slice(8, 10)}/${d.date.slice(5, 7)}: ${d.count}`}</title>
+          </rect>
+        ) : null,
+      )}
+      {line && <path d={line} fill="none" stroke="var(--color-text-muted)" strokeWidth={1.5} strokeDasharray="4 3" />}
+      <text x={W - PAD.r} y={H - 4} textAnchor="end" fontSize={11} fill="var(--color-text-muted)">stiplet linje: dagens mål</text>
+    </svg>
+    </div>
+  );
+}
+
 function One({ c, onChanged, onEdit }: { c: Challenge; onChanged: (c: Challenge) => void; onEdit: () => void }) {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [error, setError] = useState("");
   const u = unitText(c.unit);
+
+  async function run(action: () => Promise<Challenge>) {
+    setBusy(true);
+    setError("");
+    try {
+      onChanged(await action());
+    } catch (e: any) {
+      setError(e?.message || "Det kunne ikke gemmes.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function save(count: number) {
     setBusy(true);
@@ -78,6 +128,9 @@ function One({ c, onChanged, onEdit }: { c: Challenge; onChanged: (c: Challenge)
 
       <WeekDots c={c} />
 
+      {c.new_best_today && <p style={{ margin: 0, fontWeight: 700 }} role="status">🎉 Ny bedste dag!</p>}
+      {progressText(c.progress, c.unit) && <p style={{ margin: 0, fontWeight: 600 }}>{progressText(c.progress, c.unit)}</p>}
+
       {c.today_target !== null && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           {!c.today_done && (
@@ -109,6 +162,26 @@ function One({ c, onChanged, onEdit }: { c: Challenge; onChanged: (c: Challenge)
         {c.best_day > 0 ? ` Din bedste dag: ${c.best_day} ${u}` : ""}
         {c.streak_days > 1 ? ` · ${c.streak_days} dage i træk` : ""}
       </p>
+      {(c.today_done || c.new_best_today) && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {c.shared_today ? (
+            <>
+              <span className="u-card__meta">Familien kan se, at du klarede {c.today_count} i dag.</span>
+              <button type="button" className="u-btn u-btn--secondary" disabled={busy} onClick={() => run(() => api.unshareChallenge(c.id))}>Tag tilbage</button>
+            </>
+          ) : (
+            <button type="button" className="u-btn u-btn--secondary" disabled={busy} onClick={() => run(() => api.shareChallenge(c.id))}>Vis familien, at jeg klarede {c.today_count}</button>
+          )}
+        </div>
+      )}
+      {c.history.some((d) => d.count) && (
+        <div style={{ display: "grid", gap: 6 }}>
+          <button type="button" className="u-btn u-btn--secondary" style={{ justifySelf: "start" }} aria-expanded={showHistory} onClick={() => setShowHistory((v) => !v)}>
+            {showHistory ? "Skjul min udvikling" : "Se min udvikling"}
+          </button>
+          {showHistory && <History c={c} />}
+        </div>
+      )}
       <div>
         <button type="button" className="u-btn u-btn--secondary" onClick={onEdit}>Ret planen</button>
       </div>

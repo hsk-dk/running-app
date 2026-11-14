@@ -7,7 +7,7 @@ export function weekText(week: { done: number; total: number } | null, runsThisW
   return `${week.done} af ${week.total}`;
 }
 
-export type GuardianChallenge = { name: string; done_week: number; planned_week: number; streak_days: number };
+export type GuardianChallenge = { name: string; unit?: string; done_week: number; planned_week: number; streak_days: number; first_count?: number | null; recent_best?: number | null; weeks?: number | null };
 export type Guardian = { runs_week: number; active_days_week: number; minutes_week: number; runs_month: number; minutes_month: number; last_run_date: string | null; streak_weeks: number; challenges?: GuardianChallenge[] };
 
 const dayDiff = (from: string, today: string) => Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);

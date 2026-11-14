@@ -442,6 +442,21 @@ def _migration_14_challenges(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_challenges_user ON challenges(user_id, archived)")
 
 
+def _migration_15_challenge_brags(conn: sqlite3.Connection) -> None:
+    """A day the person chose to show the family, with the number. One row per challenge and day."""
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS challenge_brags (
+            challenge_id INTEGER NOT NULL,
+            day TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (challenge_id, day),
+            FOREIGN KEY (challenge_id) REFERENCES challenges(id) ON DELETE CASCADE
+        )
+        """
+    )
+
+
 MIGRATIONS = [
     _migration_1_add_missing_columns,
     _migration_2_add_indexes,
@@ -457,6 +472,7 @@ MIGRATIONS = [
     _migration_12_drop_strava,
     _migration_13_children,
     _migration_14_challenges,
+    _migration_15_challenge_brags,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

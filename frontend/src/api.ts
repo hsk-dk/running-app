@@ -39,6 +39,9 @@ export const api = {
   updateChallenge: (id: number, body: object) =>
     getJson(`/challenges/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
   deleteChallenge: (id: number) => getJson(`/challenges/${id}`, { method: "DELETE" }),
+  shareChallenge: (id: number) =>
+    getJson(`/challenges/${id}/share`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }),
+  unshareChallenge: (id: number) => getJson(`/challenges/${id}/share`, { method: "DELETE" }),
   logChallenge: (id: number, count: number) =>
     getJson(`/challenges/${id}/log`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ count }) }),
   getActivity: (id: number) => getJson(`/activities/${id}`),

@@ -48,3 +48,25 @@ def set_log(conn: sqlite3.Connection, challenge_id: int, day: str, count: int) -
         "ON CONFLICT(challenge_id, day) DO UPDATE SET count = excluded.count",
         (challenge_id, day, count),
     )
+
+
+def add_brag(conn: sqlite3.Connection, challenge_id: int, day: str) -> None:
+    conn.execute("INSERT OR IGNORE INTO challenge_brags (challenge_id, day) VALUES (?, ?)", (challenge_id, day))
+
+
+def delete_brag(conn: sqlite3.Connection, challenge_id: int, day: str) -> None:
+    conn.execute("DELETE FROM challenge_brags WHERE challenge_id = ? AND day = ?", (challenge_id, day))
+
+
+def brag_days(conn: sqlite3.Connection, challenge_id: int) -> list[str]:
+    return [r["day"] for r in conn.execute("SELECT day FROM challenge_brags WHERE challenge_id = ?", (challenge_id,)).fetchall()]
+
+
+def recent_brags(conn: sqlite3.Connection, since: str) -> list[sqlite3.Row]:
+    """Everything people chose to show, with the count of that day. Archived challenges and cleared days are left out."""
+    return conn.execute(
+        "SELECT c.user_id AS user_id, c.name AS name, c.unit AS unit, b.day AS day, l.count AS count "
+        "FROM challenge_brags b JOIN challenges c ON c.id = b.challenge_id JOIN challenge_logs l ON l.challenge_id = b.challenge_id AND l.day = b.day "
+        "WHERE c.archived = 0 AND b.day >= ? AND l.count > 0 ORDER BY b.day DESC, c.id",
+        (since,),
+    ).fetchall()

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import ActivityDetail from "../components/ActivityDetail";
 import { Guardian, guardianNote, weekText } from "../lib/family";
+import { Brag, bragText, rangeText } from "../lib/challenge";
 import { useMe } from "../lib/meContext";
 import FamilySettings from "../components/FamilySettings";
 import { levelLabel } from "../lib/sharing";
@@ -23,7 +24,7 @@ type Member = {
   guardian: Guardian | null;
 };
 type Goal = { target_km: number | null; km: number; month: string };
-type Family = { members: Member[]; total_km_this_month: number; sharing_enabled: boolean; goal: Goal };
+type Family = { members: Member[]; total_km_this_month: number; sharing_enabled: boolean; goal: Goal; brags: Brag[] };
 
 /** Monday of this week as YYYY-MM-DD, local time. */
 function weekStartKey(now = new Date()): string {
@@ -67,6 +68,7 @@ function GuardianSummary({ g }: { g: Guardian }) {
           {g.challenges.map((c) => (
             <li key={c.name} className="u-card__meta">
               {c.name}: {c.done_week} af {c.planned_week} {c.planned_week === 1 ? "dag" : "dage"} denne uge{c.streak_days > 1 ? `, ${c.streak_days} dage i træk` : ""}
+              {rangeText(c.first_count, c.recent_best, c.weeks, c.unit ?? "stk") ? ` · ${rangeText(c.first_count, c.recent_best, c.weeks, c.unit ?? "stk")}` : ""}
             </li>
           ))}
         </ul>
@@ -197,24 +199,27 @@ export default function FamilyPage() {
       )}
 
       {(() => {
-        const items = family.members
-          .flatMap((m) => (m.new_milestones ?? []).map((x) => ({ ...x, name: m.is_me ? "Du" : m.name })))
-          .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.label < b.label ? -1 : 1));
+        type Item = { key: string; icon: string; text: string; date: string; bold?: boolean };
+        const items: Item[] = [
+          ...family.members.flatMap((m) =>
+            (m.new_milestones ?? []).map((x) => ({ key: `${m.user_id}-${x.key}`, icon: "🎉", text: `${m.is_me ? "Du" : m.name}: ${x.label.charAt(0).toLowerCase() + x.label.slice(1)}`, date: x.date })),
+          ),
+          ...(family.brags ?? []).map((b) => ({ key: `brag-${b.user_id}-${b.challenge}-${b.date}`, icon: "🏆", text: bragText(b), date: b.date, bold: true })),
+        ].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.text < b.text ? -1 : 1));
         if (items.length === 0) return null;
         return (
           <section className="u-card" aria-labelledby="news-title" style={{ display: "grid", gap: 10 }}>
             <h2 id="news-title" className="u-h2">Nyt i familien</h2>
             <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
               {items.map((x) => (
-                <li key={`${x.name}-${x.key}`} style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
-                  <span aria-hidden>🎉</span>
-                  <span style={{ fontWeight: 600 }}>{x.name}:</span>
-                  <span>{x.label.charAt(0).toLowerCase() + x.label.slice(1)}</span>
+                <li key={x.key} style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
+                  <span aria-hidden>{x.icon}</span>
+                  <span style={{ fontWeight: x.bold ? 700 : 400 }}>{x.text}</span>
                   <span className="u-card__meta">{new Date(x.date).toLocaleDateString("da-DK", { day: "numeric", month: "short" })}</span>
                 </li>
               ))}
             </ul>
-            <p className="u-card__meta" style={{ margin: 0 }}>Kun milepæle, ingen kilometer og ingen rangliste.</p>
+            <p className="u-card__meta" style={{ margin: 0 }}>Milepæle uden tal, og de tal, nogen selv har valgt at vise. Ingen rangliste.</p>
           </section>
         );
       })()}
