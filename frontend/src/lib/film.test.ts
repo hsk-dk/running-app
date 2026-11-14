@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LINE_STEP_MS, STATS_REST_MS, countUp, lineOpacity, statsMs, summarise } from "./film";
+import { LINE_STEP_MS, STATS_REST_MS, countUp, lineOpacity, shareStats, statsMs, summarise } from "./film";
 
 const run = (date: string | null, distance_km: number, duration_min = distance_km * 6) => ({ date, distance_km, duration_min });
 const year = Array.from({ length: 40 }, (_, i) => run(`2026-${String(1 + (i % 12)).padStart(2, "0")}-${String(1 + Math.floor(i / 12) * 7).padStart(2, "0")}`, 10 + (i % 5)));
@@ -54,5 +54,22 @@ describe("countUp", () => {
     expect(countUp(-5, 1000, 500)).toBe(0);
     expect(countUp(500, 1000, 500)).toBeGreaterThan(250); // eased: faster at first
     expect(countUp(10, 0, 500)).toBe(500);
+  });
+});
+
+describe("shareStats", () => {
+  it("is empty without runs", () => {
+    expect(shareStats([])).toEqual([]);
+    expect(shareStats([run("2026-01-01", 0)])).toEqual([]);
+  });
+  it("gives runs, the longest run and the marathons once there are enough kilometres", () => {
+    const s = shareStats(year);
+    expect(s.map((x) => x.label)).toEqual(["løb", "længste løb", "maratonløb"]);
+    expect(s[0].value).toBe("40");
+    expect(s[1].value).toBe("14,0 km");
+  });
+  it("gives hours instead of marathons for a short stretch, and nothing about hours without durations", () => {
+    expect(shareStats([run("2026-01-01", 10, 60), run("2026-01-02", 5, 30)]).map((x) => [x.value, x.label])).toEqual([["2", "løb"], ["10,0 km", "længste løb"], ["1,5", "timer"]]);
+    expect(shareStats([run("2026-01-01", 10, 0)]).map((x) => x.label)).toEqual(["løb", "længste løb"]);
   });
 });

@@ -48,3 +48,18 @@ export const statsMs = (s: FilmSummary): number => s.lines.length * LINE_STEP_MS
 export function lineOpacity(i: number, ms: number): number {
   return Math.min(1, Math.max(0, (ms - i * LINE_STEP_MS) / 500));
 }
+
+export type ShareStat = { value: string; label: string };
+
+/** The three numbers on the picture you can share. No places, no routes, no heart rate. */
+export function shareStats(all: FilmRun[]): ShareStat[] {
+  const runs = all.filter((r) => r.distance_km > 0);
+  if (runs.length === 0) return [];
+  const km = runs.reduce((s, r) => s + r.distance_km, 0);
+  const hours = runs.reduce((s, r) => s + r.duration_min, 0) / 60;
+  const longest = Math.max(...runs.map((r) => r.distance_km));
+  const out: ShareStat[] = [{ value: String(runs.length), label: "løb" }, { value: `${n1(longest)} km`, label: "længste løb" }];
+  if (km >= MARATHON_KM) out.push({ value: n1(km / MARATHON_KM), label: "maratonløb" });
+  else if (hours > 0) out.push({ value: n1(hours), label: "timer" });
+  return out;
+}

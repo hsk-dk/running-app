@@ -4,10 +4,13 @@ import { clusterRoutes } from "../lib/areas";
 import { PosterRoute } from "../lib/poster";
 import { summarise } from "../lib/film";
 import { Indoor } from "../lib/flight";
+import { addDays, dateKey } from "../lib/week";
+import { buildDays } from "../lib/year";
 import { ALL, LAST_YEAR, defaultFilmPeriod, inPeriod, periodLabel, yearsOf } from "../lib/period";
 import AreaPosters from "./AreaPosters";
 import ContactSheet from "./ContactSheet";
 import FlightMap from "./FlightMap";
+import ShareCard from "./ShareCard";
 import YearFilm from "./YearFilm";
 import YearPlayback from "./YearPlayback";
 
@@ -45,6 +48,14 @@ export default function RoutesCard({ today = new Date() }: { today?: Date }) {
     [indoorShown],
   );
   const summary = useMemo(() => summarise([...shown, ...indoorShown]), [shown, indoorShown]);
+  // the ring on the picture to share: every day of the chosen year, or the last 12 months
+  const shareDays = useMemo(() => {
+    if (period === ALL) return [];
+    const year = /^\d{4}$/.test(period) ? Number(period) : null;
+    const end = year && year < today.getFullYear() ? new Date(year, 11, 31) : today;
+    const days = buildDays([...shown, ...indoorShown].filter((r) => r.date) as any, end);
+    return days.filter((d) => inPeriod(d.date, period, today) || (year === null && d.date <= dateKey(end) && d.date >= dateKey(addDays(end, -364))));
+  }, [shown, indoorShown, period, today]);
   const areas = useMemo(() => clusterRoutes(shown), [shown]);
   const area = areas.find((a) => a.key === areaKey) ?? areas[0] ?? null;
   const totalKm = shown.reduce((s, r) => s + r.distance_km, 0);
@@ -113,7 +124,12 @@ export default function RoutesCard({ today = new Date() }: { today?: Date }) {
           )}
 
           {view === "flight" && (shown.length > 0 ? <FlightMap areas={areas} indoor={indoor} /> : <p className="u-card__meta">Ingen af løbene i perioden har en GPS-rute, så der er ikke noget at flyve over. Se filmen i stedet.</p>)}
-          {view === "film" && <YearFilm key={period} title={periodLabel(period)} areas={areas} indoor={indoor} summary={summary} />}
+          {view === "film" && (
+            <>
+              <YearFilm key={period} title={periodLabel(period)} areas={areas} indoor={indoor} summary={summary} />
+              {period !== ALL && <ShareCard title={periodLabel(period)} runs={[...shown, ...indoorShown]} days={shareDays} />}
+            </>
+          )}
           {view === "contact" && <ContactSheet routes={shown} replayKey={replayKey} />}
           {view === "areas" && <AreaPosters areas={areas} onPlay={(key) => { setAreaKey(key); setView("play"); }} />}
           {view === "play" && area && <YearPlayback area={area} />}
