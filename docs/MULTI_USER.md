@@ -87,6 +87,13 @@ Hver person vælger under **Mere → Mig**:
 
 Admin har ingen ekstra indsigt i andres løb. `FAMILY_SHARING_ENABLED=false` slår al deling fra for alle.
 
+## Anden træning (roning, gang, cykling)
+
+Garmin-synkroniseringen gemmer også det, der ikke er løb: gang, cykling, roning, padling, svømning og styrketræning. De gemmes under deres gruppe som sportstype, så alle løbetal, rekorder, planmatch og ruter er uændrede. De vises som små prikker på årsringen og på delekortet, og de nævnes i årsfilmen og under Belastning. `GET /api/activities/other` giver kun hvad og hvornår, aldrig puls eller rute.
+
+- Første synkronisering efter opdateringen læser hele historikken igen, én gang, for at hente det ældre (markeret med `garmin_others_read`).
+- Løb under 1 km (opvarmning eller et afbrudt løb) tæller ikke i rekorder, uger i træk, belastning eller filmen.
+
 ## Strava er fjernet
 
 Stravas API er lukket for appen (kræver abonnement), så Strava-forbindelsen, webhooken og synkroniseringen er fjernet.

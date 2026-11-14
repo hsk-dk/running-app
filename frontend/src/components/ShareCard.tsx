@@ -35,7 +35,7 @@ export function drawShareCard(ctx: CanvasRenderingContext2D, title: string, tota
   ctx.fillStyle = "rgba(255,255,255,0.8)";
   ctx.font = `600 30px ${FONT}`;
   spaced("0.3em");
-  ctx.fillText("DIT LØBEÅR", C, 110);
+  ctx.fillText("DIT TRÆNINGSÅR", C, 110);
   ctx.font = `400 34px ${FONT}`;
   spaced("0.12em");
   ctx.fillStyle = "rgba(255,255,255,0.62)";
@@ -124,7 +124,7 @@ export default function ShareCard({ title, runs, days, others = [] }: Props) {
       return;
     }
     try {
-      const how: Delivery = await deliverImage(blob, `mit-loebeaar-${fileSafe(title)}.png`, `Mit løbeår: ${title}`);
+      const how: Delivery = await deliverImage(blob, `mit-traeningsaar-${fileSafe(title)}.png`, `Mit træningsår: ${title}`);
       setMessage(how === "shared" ? "Delt." : how === "downloaded" ? "Billedet er gemt som en fil." : "");
     } catch (e: any) {
       setMessage(e?.message || "Billedet kunne ikke gemmes.");

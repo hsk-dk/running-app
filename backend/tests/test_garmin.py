@@ -507,3 +507,18 @@ def test_the_other_endpoint_validates_its_limit_and_skips_runs_from_strava_years
     assert [(x["id"], x["kind"]) for x in got] == [(4, "Other"), (3, "Strength"), (1, "Ride")]
     assert len(proxy.get("/api/activities/other?limit=1", headers=ADMIN).json()) == 1
     assert proxy.get("/api/activities/other?limit=0", headers=ADMIN).status_code == 422
+
+
+def test_a_user_synced_before_other_activities_existed_gets_one_full_read_and_then_incremental_ones(gc):
+    import app.db as db_module
+    client, state, _ = gc
+    connect(client)
+    conn = db_module.get_conn()  # as if the last sync had been done by the older version: no marker
+    conn.execute("DELETE FROM user_state WHERE key = 'garmin_others_read'")
+    conn.commit(); conn.close()
+    state["calls"].clear()
+    client.post("/api/admin/ingest", headers=ADMIN)
+    assert state["calls"][0]["start_date"] is None  # the whole history, once
+    state["calls"].clear()
+    client.post("/api/admin/ingest", headers=ADMIN)
+    assert state["calls"][0]["start_date"] is not None  # and from then on only what is new

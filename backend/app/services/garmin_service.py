@@ -109,8 +109,11 @@ def ingest_recent(user_id: int, full: bool = False) -> dict:
     conn = get_conn()
     try:
         last = user_state.get(conn, user_id, "garmin_last_sync_date")
+        done = user_state.get(conn, user_id, "garmin_others_read")
     finally:
         conn.close()
+    if not (done and done["value"]):
+        full = True  # once: older syncs skipped walks, rides and rowing, so read the whole history again to pick them up
     start_date = None
     if not full and last and last["value"]:
         start_date = (date.fromisoformat(last["value"]) - timedelta(days=OVERLAP_DAYS)).isoformat()
@@ -182,6 +185,7 @@ def ingest_recent(user_id: int, full: bool = False) -> dict:
     conn = get_conn()
     try:
         user_state.upsert(conn, user_id, "garmin_last_sync_date", today.isoformat())
+        user_state.upsert(conn, user_id, "garmin_others_read", "1")
         stamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         user_state.upsert(conn, user_id, "garmin_last_sync_at", stamp)
         user_state.upsert(conn, user_id, "last_sync_at", stamp)
