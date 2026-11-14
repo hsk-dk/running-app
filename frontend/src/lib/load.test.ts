@@ -56,6 +56,14 @@ describe("loadOver: reading the trend", () => {
   });
 });
 
+describe("loadOver: short runs", () => {
+  it("are not part of the week, the days in a row or the rest days", () => {
+    const l = loadOver([run("2026-11-13", 0.5), run("2026-11-12", 0.6)], TODAY);
+    expect(l.weeks[11].km).toBe(0);
+    expect(l.daysInARow).toBe(0);
+  });
+});
+
 describe("loadOver: rest and rhythm", () => {
   it("counts days since the last run", () => {
     expect(loadOver([run("2026-11-13", 5)], TODAY).restDays).toBe(0);

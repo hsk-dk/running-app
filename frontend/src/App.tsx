@@ -1,3 +1,4 @@
+import { APP_NAME } from "./lib/brand";
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import OverviewPage from "./pages/OverviewPage";
@@ -198,7 +199,7 @@ export default function App() {
 
       <header className="u-header">
         <div className="u-header__inner">
-          <div className="u-header__brand">Running</div>
+          <div className="u-header__brand">{APP_NAME}</div>
 
           <nav className="u-header__nav" aria-label="Hovednavigation">
             <NavItem

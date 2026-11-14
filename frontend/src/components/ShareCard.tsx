@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { APP_NAME } from "../lib/brand";
+import { otherDays } from "../lib/other";
 import { FilmRun, ShareStat, shareStats, summarise } from "../lib/film";
 import { MONTHS, buildRing, monthMarks } from "../lib/ring";
 import { Delivery, deliverImage, fileSafe } from "../lib/shareImage";
@@ -12,12 +14,12 @@ const INNER = 160;
 const OUTER = 385;
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
-type Props = { title: string; runs: FilmRun[]; days: DayCell[] };
+type Props = { title: string; runs: FilmRun[]; days: DayCell[]; others?: { date: string | null }[] };
 
 const km0 = (v: number) => Math.round(v).toLocaleString("da-DK");
 
 /** The picture: the ring of days, the total and three numbers. No places, no routes, no heart rate. */
-export function drawShareCard(ctx: CanvasRenderingContext2D, title: string, totalKm: number, stats: ShareStat[], days: DayCell[]) {
+export function drawShareCard(ctx: CanvasRenderingContext2D, title: string, totalKm: number, stats: ShareStat[], days: DayCell[], otherSet: Set<string> = new Set()) {
   const bg = ctx.createLinearGradient(0, 0, W, H);
   bg.addColorStop(0, "#3A5F90");
   bg.addColorStop(1, "#22405f");
@@ -57,6 +59,14 @@ export function drawShareCard(ctx: CanvasRenderingContext2D, title: string, tota
     ctx.lineTo(s.x1, s.y1 - (C - CY));
     ctx.stroke();
   }
+  // days with other training (rowing, walks, rides) as small dots on the inner ring, so a winter of rowing is not a blank
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  for (const s of spokes) {
+    if (!otherSet.has(s.date)) continue;
+    ctx.beginPath();
+    ctx.arc(C + Math.sin(s.angle) * (INNER - 12), CY - Math.cos(s.angle) * (INNER - 12), 4.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.fillStyle = "rgba(255,255,255,0.55)";
   ctx.font = `500 26px ${FONT}`;
   for (const m of monthMarks(spokes)) {
@@ -84,12 +94,12 @@ export function drawShareCard(ctx: CanvasRenderingContext2D, title: string, tota
   ctx.fillStyle = "rgba(255,255,255,0.4)";
   ctx.font = `500 26px ${FONT}`;
   spaced("0.3em");
-  ctx.fillText("RUNNING", C, 1312);
+  ctx.fillText(APP_NAME.toUpperCase(), C, 1312);
   spaced("0px");
 }
 
 /** A picture of your year to keep or share. It contains no places, no routes and no heart rate, and is made in the browser. */
-export default function ShareCard({ title, runs, days }: Props) {
+export default function ShareCard({ title, runs, days, others = [] }: Props) {
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const [message, setMessage] = useState<string>("");
   const stats = useMemo(() => shareStats(runs), [runs]);
@@ -99,8 +109,8 @@ export default function ShareCard({ title, runs, days }: Props) {
     const el = canvas.current;
     const ctx = el?.getContext("2d");
     if (!el || !ctx || stats.length === 0) return;
-    drawShareCard(ctx, title, totalKm, stats, days);
-  }, [title, totalKm, stats, days]);
+    drawShareCard(ctx, title, totalKm, stats, days, otherDays(others));
+  }, [title, totalKm, stats, days, others]);
 
   if (stats.length === 0) return null;
 
@@ -133,7 +143,7 @@ export default function ShareCard({ title, runs, days }: Props) {
       />
       <button type="button" className="u-btn u-btn--primary" onClick={share}>Del eller gem som billede</button>
       <p className="u-card__meta" role="status">
-        {message || "Billedet viser kun tal og dine løbedage. Ingen steder, ingen ruter og ingen puls."}
+        {message || "Billedet viser kun tal og dine træningsdage. Ingen steder, ingen ruter og ingen puls."}
       </p>
     </section>
   );

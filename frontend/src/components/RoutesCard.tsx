@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { clusterRoutes } from "../lib/areas";
 import { PosterRoute } from "../lib/poster";
-import { summarise } from "../lib/film";
+import { summarise, withOthers } from "../lib/film";
+import { Other } from "../lib/other";
 import { Indoor } from "../lib/flight";
 import { addDays, dateKey } from "../lib/week";
 import { buildDays } from "../lib/year";
@@ -24,7 +25,7 @@ const VIEWS: { key: View; label: string }[] = [
 ];
 
 /** Your routes: a flight over the places you have run, a sheet with every run on its own tile, one map per place, and a playback. */
-export default function RoutesCard({ today = new Date() }: { today?: Date }) {
+export default function RoutesCard({ others = [], today = new Date() }: { others?: Other[]; today?: Date }) {
   const [routes, setRoutes] = useState<PosterRoute[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>("flight");
@@ -47,7 +48,8 @@ export default function RoutesCard({ today = new Date() }: { today?: Date }) {
     () => (indoorShown.length ? { runs: indoorShown.length, km: indoorShown.reduce((s, r) => s + r.distance_km, 0), min: indoorShown.reduce((s, r) => s + r.duration_min, 0) } : null),
     [indoorShown],
   );
-  const summary = useMemo(() => summarise([...shown, ...indoorShown]), [shown, indoorShown]);
+  const othersShown = useMemo(() => others.filter((o) => inPeriod(o.date, period, today)), [others, period, today]);
+  const summary = useMemo(() => withOthers(summarise([...shown, ...indoorShown]), othersShown), [shown, indoorShown, othersShown]);
   // the ring on the picture to share: every day of the chosen year, or the last 12 months
   const shareDays = useMemo(() => {
     if (period === ALL) return [];
@@ -127,7 +129,7 @@ export default function RoutesCard({ today = new Date() }: { today?: Date }) {
           {view === "film" && (
             <>
               <YearFilm key={period} title={periodLabel(period)} areas={areas} indoor={indoor} summary={summary} />
-              {period !== ALL && <ShareCard title={periodLabel(period)} runs={[...shown, ...indoorShown]} days={shareDays} />}
+              {period !== ALL && <ShareCard title={periodLabel(period)} runs={[...shown, ...indoorShown]} days={shareDays} others={othersShown} />}
             </>
           )}
           {view === "contact" && <ContactSheet routes={shown} replayKey={replayKey} />}

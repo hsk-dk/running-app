@@ -30,6 +30,7 @@ export const api = {
   garminReadDetails: (limit = 25) => getJson(`/garmin/read-details?limit=${limit}`, { method: "POST" }),
   getRoutes: () => getJson("/activities/routes"),
   getIndoor: () => getJson("/activities/indoor"),
+  getOther: () => getJson("/activities/other"),
   getActivity: (id: number) => getJson(`/activities/${id}`),
 
   // Me, sources and family

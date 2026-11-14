@@ -269,6 +269,15 @@ def list_with_raw(conn: sqlite3.Connection, user_id: int, limit: int) -> list[sq
     ).fetchall()
 
 
+def list_other(conn: sqlite3.Connection, user_id: int, limit: int) -> list[sqlite3.Row]:
+    """Everything the user has recorded that is not a run, newest first."""
+    return conn.execute(
+        "SELECT * FROM activities WHERE user_id = ? AND sport_type != 'Run' AND start_date IS NOT NULL "
+        "ORDER BY COALESCE(start_date_local, start_date) DESC, id DESC LIMIT ?",
+        (user_id, limit),
+    ).fetchall()
+
+
 # ---- Garmin: link to the Garmin activity and keep what its FIT file says ---------------------------------
 
 def set_garmin_id(conn: sqlite3.Connection, user_id: int, activity_id: int, garmin_id: int) -> None:

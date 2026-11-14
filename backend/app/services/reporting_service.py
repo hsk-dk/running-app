@@ -173,6 +173,39 @@ def routes(user_id: int, limit: int = 400):
     return out
 
 
+# Strava's names for what Garmin groups as Walk, Ride, ...: history rows from the Strava years use them
+_STRAVA_KINDS = {
+    "Walk": "Walk", "Hike": "Walk", "Ride": "Ride", "VirtualRide": "Ride", "EBikeRide": "Ride", "MountainBikeRide": "Ride", "GravelRide": "Ride",
+    "Rowing": "Row", "Swim": "Swim", "Kayaking": "Paddle", "Canoeing": "Paddle", "StandUpPaddling": "Paddle",
+    "WeightTraining": "Strength", "Workout": "Strength", "Crossfit": "Strength", "Yoga": "Strength",
+}
+_KINDS = {"Walk", "Ride", "Row", "Paddle", "Swim", "Strength", "Other"}
+
+
+def other(user_id: int, limit: int = 3000):
+    """Activities that are not runs (walks, rides, rowing...), newest first. No heart rate and no routes: only what and when."""
+    conn = get_conn()
+    try:
+        rows = activity_repo.list_other(conn, user_id, limit)
+    finally:
+        conn.close()
+    out = []
+    for row in rows:
+        day = timeutil.activity_local_date(row)
+        kind = row["sport_type"] if row["sport_type"] in _KINDS else _STRAVA_KINDS.get(row["sport_type"], "Other")
+        out.append(
+            {
+                "id": row["id"],
+                "date": day.isoformat() if day else None,
+                "kind": kind,
+                "name": row["name"],
+                "distance_km": round(float(row["distance_m"] or 0) / 1000.0, 2),
+                "duration_min": round(float(row["moving_time_s"] or 0) / 60.0, 1),
+            }
+        )
+    return out
+
+
 def indoor(user_id: int, limit: int = 2000):
     """Runs that have no GPS route (treadmill, manual entries), newest first. The mirror image of routes()."""
     conn = get_conn()

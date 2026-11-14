@@ -131,6 +131,15 @@ class IndoorOut(BaseModel):
     duration_min: float = 0
 
 
+class OtherOut(BaseModel):
+    id: int
+    date: str | None
+    kind: str  # Walk, Ride, Row, Paddle, Swim, Strength or Other
+    name: str | None = None
+    distance_km: float = 0
+    duration_min: float = 0
+
+
 class SplitOut(BaseModel):
     km: int
     distance_m: float

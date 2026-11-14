@@ -1,3 +1,4 @@
+import { isRun } from "./runs";
 import { Activity, addDays, dateKey, parseDateKey, weekStartOf } from "./week";
 
 type Run = Pick<Activity, "date" | "distance_km" | "duration_min">;
@@ -35,7 +36,7 @@ function weeks(runs: Run[]): Map<string, { km: number; last: string }> {
 
 /** Your personal bests. Each one says when it was set. Pure. */
 export function records(all: Run[]): RecordItem[] {
-  const runs = all.filter((r) => r.date && r.distance_km > 0);
+  const runs = all.filter((r) => r.date && isRun(r));
   if (runs.length < MIN_RUNS) return [];
   const out: RecordItem[] = [];
 
@@ -94,7 +95,7 @@ export type WeekStory = { headline: string; notes: string[] };
 
 /** The week so far in a sentence, plus what is true and worth saying about it. Never says anything discouraging. */
 export function weekStory(all: Run[], today: Date): WeekStory | null {
-  const runs = all.filter((r) => r.date && r.distance_km > 0);
+  const runs = all.filter((r) => r.date && isRun(r));
   const start = weekStartOf(today);
   const startKey = dateKey(start);
   const todayKey = dateKey(today);

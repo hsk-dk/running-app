@@ -115,7 +115,7 @@ def ingest_recent(user_id: int, full: bool = False) -> dict:
     if not full and last and last["value"]:
         start_date = (date.fromisoformat(last["value"]) - timedelta(days=OVERLAP_DAYS)).isoformat()
 
-    added = updated = linked = skipped = 0
+    added = updated = linked = skipped = others = 0
     wanted: list[int] = []  # outdoor runs whose file we want to read now
     offset = 0
     while True:
@@ -123,7 +123,19 @@ def ingest_recent(user_id: int, full: bool = False) -> dict:
         for summary in batch:
             activity = domain.activity_from_summary(summary, settings.APP_TIMEZONE)
             if activity is None:
-                skipped += 1
+                other = domain.other_from_summary(summary, settings.APP_TIMEZONE)
+                if other is None:
+                    skipped += 1
+                    continue
+                conn = get_conn()
+                try:
+                    # not a run: stored as it is, never linked to a run and never read as a FIT file
+                    activity_repo.upsert(conn, user_id, other, source=domain.SOURCE, source_id=str(other["garmin_id"]))
+                    activity_repo.set_garmin_id(conn, user_id, other["id"], other["garmin_id"])
+                    conn.commit()
+                    others += 1
+                finally:
+                    conn.close()
                 continue
             conn = get_conn()
             try:
@@ -166,7 +178,7 @@ def ingest_recent(user_id: int, full: bool = False) -> dict:
         if row is not None and row["fit_status"] is None and read_fit(user_id, row, client) is not None:
             read += 1
 
-    result = {"source": "garmin", "added": added, "linked": linked, "updated": updated, "skipped": skipped, "fit_read": read}
+    result = {"source": "garmin", "added": added, "linked": linked, "updated": updated, "skipped": skipped, "others": others, "fit_read": read}
     conn = get_conn()
     try:
         user_state.upsert(conn, user_id, "garmin_last_sync_date", today.isoformat())

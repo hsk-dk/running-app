@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Other, otherDays } from "../lib/other";
 import { useWidth } from "../lib/useWidth";
 import { MONTHS, buildRing, monthMarks } from "../lib/ring";
 import { Activity, parseDateKey } from "../lib/week";
@@ -12,7 +13,8 @@ const OUTER = 196;
 const km = (v: number, d = 0) => v.toLocaleString("da-DK", { minimumFractionDigits: d, maximumFractionDigits: d });
 
 /** The last twelve months as a ring: one spoke a day, as long as the run. Busy seasons and pauses form a pattern. */
-export default function YearRing({ activities, today = new Date() }: { activities: Activity[]; today?: Date }) {
+export default function YearRing({ activities, others = [], today = new Date() }: { activities: Activity[]; others?: Other[]; today?: Date }) {
+  const otherSet = useMemo(() => otherDays(others), [others]);
   const [box, px] = useWidth<HTMLDivElement>(520);
   // The ring is drawn in a 460-unit box that shrinks on a phone; grow the text by the same factor so it stays readable.
   const grow = Math.max(1, SIZE / Math.min(px, 520));
@@ -28,7 +30,10 @@ export default function YearRing({ activities, today = new Date() }: { activitie
   return (
     <section className="u-card" aria-labelledby="ring-title" style={{ display: "grid", gap: 12 }}>
       <h2 id="ring-title" className="u-h2">Årsringen</h2>
-      <p className="u-card__meta">Hver streg er en dag, med uret fra øverst. Jo længere streg, jo længere løb.</p>
+      <p className="u-card__meta">
+        Hver streg er en dag, med uret fra øverst. Jo længere streg, jo længere løb.
+        {otherSet.size > 0 ? " De små prikker på den indre ring er dage med anden træning: roning, gang, cykling og andet." : ""}
+      </p>
       <div ref={box}>
       <svg
         viewBox={`0 0 ${SIZE} ${SIZE}`}
@@ -54,6 +59,13 @@ export default function YearRing({ activities, today = new Date() }: { activitie
             >
               <title>{`${parseDateKey(s.date).toLocaleDateString("da-DK", { day: "numeric", month: "long" })}: ${km(s.km, 1)} km`}</title>
             </line>
+          ) : null,
+        )}
+        {ring.spokes.map((s) =>
+          otherSet.has(s.date) ? (
+            <circle key={`o-${s.date}`} cx={C + Math.sin(s.angle) * (INNER - 6)} cy={C - Math.cos(s.angle) * (INNER - 6)} r={2.4} fill="var(--data-1)" opacity={0.5}>
+              <title>{`${parseDateKey(s.date).toLocaleDateString("da-DK", { day: "numeric", month: "long" })}: anden træning`}</title>
+            </circle>
           ) : null,
         )}
         {marks.map((m) => {

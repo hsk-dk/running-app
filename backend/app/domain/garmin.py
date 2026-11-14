@@ -17,6 +17,26 @@ TREADMILL_TYPES = {"treadmill_running", "indoor_running", "virtual_run"}
 RUN_TYPES = TREADMILL_TYPES | {"running", "trail_running", "track_running", "street_running", "ultra_run", "obstacle_run"}
 
 
+# Everything else Garmin records, grouped. Stored as the sport type, so every query that asks for "Run" leaves them alone.
+OTHER_KINDS = {
+    "Walk": {"walking", "casual_walking", "speed_walking", "hiking", "indoor_walking"},
+    "Ride": {"cycling", "road_biking", "mountain_biking", "gravel_cycling", "indoor_cycling", "virtual_ride", "e_bike_fitness", "e_bike_mountain", "bmx", "cyclocross"},
+    "Row": {"rowing", "indoor_rowing"},
+    "Paddle": {"kayaking_v2", "kayaking", "canoeing", "stand_up_paddleboarding_v2", "stand_up_paddleboarding", "paddling", "whitewater_rafting_v2"},
+    "Swim": {"lap_swimming", "open_water_swimming", "swimming"},
+    "Strength": {"strength_training", "hiit", "yoga", "pilates", "cardio", "fitness_equipment", "elliptical", "stair_climbing"},
+}
+
+
+def category_of(key: str | None) -> str:
+    """The group a Garmin activity type belongs to when it is not a run. Unknown types are 'Other'."""
+    k = (key or "").lower()
+    for kind, keys in OTHER_KINDS.items():
+        if k in keys:
+            return kind
+    return "Other"
+
+
 def internal_id(garmin_id: int | str) -> int:
     return -(ID_BASE + abs(int(garmin_id)))
 
@@ -103,4 +123,47 @@ def activity_from_summary(summary: dict, tz_name: str = "Europe/Copenhagen") -> 
         "average_cadence": cadence,
         "garmin_type": key,
         "treadmill": key in TREADMILL_TYPES,
+    }
+
+
+def other_from_summary(summary: dict, tz_name: str = "Europe/Copenhagen") -> dict | None:
+    """A Garmin activity that is not a run (walk, ride, rowing, strength...), or None when it has no start or no duration.
+
+    It has no distance requirement: a strength session is a duration. It is stored under its group as the sport type,
+    so it never counts as a run, and it is never linked to or compared with runs."""
+    if not isinstance(summary, dict):
+        return None
+    key = type_key(summary)
+    if key in RUN_TYPES:
+        return None
+    gid = _first(summary, "activityId", "id")
+    local = _parse(_first(summary, "startTimeLocal", "start_time_local", "start_time"))
+    gmt = _parse(_first(summary, "startTimeGMT", "start_time_gmt"))
+    duration = _num(_first(summary, "duration", "duration_seconds"))
+    if gid is None or local is None or not duration or duration <= 0:
+        return None
+    if gmt is None:
+        try:
+            gmt = local.replace(tzinfo=ZoneInfo(tz_name)).astimezone(timezone.utc).replace(tzinfo=None)
+        except Exception:
+            gmt = local
+    try:
+        internal = internal_id(gid)
+    except (TypeError, ValueError):
+        return None
+    distance = _num(_first(summary, "distance", "distance_meters")) or 0.0
+    moving = _num(_first(summary, "movingDuration", "moving_duration_seconds")) or duration
+    name = _first(summary, "activityName", "name")
+    return {
+        "id": internal,
+        "garmin_id": int(gid),
+        "name": (str(name).strip() or None) if name else None,
+        "sport_type": category_of(key),
+        "start_date": gmt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "start_date_local": local.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "distance": max(distance, 0.0),
+        "moving_time": int(round(moving)),
+        "elapsed_time": int(round(duration)),
+        "garmin_type": key,
+        "treadmill": False,
     }

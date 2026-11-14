@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { LoadLevel, loadOver } from "../lib/load";
+import { Other, kindsText, recentOther } from "../lib/other";
 import { useWidth } from "../lib/useWidth";
 import { Activity, parseDateKey } from "../lib/week";
 
@@ -24,8 +25,9 @@ const weekNo = (start: string) => {
 };
 
 /** Twelve weeks of kilometres, the usual level as a band, and a plain reading of whether you are ramping up too fast. */
-export default function LoadCard({ activities, today = new Date() }: { activities: Activity[]; today?: Date }) {
+export default function LoadCard({ activities, others = [], today = new Date() }: { activities: Activity[]; others?: Other[]; today?: Date }) {
   const load = useMemo(() => loadOver(activities, today), [activities, today]);
+  const extra = useMemo(() => recentOther(others, today, 12 * 7), [others, today]);
   const [box, W] = useWidth<HTMLDivElement>();
   if (load.weeks.every((w) => w.runs === 0)) return null;
 
@@ -83,11 +85,16 @@ export default function LoadCard({ activities, today = new Date() }: { activitie
         </svg>
       </div>
 
-      {load.notes.length > 0 && (
+      {(load.notes.length > 0 || extra.count > 0) && (
         <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 4 }}>
           {load.notes.map((n) => (
             <li key={n} className="u-card__meta">{n}</li>
           ))}
+          {extra.count > 0 && (
+            <li className="u-card__meta">
+              Dertil anden træning de 12 uger: {extra.count} {extra.count === 1 ? "aktivitet" : "aktiviteter"}, {extra.hours.toLocaleString("da-DK", { maximumFractionDigits: 1 })} timer ({kindsText(others.filter((o) => recentOther([o], today, 12 * 7).count > 0))}).
+            </li>
+          )}
         </ul>
       )}
     </section>
