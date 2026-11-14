@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { journey } from "../lib/journey";
+import { childHeadline, journey, minutesText } from "../lib/journey";
+import { useMe } from "../lib/meContext";
 import { useWidth } from "../lib/useWidth";
 import { Activity, parseDateKey } from "../lib/week";
 
@@ -10,21 +11,25 @@ const n0 = (v: number) => v.toLocaleString("da-DK", { maximumFractionDigits: 0 }
 
 /** Your own road from the first run to today: how long you have been going, and how your longest run grew month by month. */
 export default function JourneyCard({ activities, today = new Date() }: { activities: Activity[]; today?: Date }) {
+  const { isChild } = useMe();
   const j = useMemo(() => journey(activities, today), [activities, today]);
   const [box, W] = useWidth<HTMLDivElement>();
   if (!j) return null;
 
-  const top = Math.max(5, Math.ceil(Math.max(...j.months.map((m) => m.longest)) / 5) * 5);
+  const value = (m: { longest: number; minutes: number }) => (isChild ? m.minutes : m.longest);
+  const top = isChild ? Math.max(30, Math.ceil(Math.max(...j.months.map((m) => m.minutes)) / 30) * 30) : Math.max(5, Math.ceil(Math.max(...j.months.map((m) => m.longest)) / 5) * 5);
   const inner = W - PAD.l - PAD.r;
   const step = inner / j.months.length;
   const bw = Math.max(10, Math.min(40, step * 0.62));
   const y = (km: number) => PAD.t + (1 - km / top) * (H - PAD.t - PAD.b);
-  const label = `Dit længste løb måned for måned: ${j.months.map((m) => `${monthName(m.key)} ${m.longest > 0 ? `${n0(m.longest)} km` : "ingen løb"}`).join(", ")}`;
+  const label = isChild
+    ? `Tid i bevægelse måned for måned: ${j.months.map((m) => `${monthName(m.key)} ${m.minutes > 0 ? minutesText(m.minutes) : "ingen løb"}`).join(", ")}`
+    : `Dit længste løb måned for måned: ${j.months.map((m) => `${monthName(m.key)} ${m.longest > 0 ? `${n0(m.longest)} km` : "ingen løb"}`).join(", ")}`;
 
   return (
     <section className="u-card" aria-labelledby="journey-title" style={{ display: "grid", gap: 10 }}>
       <h2 id="journey-title" className="u-h2">Din opbygning</h2>
-      <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{j.headline}</p>
+      <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{isChild ? childHeadline(j) : j.headline}</p>
       {j.note && <p className="u-card__meta" style={{ margin: 0 }}>{j.note}</p>}
       {j.months.length > 1 && (
         <div ref={box}>
@@ -35,16 +40,16 @@ export default function JourneyCard({ activities, today = new Date() }: { activi
                 <text x={PAD.l - 6} y={y(v) + 4} textAnchor="end" fontSize={11} fill="var(--color-text-muted)">{n0(v)}</text>
               </g>
             ))}
-            <text x={PAD.l} y={12} fontSize={11} fill="var(--color-text-muted)">Længste løb i kilometer, måned for måned</text>
+            <text x={PAD.l} y={12} fontSize={11} fill="var(--color-text-muted)">{isChild ? "Minutter i bevægelse, måned for måned" : "Længste løb i kilometer, måned for måned"}</text>
             {j.months.map((m, i) => {
               const x = PAD.l + i * step + (step - bw) / 2;
-              const h = Math.max(m.longest > 0 ? 3 : 0, H - PAD.b - y(m.longest));
+              const h = Math.max(value(m) > 0 ? 3 : 0, H - PAD.b - y(value(m)));
               const last = i === j.months.length - 1;
               return (
                 <g key={m.key}>
-                  <title>{m.runs > 0 ? `${monthName(m.key)}: ${m.runs} løb, længste ${m.longest.toLocaleString("da-DK", { maximumFractionDigits: 1 })} km` : `${monthName(m.key)}: ingen løb, og det er helt i orden`}</title>
+                  <title>{m.runs > 0 ? (isChild ? `${monthName(m.key)}: ${m.runs} ${m.runs === 1 ? "gang" : "gange"} ude, ${minutesText(m.minutes)}` : `${monthName(m.key)}: ${m.runs} løb, længste ${m.longest.toLocaleString("da-DK", { maximumFractionDigits: 1 })} km`) : `${monthName(m.key)}: ingen løb, og det er helt i orden`}</title>
                   <rect x={x} y={H - PAD.b - h} width={bw} height={h} rx={4} fill={last ? "var(--data-1)" : "var(--data-muted)"} />
-                  {m.longest > 0 && step >= 34 && <text x={x + bw / 2} y={H - PAD.b - h - 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--color-text)">{n0(m.longest)}</text>}
+                  {value(m) > 0 && step >= 34 && <text x={x + bw / 2} y={H - PAD.b - h - 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--color-text)">{n0(value(m))}</text>}
                   {(j.months.length <= 8 || i % 2 === (j.months.length - 1) % 2) && (
                     <text x={x + bw / 2} y={H - PAD.b + 16} textAnchor="middle" fontSize={11} fill="var(--color-text-muted)">{monthName(m.key)}</text>
                   )}
@@ -55,7 +60,7 @@ export default function JourneyCard({ activities, today = new Date() }: { activi
         </div>
       )}
       <p className="u-card__meta" style={{ margin: 0 }}>
-        {j.runs} {j.runs === 1 ? "løb" : "løb"} og {n0(j.km)} km siden {parseDateKey(j.firstDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}.
+        {isChild ? `${j.runs} ${j.runs === 1 ? "gang" : "gange"} ude og ${minutesText(j.minutes)} i bevægelse siden` : `${j.runs} løb og ${n0(j.km)} km siden`} {parseDateKey(j.firstDate).toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" })}.
       </p>
     </section>
   );

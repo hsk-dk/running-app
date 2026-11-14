@@ -25,6 +25,7 @@ class CurrentUser:
     display_name: str
     role: str
     sharing_level: str
+    is_child: bool = False
 
     @property
     def is_admin(self) -> bool:
@@ -39,6 +40,7 @@ def _to_user(row) -> CurrentUser:
         display_name=row["display_name"] or row["username"],
         role=row["role"],
         sharing_level=row["sharing_level"] if settings.FAMILY_SHARING_ENABLED else "private",
+        is_child=bool(row["is_child"]),
     )
 
 
@@ -145,5 +147,36 @@ def list_users() -> list[CurrentUser]:
     conn = get_conn()
     try:
         return [_to_user(r) for r in user_repo.list_all(conn)]
+    finally:
+        conn.close()
+
+
+def list_people(admin: CurrentUser) -> list[dict]:
+    """Everyone with an account, for the parents' settings. Only admins (the parents) may ask."""
+    if not admin.is_admin:
+        raise ForbiddenError("Only an admin can see the list of people")
+    conn = get_conn()
+    try:
+        return [
+            {"id": r["id"], "name": r["display_name"] or r["username"], "username": r["username"], "role": r["role"], "is_child": bool(r["is_child"])}
+            for r in user_repo.list_all(conn)
+        ]
+    finally:
+        conn.close()
+
+
+def set_child(admin: CurrentUser, user_id: int, is_child: bool) -> CurrentUser:
+    """A parent (admin) marks someone as a child, or not. A person cannot change that about themselves."""
+    if not admin.is_admin:
+        raise ForbiddenError("Only an admin can mark someone as a child")
+    if admin.id == user_id:
+        raise ForbiddenError("You cannot mark yourself as a child")
+    conn = get_conn()
+    try:
+        if user_repo.get(conn, user_id) is None:
+            raise NotFoundError(f"User {user_id} not found")
+        user_repo.set_child(conn, user_id, is_child)
+        conn.commit()
+        return _to_user(user_repo.get(conn, user_id))
     finally:
         conn.close()

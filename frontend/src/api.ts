@@ -68,6 +68,11 @@ export const api = {
     }),
   smashrunDisconnect: () => getJson("/smashrun/connection", { method: "DELETE" }),
   getFamily: () => getJson("/family"),
+  getPeople: () => getJson("/admin/users"),
+  setChild: (userId: number, isChild: boolean) =>
+    getJson(`/admin/users/${userId}/child`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_child: isChild }) }),
+  setFamilyGoal: (targetKm: number | null) =>
+    getJson("/family/goal", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target_km: targetKm }) }),
   getSplits: (activityId: number) => getJson(`/activities/${activityId}/splits`),
   getFamilySplits: (userId: number, activityId: number) => getJson(`/family/${userId}/activities/${activityId}/splits`),
   getFamilyActivity: (userId: number, activityId: number) => getJson(`/family/${userId}/activities/${activityId}`),

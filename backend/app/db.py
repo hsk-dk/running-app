@@ -402,6 +402,11 @@ def _migration_12_drop_strava(conn: sqlite3.Connection) -> None:
     conn.execute("DELETE FROM sync_state WHERE key = 'last_webhook_at'")
 
 
+def _migration_13_children(conn: sqlite3.Connection) -> None:
+    """A parent can mark a family member as a child. A child sees a simpler app, and the parents see a short summary."""
+    _add_column_if_missing(conn, "users", "is_child", "INTEGER NOT NULL DEFAULT 0")
+
+
 MIGRATIONS = [
     _migration_1_add_missing_columns,
     _migration_2_add_indexes,
@@ -415,6 +420,7 @@ MIGRATIONS = [
     _migration_10_plan_import,
     _migration_11_garmin,
     _migration_12_drop_strava,
+    _migration_13_children,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

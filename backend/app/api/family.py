@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import current_user
-from app.api.schemas import FamilyActivityDetailOut, FamilyActivityOut, FamilyOut, ProfileOut, SplitsOut
+from app.api.schemas import FamilyActivityDetailOut, FamilyActivityOut, FamilyOut, GoalOut, GoalUpdate, ProfileOut, SplitsOut
 from app.services import family_service
 from app.services.user_service import CurrentUser
 
@@ -11,6 +11,12 @@ router = APIRouter(prefix="/api/family", tags=["family"])
 @router.get("", response_model=FamilyOut)
 def family(user: CurrentUser = Depends(current_user)):
     return family_service.list_family(user)
+
+
+@router.put("/goal", response_model=GoalOut)
+def set_goal(payload: GoalUpdate, user: CurrentUser = Depends(current_user)):
+    """Declared before /{user_id}/...: 'goal' is not a user id."""
+    return family_service.set_goal(user, payload.target_km)
 
 
 @router.get("/{user_id}/activities", response_model=list[FamilyActivityOut])

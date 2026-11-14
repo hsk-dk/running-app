@@ -1,3 +1,4 @@
+import { useMe } from "../lib/meContext";
 import { sessionLabel } from "../lib/sessionTypes";
 import { useMemo, useState } from "react";
 import ActivityDetail from "../components/ActivityDetail";
@@ -52,6 +53,7 @@ export default function ActivitiesPage({
   onRunAction: (action: "ingest" | "plan") => void;
   error: string | null;
 }) {
+  const { isChild } = useMe();
   const [filter, setFilter] = useState<FilterKey>("alle");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
@@ -194,9 +196,11 @@ export default function ActivitiesPage({
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
                   Min
                 </th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
-                  Puls
-                </th>
+                {!isChild && (
+                  <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
+                    Puls
+                  </th>
+                )}
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-border)" }}>
                   Plan
                 </th>
@@ -226,9 +230,11 @@ export default function ActivitiesPage({
                   <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     {a.duration_min}
                   </td>
-                  <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
-                    {a.avg_hr ?? "-"}
-                  </td>
+                  {!isChild && (
+                    <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
+                      {a.avg_hr ?? "-"}
+                    </td>
+                  )}
                   <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     {a.matchedPlan ? (
                       <div style={{ display: "grid", gap: 2 }}>

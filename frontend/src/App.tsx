@@ -1,4 +1,5 @@
 import { APP_NAME } from "./lib/brand";
+import { MeContext } from "./lib/meContext";
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import OverviewPage from "./pages/OverviewPage";
@@ -237,7 +238,8 @@ export default function App() {
         </div>
       </header>
 
-      <main id="indhold" className="u-container app-main" tabIndex={-1}>
+      <MeContext.Provider value={{ isChild: !!me?.is_child, isAdmin: me?.role === "admin", id: me?.id ?? null }}>
+        <main id="indhold" className="u-container app-main" tabIndex={-1}>
         {me && <SourceBanner me={me} notice={notice} onDismiss={() => setNotice(null)} onOpenMe={() => setPage("more")} />}
         <div className="u-panel" style={{ minHeight: 620 }}>
           {renderPage()}
@@ -247,6 +249,7 @@ export default function App() {
           Sidst opdateret: {formatDateTime(adminStatus?.last_sync_at?.value)}
         </footer>
       </main>
+      </MeContext.Provider>
     </>
   );
 }

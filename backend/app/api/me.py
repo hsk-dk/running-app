@@ -17,6 +17,7 @@ def _me(user: CurrentUser) -> dict:
         "display_name": user.display_name,
         "role": user.role,
         "sharing_level": user.sharing_level,
+        "is_child": user.is_child,
         "family_sharing_enabled": settings.FAMILY_SHARING_ENABLED,
         "smashrun": smashrun_service.status(user.id),
         "runna": runna_service.status(user.id),

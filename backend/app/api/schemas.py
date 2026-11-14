@@ -261,10 +261,23 @@ class MeOut(BaseModel):
     display_name: str
     role: str
     sharing_level: str
+    is_child: bool = False
     family_sharing_enabled: bool
     smashrun: SmashrunStatusOut
     runna: RunnaStatusOut
     garmin: GarminStatusOut
+
+
+class PersonOut(BaseModel):
+    id: int
+    name: str
+    username: str
+    role: str
+    is_child: bool
+
+
+class ChildUpdate(BaseModel):
+    is_child: bool
 
 
 class MeUpdate(BaseModel):
@@ -316,11 +329,33 @@ class FamilyMilestoneOut(BaseModel):
     date: str
 
 
+class GuardianOut(BaseModel):
+    """What a parent sees about a child: how often and for how long, not how far or how fast."""
+
+    runs_week: int
+    active_days_week: int
+    minutes_week: int
+    runs_month: int
+    minutes_month: int
+    last_run_date: str | None
+    streak_weeks: int
+
+
+class GoalOut(BaseModel):
+    target_km: float | None
+    km: float
+    month: str
+
+
+class GoalUpdate(BaseModel):
+    target_km: float | None = Field(default=None, ge=1, le=5000)
+
+
 class FamilyMemberOut(BaseModel):
     user_id: int
     name: str
     is_me: bool
-    level: Literal["private", "overview", "all"]
+    level: Literal["private", "overview", "all", "milestones", "guardian"]
     shared: bool
     week: FamilyWeekOut | None
     month_km: float | None
@@ -328,9 +363,12 @@ class FamilyMemberOut(BaseModel):
     streak_weeks: int | None
     recent_runs: list[FamilyRunOut] | None
     new_milestones: list[FamilyMilestoneOut] | None = None
+    is_child: bool = False
+    guardian: GuardianOut | None = None
 
 
 class FamilyOut(BaseModel):
     members: list[FamilyMemberOut]
     total_km_this_month: float
     sharing_enabled: bool
+    goal: GoalOut

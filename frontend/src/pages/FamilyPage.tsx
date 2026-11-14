@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import ActivityDetail from "../components/ActivityDetail";
-import { weekText } from "../lib/family";
+import { Guardian, guardianNote, weekText } from "../lib/family";
+import { useMe } from "../lib/meContext";
+import FamilySettings from "../components/FamilySettings";
 import { levelLabel } from "../lib/sharing";
 
 type Run = { id: number; date: string | null; name: string | null; distance_km: number; duration_min: number };
@@ -17,8 +19,11 @@ type Member = {
   streak_weeks: number | null;
   recent_runs: Run[] | null;
   new_milestones: { key: string; label: string; date: string }[] | null;
+  is_child: boolean;
+  guardian: Guardian | null;
 };
-type Family = { members: Member[]; total_km_this_month: number; sharing_enabled: boolean };
+type Goal = { target_km: number | null; km: number; month: string };
+type Family = { members: Member[]; total_km_this_month: number; sharing_enabled: boolean; goal: Goal };
 
 /** Monday of this week as YYYY-MM-DD, local time. */
 function weekStartKey(now = new Date()): string {
@@ -30,6 +35,37 @@ function weekStartKey(now = new Date()): string {
 
 const km = (v: number, d = 1) => v.toLocaleString("da-DK", { minimumFractionDigits: d, maximumFractionDigits: d });
 
+const minutes = (v: number) => (v < 60 ? `${v} min` : `${Math.floor(v / 60)} t${v % 60 ? ` ${v % 60} min` : ""}`);
+const todayKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/** What a parent sees about a child: how often and for how long. Never how far, how fast, or where. */
+function GuardianSummary({ g }: { g: Guardian }) {
+  return (
+    <>
+      <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(7rem, 1fr))", gap: 12, margin: 0 }}>
+        <div>
+          <dt className="u-card__meta">Denne uge</dt>
+          <dd style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>{g.runs_week} {g.runs_week === 1 ? "gang" : "gange"}</dd>
+          <dd className="u-card__meta" style={{ margin: 0 }}>{minutes(g.minutes_week)}</dd>
+        </div>
+        <div>
+          <dt className="u-card__meta">Denne måned</dt>
+          <dd style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>{g.runs_month} {g.runs_month === 1 ? "gang" : "gange"}</dd>
+          <dd className="u-card__meta" style={{ margin: 0 }}>{minutes(g.minutes_month)}</dd>
+        </div>
+        <div>
+          <dt className="u-card__meta">Uger i gang</dt>
+          <dd style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>{g.streak_weeks}</dd>
+        </div>
+      </dl>
+      <p className="u-card__meta" style={{ margin: 0 }}>{guardianNote(g, todayKey())}</p>
+    </>
+  );
+}
+
 function MemberCard({ m, onOpen }: { m: Member; onOpen: (m: Member, id: number) => void }) {
   const id = `member-${m.user_id}`;
   return (
@@ -38,6 +74,12 @@ function MemberCard({ m, onOpen }: { m: Member; onOpen: (m: Member, id: number) 
         <h2 id={id} className="u-h2">{m.is_me ? `${m.name} (dig)` : m.name}</h2>
         <span className="u-chip">{levelLabel(m.level)}</span>
       </div>
+
+      {m.guardian && <GuardianSummary g={m.guardian} />}
+
+      {m.shared && !m.guardian && m.level === "milestones" && (
+        <p className="u-card__meta">{m.new_milestones && m.new_milestones.length > 0 ? "Har nået noget nyt, se øverst." : `${m.name} er med i familien.`}</p>
+      )}
 
       {!m.shared && (
         <p className="u-card__meta">
@@ -90,6 +132,7 @@ export default function FamilyPage() {
   const [family, setFamily] = useState<Family | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<{ member: Member; id: number } | null>(null);
+  const { isAdmin } = useMe();
 
   useEffect(() => {
     api.getFamily().then(setFamily).catch((e: any) => setError(e.message || "Kunne ikke hente familien"));
@@ -130,6 +173,20 @@ export default function FamilyPage() {
         <h1 className="u-h1">{km(family.total_km_this_month, 0)} km sammen denne måned</h1>
       </section>
 
+      {family.goal.target_km !== null && family.goal.target_km > 0 && (
+        <section className="u-card" aria-labelledby="goal-title" style={{ display: "grid", gap: 8 }}>
+          <h2 id="goal-title" className="u-h2">Fælles mål</h2>
+          <div role="progressbar" aria-valuenow={Math.min(family.goal.km, family.goal.target_km)} aria-valuemin={0} aria-valuemax={family.goal.target_km} aria-label={`Fælles mål: ${km(family.goal.km, 0)} af ${km(family.goal.target_km, 0)} kilometer`} style={{ height: 18, borderRadius: 9, background: "var(--data-muted)", overflow: "hidden" }}>
+            <div style={{ width: `${Math.min(100, Math.round((family.goal.km / family.goal.target_km) * 100))}%`, height: "100%", background: "var(--data-1)" }} />
+          </div>
+          <p style={{ margin: 0, fontWeight: 600 }}>
+            {km(family.goal.km, 0)} af {km(family.goal.target_km, 0)} km
+            {family.goal.km >= family.goal.target_km ? ": målet er nået!" : ""}
+          </p>
+          <p className="u-card__meta" style={{ margin: 0 }}>Alle, der deler med familien, løber sammen. Ingen kan se, hvem der har løbet hvor meget.</p>
+        </section>
+      )}
+
       {(() => {
         const items = family.members
           .flatMap((m) => (m.new_milestones ?? []).map((x) => ({ ...x, name: m.is_me ? "Du" : m.name })))
@@ -165,6 +222,7 @@ export default function FamilyPage() {
           <MemberCard key={m.user_id} m={m} onOpen={(member, id) => setOpen({ member, id })} />
         ))}
       </div>
+      {isAdmin && <FamilySettings goal={family.goal} onChanged={() => api.getFamily().then(setFamily)} />}
     </div>
   );
 }

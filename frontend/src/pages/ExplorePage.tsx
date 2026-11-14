@@ -10,6 +10,7 @@ import { api } from "../api";
 import FirstsCard from "../components/FirstsCard";
 import JourneyCard from "../components/JourneyCard";
 import { journey } from "../lib/journey";
+import { useMe } from "../lib/meContext";
 import { useMemo } from "react";
 import { Other } from "../lib/other";
 import { Activity, PlannedRun } from "../lib/week";
@@ -20,6 +21,7 @@ export default function ExplorePage({ activities, plannedRuns }: { activities: A
   useEffect(() => {
     api.getOther().then(setOthers).catch(() => setOthers([])); // other training is a bonus: everything works without it
   }, []);
+  const { isChild } = useMe();
   const beginner = useMemo(() => journey(activities, new Date())?.beginner ?? false, [activities]);
   // someone new to running meets their own start first; the records wait until there is something to beat
   const start = (
@@ -34,15 +36,15 @@ export default function ExplorePage({ activities, plannedRuns }: { activities: A
         <p className="now__eyebrow">Udforsk</p>
         <h1 className="u-h1">Din træning i billeder</h1>
       </section>
-      {beginner && start}
-      <RaceCard activities={activities} plannedRuns={plannedRuns} />
-      <RoutesCard others={others} />
-      <PaceLandscape />
-      <LoadCard activities={activities} others={others} />
-      {!beginner && start}
-      {!beginner && <TrophyShelf activities={activities} />}
+      {(beginner || isChild) && start}
+      {!isChild && <RaceCard activities={activities} plannedRuns={plannedRuns} />}
+      {!isChild && <RoutesCard others={others} />}
+      {!isChild && <PaceLandscape />}
+      {!isChild && <LoadCard activities={activities} others={others} />}
+      {!beginner && !isChild && start}
+      {!beginner && !isChild && <TrophyShelf activities={activities} />}
       <YearRing activities={activities} others={others} />
-      <MilestoneCard activities={activities} />
+      {!isChild && <MilestoneCard activities={activities} />}
     </div>
   );
 }

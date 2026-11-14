@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { journey } from "./journey";
+import { childHeadline, journey, minutesText } from "./journey";
 
-const run = (date: string, distance_km: number) => ({ date, distance_km });
+const run = (date: string, distance_km: number, duration_min = distance_km * 6) => ({ date, distance_km, duration_min });
 const TODAY = new Date(2026, 10, 14); // 2026-11-14
 
 describe("journey", () => {
@@ -40,7 +40,7 @@ describe("journey", () => {
   });
   it("lists every month from the first, with the longest run, and empty months in between", () => {
     const j = journey([run("2026-09-05", 2), run("2026-09-20", 3), run("2026-11-02", 5)], TODAY)!;
-    expect(j.months).toEqual([{ key: "2026-09", longest: 3, runs: 2 }, { key: "2026-10", longest: 0, runs: 0 }, { key: "2026-11", longest: 5, runs: 1 }]);
+    expect(j.months).toEqual([{ key: "2026-09", longest: 3, runs: 2, minutes: 30 }, { key: "2026-10", longest: 0, runs: 0, minutes: 0 }, { key: "2026-11", longest: 5, runs: 1, minutes: 30 }]);
   });
   it("shows at most the last twelve months", () => {
     const j = journey([run("2025-01-05", 2), run("2026-11-05", 5)], TODAY)!;
@@ -59,5 +59,24 @@ describe("journey", () => {
     expect(j.note).toBe("");
     expect(journey(many.slice(0, 19), TODAY)!.beginner).toBe(true); // 19 runs is still few
     expect(journey([...many.slice(0, 25), run("2026-11-10", 5)], new Date(2026, 4, 20))!.beginner).toBe(true); // 12 weeks or fewer in
+  });
+});
+
+describe("time in words, for children", () => {
+  it("says minutes, hours, and hours with minutes", () => {
+    expect(minutesText(0)).toBe("0 min");
+    expect(minutesText(35.4)).toBe("35 min");
+    expect(minutesText(59.6)).toBe("1 t");
+    expect(minutesText(60)).toBe("1 t");
+    expect(minutesText(65)).toBe("1 t 5 min");
+    expect(minutesText(-4)).toBe("0 min");
+  });
+  it("tells a child how long and how often, never how far", () => {
+    expect(childHeadline({ weeksIn: 5, runs: 8, minutes: 260 })).toBe("Uge 5 i gang: 8 gange ude og 4 t 20 min i bevægelse.");
+    expect(childHeadline({ weeksIn: 1, runs: 1, minutes: 20 })).toBe("Uge 1 i gang: 1 gang ude og 20 min i bevægelse.");
+    expect(childHeadline({ weeksIn: 2, runs: 3, minutes: 90 })).not.toMatch(/km/);
+  });
+  it("adds up the time of every run", () => {
+    expect(journey([run("2026-11-01", 2, 15), run("2026-11-08", 3, 25.5)], TODAY)!.minutes).toBe(40.5);
   });
 });

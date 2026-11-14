@@ -85,7 +85,20 @@ Hver person vælger under **Mere → Mig**:
 | Overblik | Navn, ugens løb, km denne måned, uger i træk. |
 | Det hele | Også seneste løb (distance, tid, tempo, rute). Puls og planer deles aldrig. |
 
-Admin har ingen ekstra indsigt i andres løb. `FAMILY_SHARING_ENABLED=false` slår al deling fra for alle.
+Admin har ingen ekstra indsigt i andre voksnes løb. Børn er et særtilfælde, se afsnittet Børn. `FAMILY_SHARING_ENABLED=false` slår al deling fra for alle.
+
+## Børn
+
+En forælder (admin) markerer et familiemedlem som barn under Familie → Indstillinger for forældre. Det ændrer tre ting:
+
+- **Barnet ser en enklere app:** ingen tempo, puls, rekorder, belastning, ruter eller flyvetur. Opbygning og årsring tæller dage og minutter, ikke kilometer og rekorder.
+- **Forældrene (admin) ser en forældreoversigt** over barnet, uanset hvad barnet deler: gange og minutter denne uge og måned, uger i gang og en rolig sætning ("Ude 2 gange i denne uge. Spørg gerne, hvordan det føles."). Aldrig kilometer, tempo, puls, ruter eller steder, og forældre kan ikke åbne barnets enkelte løb.
+- **Resten af familien ser kun barnets milepæle,** og kun hvis barnet deler. Et barn ser på samme måde kun andres milepæle.
+- Man kan ikke markere sig selv som barn. Barnets egen side under Mig fortæller, hvad forældrene kan og ikke kan se.
+
+**Fælles mål:** forældre kan sætte et månedsmål i kilometer for hele familien. Alle, der deler, tæller med, og kun ét samlet tal vises. Ingen kan se, hvem der har løbet hvor meget.
+
+Appen giver ikke lægelige råd. Tjek selv Garmins og Smashruns aldersgrænser og vilkår, før et barn forbinder sin egen konto.
 
 ## Opbygning og første gange (støtte, ikke konkurrence)
 
