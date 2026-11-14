@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import { sessionLabel } from "../lib/sessionTypes";
 
 const cardStyle: React.CSSProperties = {
   background: "var(--color-surface)",
@@ -10,14 +11,6 @@ const cardStyle: React.CSSProperties = {
 
 
 
-const SESSION_TYPE_LABELS: Record<string, string> = {
-  easy: "Let løb",
-  tempo: "Tempo",
-  long: "Langtur",
-  intervals: "Intervaller",
-  recovery: "Restitution",
-};
-
 function formatDate(isoDate: string) {
   const d = new Date(isoDate);
   if (Number.isNaN(d.getTime())) return isoDate;
@@ -26,10 +19,6 @@ function formatDate(isoDate: string) {
     day: "2-digit",
     month: "short",
   });
-}
-
-function sessionLabel(type: string) {
-  return SESSION_TYPE_LABELS[type] ?? type;
 }
 
 function targetLabel(type: string, value: number | null | undefined) {

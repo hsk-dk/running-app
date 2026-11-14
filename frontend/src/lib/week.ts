@@ -144,9 +144,19 @@ export function dayLabel(plannedDate: string, today: Date): string {
   return diff > 1 && diff < 7 ? WEEKDAYS[wd] : `${WEEKDAYS[wd]} d. ${parseDateKey(plannedDate).getDate()}.`;
 }
 
+/** One kind sentence under the week colour: what is true, and what is still possible. */
+export function scoreNote(done: number, shortened: number, total: number, awaiting: number): string {
+  if (total === 0) return "";
+  if (done === total) return "Hele ugen er klaret. Flot!";
+  if (done + shortened > 0) {
+    return awaiting > 0 ? `Godt i gang: ${done + shortened} af ${total} er med, og ${awaiting} venter stadig.` : `Du nåede ${done + shortened} af ${total} i denne uge.`;
+  }
+  return awaiting > 0 ? "Ugen er lige begyndt. Der er stadig tid til at komme i gang." : "Ingen løb denne uge. Et roligt løb er en god start.";
+}
+
 /** The sentence at the top of "Nu": says how the week is going before any number. */
 export function weekHeadline(summary: WeekSummary, next: PlannedRun | null, today: Date): string {
-  if (summary.total === 0) return "Ingen obligatoriske løb planlagt i denne uge.";
+  if (summary.total === 0) return "Ingen vigtige løb planlagt i denne uge.";
   const base = `${summary.done} af ${summary.total} løb i hus.`;
   if (summary.open === 0) {
     return summary.done === summary.total ? `${base} Ugen er klaret.` : `${base} Ugen er slut.`;

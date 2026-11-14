@@ -19,7 +19,12 @@ function centroid(route: PosterRoute): LatLng | null {
 
 /** "Horsens - W7 Sun Easy Run" -> "Horsens". Only a plain place-like word counts, not "W7" or a date. */
 export function placePrefix(name: string | null | undefined): string | null {
-  const m = /^([A-Za-zÆØÅæøåÉéÜü]+(?: [A-Za-zÆØÅæøåÉéÜü]+)?)\s+[-–]\s+/.exec((name ?? "").trim());
+  const text = (name ?? "").trim();
+  const word = "[A-Za-zÆØÅæøåÉéÜü]+";
+  const dashed = new RegExp(`^(${word}(?: ${word})?)\\s+[-–]\\s+`).exec(text);
+  // Garmin's own default names: "Horsens Løb", "Aarhus Løbetur", "Vejle Gang"
+  const garmin = new RegExp(`^(${word}(?: ${word})?)\\s+(?:Løb|Løbetur|Gåtur|Gang|Cykling|Cykeltur|Trail|Trailløb|Intervaller)$`, "i").exec(text);
+  const m = dashed ?? (garmin && !/^(Morgen|Formiddag|Middag|Eftermiddag|Aften|Nat)$/i.test(garmin[1]) ? garmin : null);
   return m && m[1].length >= 3 && !/^[WSK]\d/i.test(m[1]) ? m[1] : null;
 }
 

@@ -13,6 +13,14 @@ const route = (id: number, lat: number, lng: number, name: string | null, date =
 });
 
 describe("placePrefix", () => {
+  it("recognises Garmin default names", () => {
+    expect(placePrefix("Horsens Løb")).toBe("Horsens");
+    expect(placePrefix("Aarhus Løbetur")).toBe("Aarhus");
+    expect(placePrefix("Ny Vejle Gang")).toBe("Ny Vejle");
+    expect(placePrefix("Morgen Løb")).toBeNull(); // a time of day is not a place
+    expect(placePrefix("Løb")).toBeNull();
+    expect(placePrefix("Horsens Løb langt")).toBeNull();
+  });
   it("takes the place before ' - ' and ignores plan codes and dates", () => {
     expect(placePrefix("Horsens - W7 Sun Easy Run")).toBe("Horsens");
     expect(placePrefix("Brønderslev - S3.5 - 5(700m-30s)")).toBe("Brønderslev");

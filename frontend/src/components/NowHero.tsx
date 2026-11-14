@@ -1,3 +1,4 @@
+import { sessionLabel } from "../lib/sessionTypes";
 import { useMemo } from "react";
 import Sparkline from "./Sparkline";
 import WeekRing from "./WeekRing";
@@ -74,7 +75,7 @@ export default function NowHero({
               <span className="u-tile__value" style={{ fontSize: "var(--text-lg)" }}>
                 {cap(dayLabel(view.next.planned_date, today))} · {view.next.display_target}
               </span>
-              <span className="u-card__meta">{view.next.session_type}{view.next.optional ? " · valgfri" : ""}</span>
+              <span className="u-card__meta">{sessionLabel(view.next.session_type)}{view.next.optional ? " · valgfri" : ""}</span>
             </>
           ) : (
             <span className="u-card__meta">Ingen planlagte løb.</span>

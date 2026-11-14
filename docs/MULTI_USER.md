@@ -93,6 +93,15 @@ Stravas API er lukket for appen (kræver abonnement), så Strava-forbindelsen, w
 Migration 12 sletter de gemte Strava-tokens og webhook-loggen. **Løbene fra Strava-tiden bliver liggende** med deres
 ruter (`source = 'strava'`). Strava-variablerne i `.env` bruges ikke længere og kan fjernes.
 
+## Flyvetur-kortet
+
+Udforsk viser et stiliseret kort, hvor kameraet flyver mellem de steder, du har løbet. Kortet tegnes helt i browseren:
+
+- Landegrænser kommer fra Natural Earth (public domain) og ligger som en statisk fil (`frontend/src/assets/europe-land.json`, ca. 113 KB). Der hentes ingen kortfliser, og ingen positioner sendes til tredjepart.
+- Stednavne tages fra dine løbs navne ("Horsens - …", "Horsens Løb"). Mangler de, bruges "nær <by>" ud fra en lille liste af byer (`europe-towns.json`).
+- Filerne genereres med `python tools/build_map_data.py ne_50m_admin_0_countries.geojson ne_10m_populated_places_simple.geojson`.
+- Kysten er grov og tones ud, når du er tæt på. Med "reducer bevægelse" vises et stillbillede i stedet for animation.
+
 ## Kendte begrænsninger
 
 - Refresh-tokens ligger i klartekst i SQLite-databasen. Beskyt databasefilen og dens backup.

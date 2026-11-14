@@ -1,4 +1,7 @@
+import WeekStoryCard from "../components/WeekStoryCard";
+import { sessionLabel } from "../lib/sessionTypes";
 import NowHero from "../components/NowHero";
+import { scoreNote } from "../lib/week";
 import StatusBadge from "../components/StatusBadge";
 import {
   AreaChart,
@@ -180,6 +183,8 @@ export default function OverviewPage({
         monthlyVolume={monthlyVolume}
       />
 
+      <WeekStoryCard activities={activities} />
+
       {error && (
         <section
           style={{
@@ -200,7 +205,7 @@ export default function OverviewPage({
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 11rem), 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr))",
           gap: 16,
         }}
       >
@@ -220,9 +225,9 @@ export default function OverviewPage({
           subtitle={hrChangeText(summary?.avg_hr_this_month, summary?.avg_hr_prev_month)}
         />
         <SummaryCard
-          title="Planopfyldelse denne uge"
+          title="Planen denne uge"
           value={`${summary?.adherence_pct_current_week ?? 0}%`}
-          subtitle={`${summary?.current_week_completed ?? 0}/${summary?.current_week_relevant ?? 0} relevante obligatoriske pas`}
+          subtitle={`${summary?.current_week_completed ?? 0}/${summary?.current_week_relevant ?? 0} vigtige løb`}
         />
       </section>
 
@@ -241,18 +246,22 @@ export default function OverviewPage({
             <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{currentWeekKey}</span>
           </div>
 
+          <p className="u-card__meta" style={{ margin: "0 0 8px" }}>
+            {scoreNote(currentWeekCompleted, currentWeekShortened, currentWeekRelevant.length, currentWeekAwaiting)}
+          </p>
+
           <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text)", marginBottom: 4 }}>
             {currentWeekCompleted}/{currentWeekRelevant.length}
           </div>
 
           <div style={{ fontSize: 14, color: "var(--color-text-muted)", marginBottom: 10 }}>
-            aktuelle obligatoriske pas gennemført
+            vigtige løb gennemført
           </div>
 
           <div style={{ display: "grid", gap: 6, fontSize: 13, color: "var(--color-text-muted)" }}>
-            <div>Forkortede pas: {currentWeekShortened}</div>
-            <div>Afventende obligatoriske pas: {currentWeekAwaiting}</div>
-            <div>Valgfrie pas denne uge: {currentWeekRuns.filter((p: any) => p.optional).length}</div>
+            <div>Forkortede løb: {currentWeekShortened}</div>
+            <div>Vigtige løb der venter: {currentWeekAwaiting}</div>
+            <div>Valgfrie løb denne uge: {currentWeekRuns.filter((p: any) => p.optional).length}</div>
           </div>
         </div>
 
@@ -267,7 +276,7 @@ export default function OverviewPage({
                 {nextPlanned.display_target}
               </div>
               <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
-                {formatDate(nextPlanned.planned_date)} · {nextPlanned.session_type}
+                {formatDate(nextPlanned.planned_date)} · {sessionLabel(nextPlanned.session_type)}
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 <StatusBadge value={nextPlanned.status} />
@@ -308,7 +317,7 @@ export default function OverviewPage({
                       {formatDate(run.planned_date)}
                     </div>
                     <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-                      {run.session_type} · {run.display_target}
+                      {sessionLabel(run.session_type)} · {run.display_target}
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center" }}>
@@ -334,6 +343,7 @@ export default function OverviewPage({
                 <YAxis />
                 <Tooltip />
                 <Area
+                  isAnimationActive={false}
                   type="monotone"
                   dataKey="km"
                   stroke="var(--data-1)"
@@ -347,7 +357,7 @@ export default function OverviewPage({
 
         <div style={cardStyle}>
           <div style={{ marginBottom: 12, fontWeight: 600, color: "var(--color-text)" }}>
-            Seneste planmatch
+            Seneste planlagte løb, der blev løbet
           </div>
 
           {latestMatched ? (
@@ -357,7 +367,7 @@ export default function OverviewPage({
                   {latestMatched.matched_activity_name}
                 </div>
                 <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
-                  {formatDate(latestMatched.planned_date)} · {latestMatched.session_type}
+                  {formatDate(latestMatched.planned_date)} · {sessionLabel(latestMatched.session_type)}
                 </div>
               </div>
 
@@ -411,7 +421,7 @@ export default function OverviewPage({
               <div>
                 <div style={{ fontWeight: 600 }}>{week.week}</div>
                 <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-                  {week.completed}/{week.relevant_runs} relevante obligatoriske pas
+                  {week.completed}/{week.relevant_runs} vigtige løb
                 </div>
               </div>
               <StatusBadge value={week.score} />
