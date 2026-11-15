@@ -66,20 +66,31 @@ def streak(challenge: dict, logs: dict[date, int], today: date) -> int:
     return count
 
 
-def milestone_dates(challenge: dict, logs: dict[date, int], today: date) -> list[dict]:
-    """The days a run of planned days in a row reached 7, 14 and 30: {key, label, date}."""
-    out: list[dict] = []
+def streak_dates(challenge: dict, logs: dict[date, int], today: date) -> dict[int, date]:
+    """For each of 7, 14 and 30 planned days in a row: the first day the run reached it."""
+    out: dict[int, date] = {}
     run = 0
-    seen: set[int] = set()
     for day in _planned_days(challenge, today):
         if logs.get(day, 0) >= (target_for(challenge, day) or 0):
             run += 1
-            if run in STREAK_STEPS and run not in seen:
-                seen.add(run)
-                out.append({"key": f"challenge_{challenge['id']}_{run}", "label": f"{run} dage i træk: {challenge['name']}", "date": day})
+            if run in STREAK_STEPS and run not in out:
+                out[run] = day
         else:
             run = 0
     return out
+
+
+def milestone_dates(challenge: dict, logs: dict[date, int], today: date) -> list[dict]:
+    """The days a run of planned days in a row reached 7, 14 and 30: {key, label, date}."""
+    return [
+        {"key": f"challenge_{challenge['id']}_{n}", "label": f"{n} dage i træk: {challenge['name']}", "date": day}
+        for n, day in sorted(streak_dates(challenge, logs, today).items())
+    ]
+
+
+def done_days(challenge: dict, logs: dict[date, int], today: date) -> set[date]:
+    """The planned days (up to today) on which the target was reached."""
+    return {d for d in _planned_days(challenge, today) if logs.get(d, 0) >= (target_for(challenge, d) or 0)}
 
 
 def best_days(challenge: dict, logs: dict[date, int]) -> list[date]:

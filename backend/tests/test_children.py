@@ -81,7 +81,7 @@ def test_a_parent_sees_a_short_summary_of_a_child_even_when_the_child_shares_not
 def test_the_parents_summary_has_no_distance_pace_heart_rate_or_place(home, db):
     local(db, 1, timeutil.today().isoformat(), 5.0, 30, ANNA)
     g = member(home, ADMIN, ANNA)["guardian"]
-    assert set(g) == {"runs_week", "active_days_week", "minutes_week", "runs_month", "minutes_month", "last_run_date", "streak_weeks", "challenges"}
+    assert set(g) == {"runs_week", "active_days_week", "minutes_week", "runs_month", "minutes_month", "last_run_date", "streak_weeks", "challenges", "stars_week"}
     assert g["challenges"] == []
 
 

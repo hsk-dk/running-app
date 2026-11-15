@@ -418,6 +418,75 @@ class GuardianChallengeOut(BaseModel):
     weeks: int | None = None
 
 
+class StarDayOut(BaseModel):
+    date: str
+    stars: int
+
+
+class StarWeekOut(BaseModel):
+    cap: int
+    earned: int
+    bonus: int
+    days: list[StarDayOut]
+
+
+class RewardPastOut(BaseModel):
+    name: str
+    cost: int
+    date: str
+
+
+class RewardOut(BaseModel):
+    """The family's reward and how many stars everyone has together. Nobody's own part is shown."""
+
+    id: int
+    name: str
+    cost: int
+    stars: int
+    reached: bool
+    remaining: int
+    recent: list[RewardPastOut] = Field(default_factory=list)
+
+
+class StarsOut(BaseModel):
+    total: int
+    week: StarWeekOut
+    reward: RewardOut | None = None
+
+
+class RewardIn(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+    cost: int = Field(ge=1, le=1000)
+
+
+class BonusIn(BaseModel):
+    note: str | None = Field(default=None, max_length=80)
+
+
+class BadgeEarnedOut(BaseModel):
+    key: str
+    group: str
+    icon: str
+    title: str
+    description: str
+    date: str
+    is_new: bool
+
+
+class BadgeAheadOut(BaseModel):
+    key: str
+    group: str
+    icon: str
+    title: str
+    hint: str
+
+
+class BadgesOut(BaseModel):
+    earned: list[BadgeEarnedOut]
+    ahead: list[BadgeAheadOut]
+    total: int
+
+
 class GuardianOut(BaseModel):
     """What a parent sees about a child: how often and for how long, not how far or how fast."""
 
@@ -429,6 +498,7 @@ class GuardianOut(BaseModel):
     last_run_date: str | None
     streak_weeks: int
     challenges: list[GuardianChallengeOut] = Field(default_factory=list)
+    stars_week: int = 0
 
 
 class GoalOut(BaseModel):
@@ -475,3 +545,4 @@ class FamilyOut(BaseModel):
     sharing_enabled: bool
     goal: GoalOut
     brags: list[BragOut] = Field(default_factory=list)
+    reward: RewardOut | None = None

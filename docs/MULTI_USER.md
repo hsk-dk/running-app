@@ -103,6 +103,15 @@ En forælder (admin) markerer et familiemedlem som barn under Familie → Indsti
 
 Appen giver ikke lægelige råd. Tjek selv Garmins og Smashruns aldersgrænser og vilkår, før et barn forbinder sin egen konto.
 
+## Mærker, stjerner og en fælles belønning
+
+Til at motivere uden at konkurrere. Alt handler om indsats og om dig selv, aldrig om tempo eller kilometer.
+
+- **Mærker (Mærkeskab):** samlede mærker for det, appen allerede kender: første løb, første 3/5/8/10/15/21 km, tre løb i en uge, 10/25/50/100 løb, 4/8/12/26/52 uger i træk, 7/14/30 dage i træk med en udfordring, ny bedste dag, fordoblet startmål, og 1/10/25/50/100 stjerner. Hvert mærke er optjent én gang, på den dag det første gang blev nået, og mistes aldrig. De ses kun af én selv.
+- **Stjerner:** 1 for en aktiv dag (mindst 15 minutter i alt, løb eller anden træning fra uret) og 1 for en dag, hvor man klarede sin udfordring. **Højst 5 om ugen** pr. person, så mere aldrig er bedre. En stjerne forsvinder aldrig. En forælder kan give en bonusstjerne (højst 3 om dagen til samme person) for indsats, der ikke kan måles.
+- **Fælles belønning:** en forælder (admin) vælger, hvad familien sparer til (fx en biograftur) og hvor mange stjerner, den koster. Alle stjerner fra dem, der deler, og fra alle børn, lægges sammen, og der vises én bjælke. Ingen kan se, hvem der har bidraget med hvor meget. Stjerner fra før belønningen blev sat, tæller ikke. Når målet er nået, trykker en forælder "Giv belønningen". Det, der var til overs, går med videre til den næste, som starter dagen efter.
+- **Børn** får en enkel forside med dagens udfordring, ugens stjerner og mærkerne, uden planer og voksenting.
+
 ## Daglige udfordringer (armbøjninger, planke...)
 
 Hver person kan lave en daglig udfordring på Nu-siden: et navn, en enhed (stk., sekunder, minutter), et startmål, hvor meget det vokser og hvor tit (fx 5 armbøjninger, 1 mere hver 7. dag), evt. et loft og fridage. Dagens mål står øverst. Man trykker "Jeg klarede 5" eller skriver selv et tal. Ugen vises som runde mærker. En dag uden tal er bare en dag uden mærke, og der står aldrig noget nedslående.

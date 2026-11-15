@@ -338,3 +338,10 @@ def count_unread_fit(conn: sqlite3.Connection, user_id: int) -> int:
         "SELECT COUNT(*) FROM activities WHERE user_id = ? AND garmin_id IS NOT NULL AND fit_status IS NULL AND sport_type = 'Run'",
         (user_id,),
     ).fetchone()[0]
+
+
+def list_durations(conn: sqlite3.Connection, user_id: int) -> list[sqlite3.Row]:
+    """Every activity of any kind with its start and moving time: for counting the minutes of each day."""
+    return conn.execute(
+        "SELECT start_date, start_date_local, moving_time_s FROM activities WHERE user_id = ? AND start_date IS NOT NULL", (user_id,)
+    ).fetchall()

@@ -70,3 +70,8 @@ def recent_brags(conn: sqlite3.Connection, since: str) -> list[sqlite3.Row]:
         "WHERE c.archived = 0 AND b.day >= ? AND l.count > 0 ORDER BY b.day DESC, c.id",
         (since,),
     ).fetchall()
+
+
+def all_for_user(conn: sqlite3.Connection, user_id: int) -> list[sqlite3.Row]:
+    """Every challenge the person has had, put away or not: their history counts for stars and badges."""
+    return conn.execute("SELECT * FROM challenges WHERE user_id = ? ORDER BY id", (user_id,)).fetchall()
