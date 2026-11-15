@@ -4,7 +4,19 @@ export type Shelf = { earned: BadgeEarned[]; ahead: BadgeAhead[]; total: number 
 
 export type StarDay = { date: string; stars: number };
 export type StarWeek = { cap: number; earned: number; bonus: number; days: StarDay[] };
-export type Reward = { id: number; name: string; cost: number; stars: number; reached: boolean; remaining: number; recent: { name: string; cost: number; date: string }[] };
+export type Reward = {
+  id: number;
+  name: string;
+  cost: number;
+  stars: number;
+  reached: boolean;
+  remaining: number;
+  recent: { name: string; cost: number; date: string }[];
+  people?: number;
+  per_week?: number;
+  estimated?: boolean;
+  weeks_left?: number | null;
+};
 export type Stars = { total: number; week: StarWeek; reward: Reward | null };
 
 export const GROUP_LABEL: Record<string, string> = { løb: "Løb", udfordring: "Udfordringer", stjerner: "Stjerner" };
@@ -41,4 +53,42 @@ export function starSlots(week: StarWeek): { filled: number; empty: number; extr
 export function rewardText(r: Pick<Reward, "name" | "cost" | "stars" | "reached" | "remaining">): string {
   if (r.reached) return `${r.name}: målet er nået! Spørg en forælder.`;
   return `${r.stars} af ${r.cost} stjerner til ${r.name}. ${r.remaining === 1 ? "Der mangler 1 stjerne." : `Der mangler ${r.remaining}.`}`;
+}
+
+const dk = (v: number) => v.toLocaleString("da-DK", { maximumFractionDigits: 1 });
+
+/** How long to go at the current pace: "ca. 3 uger", "mindre end en uge", or that it is only a guess so far. */
+export const perWeekText = (v: number): string => v.toLocaleString("da-DK", { maximumFractionDigits: 1 });
+
+export function paceText(r: Pick<Reward, "reached" | "per_week" | "estimated" | "weeks_left">): string {
+  if (r.reached) return "";
+  if (r.weeks_left == null || !r.per_week) return "Der er ikke kommet stjerner endnu, så jeg kan ikke sige, hvornår det bliver.";
+  const weeks = r.weeks_left < 1 ? "mindre end en uge" : `ca. ${Math.ceil(r.weeks_left)} ${Math.ceil(r.weeks_left) === 1 ? "uge" : "uger"}`;
+  return r.estimated ? `Hvis I får omkring ${dk(r.per_week)} stjerner om ugen, tager det ${weeks}.` : `Med jeres tempo (omkring ${dk(r.per_week)} stjerner om ugen) tager det ${weeks}.`;
+}
+
+/** A small cheer on the way, so there is something to enjoy between the rewards. */
+export function milestoneText(stars: number, cost: number): string {
+  if (cost <= 0) return "";
+  const share = stars / cost;
+  if (share >= 1) return "";
+  if (share >= 0.75) return "Næsten der!";
+  if (share >= 0.5) return "Over halvvejs!";
+  if (share >= 0.25) return "Godt på vej!";
+  return "";
+}
+
+export const INTERVAL_WEEKS = [1, 2, 3, 4, 6];
+
+/** What the reward should cost to come about every `weeks` weeks at this pace, never below 5. */
+export function suggestCost(perWeek: number, weeks: number): number {
+  return Math.max(5, Math.round(perWeek * weeks));
+}
+
+/** A rule of thumb in words: a reward for children this age is best every two to three weeks. */
+export function intervalNote(weeks: number): string {
+  if (weeks <= 1) return "Meget ofte: belønningen mister hurtigt sin værdi, så hold den lille.";
+  if (weeks <= 3) return "Et godt tempo: det er tæt nok på til at holde lysten, og det er stadig noget særligt.";
+  if (weeks <= 4) return "Lidt længe for de yngste, men fint, hvis belønningen er større.";
+  return "Længe at vente. Overvej en lille mellemstation undervejs.";
 }

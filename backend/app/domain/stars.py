@@ -52,3 +52,33 @@ def total(earned_by_day: dict[date, int], bonus_by_day: dict[date, int], since: 
 
 def reward_state(cost: int, stars: int) -> dict:
     return {"cost": cost, "stars": stars, "reached": stars >= cost, "remaining": max(0, cost - stars)}
+
+
+RATE_DAYS = 28
+BASELINE_PER_PERSON = 3.0  # stars a week a person is guessed to earn before there is anything to measure
+MIN_STARS_TO_MEASURE = 4
+
+
+def pace(stars_in_window: int, people: int, days: int = RATE_DAYS) -> dict:
+    """How fast the family earns stars: the last four weeks, or a guess of three a week a person when there is almost nothing to go by.
+
+    This is what lets a parent set a reward that comes neither too rarely (it stops being worth it) nor too often (it stops being special)."""
+    if people <= 0:
+        return {"per_week": 0.0, "estimated": True}
+    if stars_in_window < MIN_STARS_TO_MEASURE:
+        return {"per_week": round(people * BASELINE_PER_PERSON, 1), "estimated": True}
+    return {"per_week": round(stars_in_window / (days / 7), 1), "estimated": False}
+
+
+def weeks_left(remaining: int, per_week: float) -> float | None:
+    """About how many weeks until the reward at the current pace, or None when nothing is being earned."""
+    if remaining <= 0:
+        return 0.0
+    if per_week <= 0:
+        return None
+    return round(remaining / per_week, 1)
+
+
+def suggested_cost(per_week: float, weeks: float) -> int:
+    """What a reward should cost to come about every `weeks` weeks at this pace (never below 5, so it is not instant)."""
+    return max(5, round(per_week * weeks))

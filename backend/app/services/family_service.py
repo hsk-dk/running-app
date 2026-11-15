@@ -184,6 +184,7 @@ def list_family(viewer: CurrentUser) -> dict:
         "goal": goal,
         "brags": brags,
         "reward": star_service.reward_progress(),
+        "pace": star_service.family_pace(),
     }
 
 

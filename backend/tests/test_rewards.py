@@ -99,7 +99,7 @@ def test_a_parent_sets_a_reward_and_everyone_who_shares_adds_to_it(home, db):
     local(db, 2, today, 30, user_id=2)
     got = stars(home, BO)["reward"]
     assert got["stars"] == 2 and got["remaining"] == 2
-    assert set(got) == {"id", "name", "cost", "stars", "reached", "remaining", "recent"}  # no one's own part
+    assert set(got) == {"id", "name", "cost", "stars", "reached", "remaining", "recent", "people", "per_week", "estimated", "weeks_left"}  # no one's own part
     assert home.get("/api/family", headers=FAMILY).json()["reward"]["stars"] == 2
 
 
@@ -184,3 +184,50 @@ def test_the_tables_exist(proxy, db):
     v = c.execute("PRAGMA user_version").fetchone()[0]
     c.close()
     assert {"star_bonus", "family_rewards"} <= names and v >= 16
+
+
+# ---- the balance between how easy a star is and how often there is a reward -----------------------------------------
+
+def test_a_new_family_gets_a_guess_of_three_stars_a_week_a_person(home):
+    r = home.put("/api/family/reward", headers=ADMIN, json={"name": "Biograftur", "cost": 36}).json()
+    assert r["people"] == 3 and r["estimated"] is True and r["per_week"] == 9.0
+    assert r["weeks_left"] == 4.0  # 36 left at 9 a week
+
+
+def test_the_pace_follows_what_the_family_really_earned_the_last_four_weeks(home, db):
+    today = timeutil.today()
+    for i in range(10):  # ten active days spread over the last weeks: ten stars for one person
+        local(db, 100 + i, (today - timedelta(days=i * 2)).isoformat(), 30)
+    r = home.put("/api/family/reward", headers=ADMIN, json={"name": "Biograftur", "cost": 20}).json()
+    assert r["estimated"] is False
+    assert 2.0 <= r["per_week"] <= 2.6  # about 10 stars in 4 weeks
+    assert r["weeks_left"] == round(r["remaining"] / r["per_week"], 1)
+
+
+def test_weeks_left_is_zero_when_the_reward_is_reached(home):
+    home.put("/api/family/reward", headers=ADMIN, json={"name": "Biograftur", "cost": 2})
+    home.post("/api/family/2/bonus", headers=ADMIN, json={})
+    home.post("/api/family/2/bonus", headers=ADMIN, json={})
+    r = stars(home)["reward"]
+    assert r["reached"] is True and r["weeks_left"] == 0.0
+
+
+def test_stars_from_before_the_last_four_weeks_do_not_change_the_pace(home, db):
+    today = timeutil.today()
+    for i in range(6):
+        local(db, 300 + i, (today - timedelta(days=i * 3)).isoformat(), 30)  # six stars in the window
+    before = home.put("/api/family/reward", headers=ADMIN, json={"name": "Biograftur", "cost": 30}).json()["per_week"]
+    for i in range(10):
+        local(db, 400 + i, (today - timedelta(days=40 + i * 2)).isoformat(), 30)  # ten more, long ago
+    assert stars(home)["reward"]["per_week"] == before and before == 1.5  # six stars in four weeks
+
+
+def test_the_family_page_has_the_pace_before_any_reward_is_set(home, db):
+    body = home.get("/api/family", headers=ADMIN).json()
+    assert body["reward"] is None
+    assert body["pace"] == {"people": 3, "per_week": 9.0, "estimated": True}  # nothing to measure yet: a guess
+    today = timeutil.today()
+    for i in range(8):
+        local(db, 500 + i, (today - timedelta(days=i * 3)).isoformat(), 30)
+    pace = home.get("/api/family", headers=FAMILY).json()["pace"]
+    assert pace["estimated"] is False and pace["per_week"] == 2.0 and pace["people"] == 3  # eight stars in four weeks

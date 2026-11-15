@@ -446,6 +446,18 @@ class RewardOut(BaseModel):
     reached: bool
     remaining: int
     recent: list[RewardPastOut] = Field(default_factory=list)
+    people: int = 0
+    per_week: float = 0
+    estimated: bool = True
+    weeks_left: float | None = None
+
+
+class PaceOut(BaseModel):
+    """How fast the family earns stars: a measured pace, or a guess when there is little to go by."""
+
+    people: int
+    per_week: float
+    estimated: bool
 
 
 class StarsOut(BaseModel):
@@ -546,3 +558,4 @@ class FamilyOut(BaseModel):
     goal: GoalOut
     brags: list[BragOut] = Field(default_factory=list)
     reward: RewardOut | None = None
+    pace: PaceOut | None = None

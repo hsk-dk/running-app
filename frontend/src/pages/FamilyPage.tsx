@@ -5,7 +5,7 @@ import { Guardian, guardianNote, weekText } from "../lib/family";
 import { Brag, bragText, rangeText } from "../lib/challenge";
 import { useMe } from "../lib/meContext";
 import FamilySettings from "../components/FamilySettings";
-import { Reward, rewardText } from "../lib/rewards";
+import { Reward, milestoneText, paceText, rewardText } from "../lib/rewards";
 import { levelLabel } from "../lib/sharing";
 
 type Run = { id: number; date: string | null; name: string | null; distance_km: number; duration_min: number };
@@ -25,7 +25,7 @@ type Member = {
   guardian: Guardian | null;
 };
 type Goal = { target_km: number | null; km: number; month: string };
-type Family = { members: Member[]; total_km_this_month: number; sharing_enabled: boolean; goal: Goal; brags: Brag[]; reward: Reward | null };
+type Family = { members: Member[]; total_km_this_month: number; sharing_enabled: boolean; goal: Goal; brags: Brag[]; reward: Reward | null; pace: { people: number; per_week: number; estimated: boolean } | null };
 
 /** Monday of this week as YYYY-MM-DD, local time. */
 function weekStartKey(now = new Date()): string {
@@ -205,7 +205,8 @@ export default function FamilyPage() {
           <div role="progressbar" aria-valuenow={Math.min(family.reward.stars, family.reward.cost)} aria-valuemin={0} aria-valuemax={family.reward.cost} aria-label={`${family.reward.stars} af ${family.reward.cost} stjerner`} style={{ height: 18, borderRadius: 9, background: "var(--data-muted)", overflow: "hidden" }}>
             <div style={{ width: `${Math.min(100, Math.round((family.reward.stars / family.reward.cost) * 100))}%`, height: "100%", background: "var(--data-1)" }} />
           </div>
-          <p style={{ margin: 0, fontWeight: 600 }}>{rewardText(family.reward)}</p>
+          <p style={{ margin: 0, fontWeight: 600 }}>{rewardText(family.reward)} {milestoneText(family.reward.stars, family.reward.cost)}</p>
+          {paceText(family.reward) && <p className="u-card__meta" style={{ margin: 0 }}>{paceText(family.reward)}</p>}
           <p className="u-card__meta" style={{ margin: 0 }}>Alle stjerner i familien lægges sammen. Ingen kan se, hvem der har fået hvor mange.</p>
         </section>
       )}
@@ -248,7 +249,7 @@ export default function FamilyPage() {
           <MemberCard key={m.user_id} m={m} onOpen={(member, id) => setOpen({ member, id })} />
         ))}
       </div>
-      {isAdmin && <FamilySettings goal={family.goal} reward={family.reward} onChanged={() => api.getFamily().then(setFamily)} />}
+      {isAdmin && <FamilySettings goal={family.goal} reward={family.reward} pace={family.pace} onChanged={() => api.getFamily().then(setFamily)} />}
     </div>
   );
 }

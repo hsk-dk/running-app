@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Shelf, compactShelf, nextPerGroup, rewardText, starSlots } from "./rewards";
+import { INTERVAL_WEEKS, Shelf, perWeekText, compactShelf, intervalNote, milestoneText, nextPerGroup, paceText, rewardText, starSlots, suggestCost } from "./rewards";
 
 const e = (key: string, isNew = false) => ({ key, group: "løb", icon: "🏃", title: key, description: "", date: "2026-11-01", is_new: isNew });
 const a = (key: string, group: string) => ({ key, group, icon: "⭐", title: key, hint: "" });
@@ -52,5 +52,55 @@ describe("rewardText", () => {
     expect(rewardText({ name: "Biograftur", cost: 40, stars: 12, reached: false, remaining: 28 })).toBe("12 af 40 stjerner til Biograftur. Der mangler 28.");
     expect(rewardText({ name: "Biograftur", cost: 40, stars: 39, reached: false, remaining: 1 })).toBe("39 af 40 stjerner til Biograftur. Der mangler 1 stjerne.");
     expect(rewardText({ name: "Biograftur", cost: 40, stars: 40, reached: true, remaining: 0 })).toBe("Biograftur: målet er nået! Spørg en forælder.");
+  });
+});
+
+describe("paceText", () => {
+  const r = (over = {}) => ({ reached: false, per_week: 7, estimated: false, weeks_left: 2.2, ...over });
+  it("says how long, rounding up, with the measured pace", () => {
+    expect(paceText(r())).toBe("Med jeres tempo (omkring 7 stjerner om ugen) tager det ca. 3 uger.");
+    expect(paceText(r({ weeks_left: 1 }))).toBe("Med jeres tempo (omkring 7 stjerner om ugen) tager det ca. 1 uge.");
+    expect(paceText(r({ weeks_left: 0.4 }))).toContain("mindre end en uge");
+  });
+  it("is honest that it is only a guess when nothing has been measured", () => {
+    expect(paceText(r({ estimated: true, per_week: 9 }))).toBe("Hvis I får omkring 9 stjerner om ugen, tager det ca. 3 uger.");
+  });
+  it("says nothing when it is reached, and admits it when nothing is earned", () => {
+    expect(paceText(r({ reached: true }))).toBe("");
+    expect(paceText(r({ weeks_left: null, per_week: 0 }))).toContain("ikke kommet stjerner");
+  });
+});
+
+describe("decimals are Danish", () => {
+  it("writes a comma and at most one decimal", () => {
+    expect(perWeekText(4.5)).toBe("4,5");
+    expect(perWeekText(7)).toBe("7");
+    expect(perWeekText(2.04)).toBe("2");
+  });
+  it("uses the comma in the sentence about the pace", () => {
+    expect(paceText({ reached: false, per_week: 4.5, estimated: false, weeks_left: 4.2 })).toBe("Med jeres tempo (omkring 4,5 stjerner om ugen) tager det ca. 5 uger.");
+  });
+});
+
+describe("milestoneText", () => {
+  it("cheers at a quarter, a half and three quarters, and not at the start or the end", () => {
+    expect([0, 5, 10, 20, 30, 39, 40].map((s) => milestoneText(s, 40))).toEqual(["", "", "Godt på vej!", "Over halvvejs!", "Næsten der!", "Næsten der!", ""]);
+    expect(milestoneText(5, 0)).toBe("");
+  });
+});
+
+describe("suggestCost and intervalNote", () => {
+  it("scales with the pace and the wait, never below five", () => {
+    expect(suggestCost(9, 3)).toBe(27);
+    expect(suggestCost(7.5, 2)).toBe(15);
+    expect(suggestCost(0.5, 1)).toBe(5);
+    expect(INTERVAL_WEEKS).toEqual([1, 2, 3, 4, 6]);
+  });
+  it("advises on how often", () => {
+    expect(intervalNote(1)).toContain("mister hurtigt");
+    expect(intervalNote(2)).toContain("godt tempo");
+    expect(intervalNote(3)).toContain("godt tempo");
+    expect(intervalNote(4)).toContain("Lidt længe");
+    expect(intervalNote(6)).toContain("mellemstation");
   });
 });

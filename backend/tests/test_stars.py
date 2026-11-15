@@ -72,3 +72,30 @@ def test_a_reward_is_reached_at_exactly_the_cost():
     assert stars.reward_state(40, 39) == {"cost": 40, "stars": 39, "reached": False, "remaining": 1}
     assert stars.reward_state(40, 40)["reached"] is True and stars.reward_state(40, 40)["remaining"] == 0
     assert stars.reward_state(40, 55)["remaining"] == 0
+
+
+# ---- the balance: how fast stars come against what a reward costs --------------------------------------------------
+
+def test_pace_is_measured_over_four_weeks_and_guessed_when_there_is_nothing_to_go_by():
+    assert stars.pace(28, 3) == {"per_week": 7.0, "estimated": False}  # 28 stars in 4 weeks
+    assert stars.pace(10, 2) == {"per_week": 2.5, "estimated": False}
+    assert stars.pace(3, 3) == {"per_week": 9.0, "estimated": True}  # too little to measure: three a week a person
+    assert stars.pace(0, 2) == {"per_week": 6.0, "estimated": True}
+    assert stars.pace(4, 2)["estimated"] is False  # four is enough
+    assert stars.pace(50, 0) == {"per_week": 0.0, "estimated": True}
+
+
+def test_weeks_left_is_how_long_at_this_pace_and_nothing_when_nothing_is_earned():
+    assert stars.weeks_left(28, 7.0) == 4.0
+    assert stars.weeks_left(10, 4.0) == 2.5
+    assert stars.weeks_left(0, 0.0) == 0.0  # already there
+    assert stars.weeks_left(-3, 5.0) == 0.0
+    assert stars.weeks_left(10, 0.0) is None
+
+
+def test_a_suggested_cost_follows_the_pace_and_is_never_instant():
+    assert stars.suggested_cost(9.0, 3) == 27
+    assert stars.suggested_cost(7.0, 2) == 14
+    assert stars.suggested_cost(1.0, 1) == 5
+    assert stars.suggested_cost(0.0, 4) == 5
+    assert stars.suggested_cost(8.5, 2) == 17

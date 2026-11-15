@@ -62,6 +62,19 @@ def _counts(u: CurrentUser) -> bool:
     return u.sharing_level != "private" or u.is_child
 
 
+def family_pace() -> dict:
+    """How fast the family earns stars, whether or not there is a reward yet: people, stars a week, and whether it is only a guess."""
+    window_from = timeutil.today() - timedelta(days=domain.RATE_DAYS - 1)
+    in_window = 0
+    people = 0
+    for u in user_service.list_users():
+        if _counts(u):
+            people += 1
+            earned, bonus = stars_of(u.id)
+            in_window += domain.total(earned, bonus, window_from)
+    return {"people": people, **domain.pace(in_window, people)}
+
+
 def reward_progress() -> dict | None:
     """The family's reward with the stars of everyone together. Nobody's own part is shown."""
     conn = get_conn()
@@ -78,7 +91,13 @@ def reward_progress() -> dict | None:
         if _counts(u):
             earned, bonus = stars_of(u.id)
             stars += domain.total(earned, bonus, since)
-    return {"id": row["id"], "name": row["name"], **domain.reward_state(row["cost"], stars), "recent": recent}
+    state = domain.reward_state(row["cost"], stars)
+    rate = family_pace()
+    return {
+        "id": row["id"], "name": row["name"], **state, "recent": recent,
+        "people": rate["people"], "per_week": rate["per_week"], "estimated": rate["estimated"],
+        "weeks_left": domain.weeks_left(state["remaining"], rate["per_week"]),
+    }
 
 
 def _admin(user: CurrentUser) -> None:

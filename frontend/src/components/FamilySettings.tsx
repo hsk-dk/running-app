@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { Reward } from "../lib/rewards";
+import { INTERVAL_WEEKS, Reward, intervalNote, perWeekText, suggestCost } from "../lib/rewards";
 
 type Person = { id: number; name: string; username: string; role: string; is_child: boolean };
 type Goal = { target_km: number | null; km: number; month: string };
 
 /** For the parents: who is a child, and the family's monthly goal. */
-export default function FamilySettings({ goal, reward, onChanged }: { goal: Goal; reward: Reward | null; onChanged: () => void }) {
+export default function FamilySettings({ goal, reward, pace, onChanged }: { goal: Goal; reward: Reward | null; pace: { people: number; per_week: number; estimated: boolean } | null; onChanged: () => void }) {
   const [rewardName, setRewardName] = useState(reward?.name ?? "");
   const [rewardCost, setRewardCost] = useState(reward ? String(reward.cost) : "");
   const [bonusNote, setBonusNote] = useState("");
+  const [every, setEvery] = useState(3);
   const [people, setPeople] = useState<Person[] | null>(null);
   const [target, setTarget] = useState(goal.target_km ? String(goal.target_km) : "");
   const [message, setMessage] = useState("");
@@ -113,6 +114,25 @@ export default function FamilySettings({ goal, reward, onChanged }: { goal: Goal
         <p className="u-card__meta" style={{ margin: 0 }}>
           Fælles belønning: familien sparer stjerner sammen, fx til en biograftur. En stjerne er for en aktiv dag (mindst 15 minutter) og en klaret udfordringsdag, højst 5 om ugen pr. person, og aldrig for tempo eller kilometer. Alle, der deler, og alle børn tæller med.
         </p>
+        {pace && pace.per_week > 0 ? (
+          <div style={{ display: "grid", gap: 6 }}>
+            <p className="u-card__meta" style={{ margin: 0 }}>
+              {pace.estimated
+                ? `Der er endnu ikke nok at måle på. Jeg gætter på omkring ${perWeekText(pace.per_week)} stjerner om ugen for jer (${pace.people} personer, 3 hver).`
+                : `I har fået omkring ${perWeekText(pace.per_week)} stjerner om ugen de seneste fire uger (${pace.people} personer).`}
+            </p>
+            <label className="u-card__meta" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              Hvor tit vil I have en belønning?
+              <select value={every} onChange={(e) => setEvery(Number(e.target.value))} style={{ minHeight: 44, padding: "0 10px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", background: "var(--color-surface)" }}>
+                {INTERVAL_WEEKS.map((w) => <option key={w} value={w}>{w === 1 ? "hver uge" : `hver ${w}. uge`}</option>)}
+              </select>
+              <button type="button" className="u-btn u-btn--secondary" onClick={() => setRewardCost(String(suggestCost(pace.per_week, every)))}>
+                Foreslå {suggestCost(pace.per_week, every)} stjerner
+              </button>
+            </label>
+            <p className="u-card__meta" style={{ margin: 0 }}>{intervalNote(every)}</p>
+          </div>
+        ) : null}
         <div style={{ display: "flex", gap: 8, alignItems: "end", flexWrap: "wrap" }}>
           <label className="u-card__meta" style={{ display: "grid", gap: 4 }}>
             Hvad sparer vi til?

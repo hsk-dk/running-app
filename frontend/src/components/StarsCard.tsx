@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { Stars, rewardText, starSlots } from "../lib/rewards";
+import { Stars, milestoneText, paceText, rewardText, starSlots } from "../lib/rewards";
 
 /** This week's stars and the family's reward. A star is for effort (an active day, a challenge day), never for speed or distance. */
 export default function StarsCard({ onLoaded }: { onLoaded?: (s: Stars) => void }) {
@@ -36,7 +36,9 @@ export default function StarsCard({ onLoaded }: { onLoaded?: (s: Stars) => void 
           <div role="progressbar" aria-valuenow={Math.min(r.stars, r.cost)} aria-valuemin={0} aria-valuemax={r.cost} aria-label={`${r.stars} af ${r.cost} stjerner til ${r.name}`} style={{ height: 16, borderRadius: 8, background: "var(--data-muted)", overflow: "hidden" }}>
             <div style={{ width: `${Math.min(100, Math.round((r.stars / r.cost) * 100))}%`, height: "100%", background: "var(--data-1)" }} />
           </div>
-          <p className="u-card__meta" style={{ margin: 0 }}>{rewardText(r)} Alle stjerner i familien lægges sammen.</p>
+          <p className="u-card__meta" style={{ margin: 0 }}>{rewardText(r)} {milestoneText(r.stars, r.cost)}</p>
+          {paceText(r) && <p className="u-card__meta" style={{ margin: 0 }}>{paceText(r)}</p>}
+          <p className="u-card__meta" style={{ margin: 0 }}>Alle stjerner i familien lægges sammen.</p>
         </div>
       )}
     </section>
