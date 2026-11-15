@@ -53,6 +53,11 @@ def fix_header_text(value: str) -> str:
         return value
 
 
+def is_hidden(username: str | None) -> bool:
+    """A technical account (Authentik's default admin, by default): it can sign in, but it is not a person in the family."""
+    return (username or "").strip().lower() in settings.AUTH_HIDDEN_USERNAMES
+
+
 def is_trusted_peer(peer_ip: str | None) -> bool:
     """True when the request comes from a proxy listed in TRUSTED_PROXIES (IPs or CIDR ranges)."""
     if not peer_ip:
@@ -75,6 +80,8 @@ def _claims_legacy_data(conn, username: str, role: str) -> bool:
     legacy = user_repo.get(conn, DEFAULT_USER_ID)
     if legacy is None or legacy["external_id"] != "local":
         return False
+    if is_hidden(username):
+        return False  # a technical account must never swallow somebody's runs
     if settings.AUTH_OWNER_USERNAME:
         return username == settings.AUTH_OWNER_USERNAME
     return role == ADMIN
@@ -153,9 +160,10 @@ def update_profile(user_id: int, sharing_level: str | None, display_name: str | 
 
 
 def list_users() -> list[CurrentUser]:
+    """The people in the family. Technical accounts are not people and are left out."""
     conn = get_conn()
     try:
-        return [_to_user(r) for r in user_repo.list_all(conn)]
+        return [_to_user(r) for r in user_repo.list_all(conn) if not is_hidden(r["username"])]
     finally:
         conn.close()
 
@@ -169,6 +177,7 @@ def list_people(admin: CurrentUser) -> list[dict]:
         return [
             {"id": r["id"], "name": r["display_name"] or r["username"], "username": r["username"], "role": r["role"], "is_child": bool(r["is_child"])}
             for r in user_repo.list_all(conn)
+            if not is_hidden(r["username"])
         ]
     finally:
         conn.close()

@@ -17,6 +17,9 @@ class Settings:
     AUTH_ADMIN_GROUPS = [x.strip() for x in os.getenv("AUTH_ADMIN_GROUPS", "homelab-admins").split(",") if x.strip()]
     AUTH_FAMILY_GROUPS = [x.strip() for x in os.getenv("AUTH_FAMILY_GROUPS", "homelab-family").split(",") if x.strip()]
     # The Authentik username that owns the data that existed before users were added. Empty: the first admin to sign in.
+    # Technical accounts (for example Authentik's default admin) may sign in but are not family members: they are left out
+    # of the family page, the goal and the parents' list, and they never take over data from before users existed.
+    AUTH_HIDDEN_USERNAMES = [x.strip().lower() for x in os.getenv("AUTH_HIDDEN_USERNAMES", "akadmin").split(",") if x.strip()]
     AUTH_OWNER_USERNAME = os.getenv("AUTH_OWNER_USERNAME", "")
     # Signs the OAuth state. If empty, a random key is generated at start (state then dies on restart).
     APP_SECRET_KEY = os.getenv("APP_SECRET_KEY", "")
