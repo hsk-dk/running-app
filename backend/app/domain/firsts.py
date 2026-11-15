@@ -85,7 +85,8 @@ def next_up(all_runs: list[Run], today: date) -> list[dict]:
         out.append({"key": f"km_{step}", "label": _km_label(step), "current": round(longest, 1), "target": step, "unit": "km"})
     count = next((n for n in RUN_COUNTS if len(runs) < n), None)
     streak_now = _current_streak(runs, today)
-    streak_next = next((s for s in STREAKS if streak_now < s), None)
+    reached = {a["key"] for a in achieved(runs)}  # a first time is only a first time once: never offer it again
+    streak_next = next((s for s in STREAKS if streak_now < s and f"streak_{s}" not in reached), None)
     if streak_next and streak_now >= 1:
         out.append({"key": f"streak_{streak_next}", "label": f"{streak_next} uger i træk", "current": streak_now, "target": streak_next, "unit": "uger"})
     elif count:

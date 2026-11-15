@@ -163,3 +163,18 @@ def test_a_private_person_shows_no_milestones(proxy, db):
 
 def test_a_run_of_exactly_a_step_counts_so_the_next_step_is_the_one_after():
     assert firsts.next_up([run("2026-01-01", 5.0)], d("2026-01-02"))[0]["key"] == "km_8"
+
+
+def test_a_streak_already_reached_in_the_past_is_not_offered_as_the_next_one():
+    # 8 weeks in a row long ago (so "8 uger i træk" is reached), then a new run of 5 weeks that ends this week
+    old = [run((d("2024-01-01") + timedelta(days=7 * i)).isoformat(), 5) for i in range(8)]
+    new = [run((d("2026-01-05") + timedelta(days=7 * i)).isoformat(), 5) for i in range(5)]
+    n = firsts.next_up(old + new, d("2026-02-02"))
+    keys_ = [x["key"] for x in n]
+    assert "streak_8" not in keys_ and "streak_4" not in keys_
+    assert any(x["key"] == "streak_12" for x in n) or any(x["key"].startswith("runs_") for x in n)
+
+
+def test_a_streak_not_yet_reached_is_still_offered_with_the_progress():
+    n = firsts.next_up([run((d("2026-01-05") + timedelta(days=7 * i)).isoformat(), 5) for i in range(3)], d("2026-01-20"))
+    assert {"key": "streak_4", "label": "4 uger i træk", "current": 3, "target": 4, "unit": "uger"} in n
