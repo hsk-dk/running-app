@@ -457,6 +457,37 @@ def _migration_15_challenge_brags(conn: sqlite3.Connection) -> None:
     )
 
 
+def _migration_16_stars_and_rewards(conn: sqlite3.Connection) -> None:
+    """Bonus stars a parent gives, and the family's reward (for example a cinema trip) with what it costs in stars."""
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS star_bonus (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            day TEXT NOT NULL,
+            given_by INTEGER NOT NULL,
+            note TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_star_bonus_user ON star_bonus(user_id, day)")
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS family_rewards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            cost INTEGER NOT NULL,
+            since_day TEXT NOT NULL,
+            carry INTEGER NOT NULL DEFAULT 0,
+            redeemed_on TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
 MIGRATIONS = [
     _migration_1_add_missing_columns,
     _migration_2_add_indexes,
@@ -473,6 +504,7 @@ MIGRATIONS = [
     _migration_13_children,
     _migration_14_challenges,
     _migration_15_challenge_brags,
+    _migration_16_stars_and_rewards,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

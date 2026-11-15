@@ -1,4 +1,6 @@
 import ChallengeCard from "../components/ChallengeCard";
+import ChildHome from "../components/ChildHome";
+import StarsCard from "../components/StarsCard";
 import WeekStoryCard from "../components/WeekStoryCard";
 import { sessionLabel } from "../lib/sessionTypes";
 import NowHero from "../components/NowHero";
@@ -177,6 +179,8 @@ export default function OverviewPage({
     .sort((a: any, b: any) => String(a.planned_date).localeCompare(String(b.planned_date)))
     .slice(0, 3);
 
+  if (isChild) return <ChildHome error={error} />; // a child's first page has no plans and nothing for adults
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
       <NowHero
@@ -187,6 +191,8 @@ export default function OverviewPage({
       />
 
       <ChallengeCard />
+
+      <StarsCard />
 
       <WeekStoryCard activities={activities} />
 

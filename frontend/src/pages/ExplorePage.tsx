@@ -8,6 +8,7 @@ import TrophyShelf from "../components/TrophyShelf";
 import YearRing from "../components/YearRing";
 import { api } from "../api";
 import FirstsCard from "../components/FirstsCard";
+import BadgeShelf from "../components/BadgeShelf";
 import JourneyCard from "../components/JourneyCard";
 import { journey } from "../lib/journey";
 import { useMe } from "../lib/meContext";
@@ -36,6 +37,7 @@ export default function ExplorePage({ activities, plannedRuns }: { activities: A
         <p className="now__eyebrow">Udforsk</p>
         <h1 className="u-h1">Din træning i billeder</h1>
       </section>
+      <BadgeShelf />
       {(beginner || isChild) && start}
       {!isChild && <RaceCard activities={activities} plannedRuns={plannedRuns} />}
       {!isChild && <RoutesCard others={others} />}

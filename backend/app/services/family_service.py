@@ -13,7 +13,7 @@ from app.errors import ForbiddenError
 from app.repositories import activities as activity_repo
 from app.repositories import planned_runs as plan_repo
 from app.repositories import sync_state
-from app.services import challenge_service, firsts_service, garmin_service, reporting_service, splits_service, user_service
+from app.services import challenge_service, firsts_service, star_service, garmin_service, reporting_service, splits_service, user_service
 from app.services.user_service import CurrentUser
 
 RECENT_RUNS = 8
@@ -109,6 +109,8 @@ def _member(viewer: CurrentUser, target: CurrentUser) -> dict:
             entry["guardian"] = _guardian_view(conn, target.id, today)
             extra = challenge_service.for_family(target.id)
             entry["guardian"]["challenges"] = extra["items"]
+            week = star_service.mine(target.id)["week"]
+            entry["guardian"]["stars_week"] = week["earned"] + week["bonus"]
             entry["new_milestones"] = firsts_service.recent_for_family(target.id) + extra["milestones"]
             return entry
         if level == "milestones":
@@ -181,6 +183,8 @@ def list_family(viewer: CurrentUser) -> dict:
         "sharing_enabled": settings.FAMILY_SHARING_ENABLED,
         "goal": goal,
         "brags": brags,
+        "reward": star_service.reward_progress(),
+        "pace": star_service.family_pace(),
     }
 
 

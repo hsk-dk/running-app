@@ -33,6 +33,14 @@ export const api = {
   getIndoor: () => getJson("/activities/indoor"),
   getOther: () => getJson("/activities/other"),
   getFirsts: () => getJson("/activities/firsts"),
+  getStars: () => getJson("/stars"),
+  getBadges: () => getJson("/badges"),
+  setReward: (name: string, cost: number) =>
+    getJson("/family/reward", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, cost }) }),
+  clearReward: () => getJson("/family/reward", { method: "DELETE" }),
+  redeemReward: () => getJson("/family/reward/redeem", { method: "POST" }),
+  giveBonus: (userId: number, note: string) =>
+    getJson(`/family/${userId}/bonus`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note: note || null }) }),
   getChallenges: () => getJson("/challenges"),
   createChallenge: (body: object) =>
     getJson("/challenges", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
