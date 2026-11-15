@@ -44,6 +44,15 @@ def _to_user(row) -> CurrentUser:
     )
 
 
+def fix_header_text(value: str) -> str:
+    """Names such as 'Skjærbæk' arrive from the proxy as UTF-8 bytes, but HTTP headers are read as Latin-1 ('SkjÃ¦rbÃ¦k').
+    Read the bytes as UTF-8 again when that is possible; a value that is not valid UTF-8 is left exactly as it came."""
+    try:
+        return value.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return value
+
+
 def is_trusted_peer(peer_ip: str | None) -> bool:
     """True when the request comes from a proxy listed in TRUSTED_PROXIES (IPs or CIDR ranges)."""
     if not peer_ip:
@@ -84,7 +93,7 @@ def resolve(peer_ip: str | None, headers: Mapping[str, str]) -> CurrentUser:
         if not is_trusted_peer(peer_ip):
             raise ForbiddenError("Requests must come through the identity proxy")
 
-        username = (headers.get("x-authentik-username") or "").strip()
+        username = fix_header_text((headers.get("x-authentik-username") or "").strip())
         external_id = (headers.get("x-authentik-uid") or username).strip()
         if not external_id:
             raise UnauthorizedError("Not signed in")
@@ -95,7 +104,7 @@ def resolve(peer_ip: str | None, headers: Mapping[str, str]) -> CurrentUser:
         if role is None:
             raise ForbiddenError("Your account has no access to this app")
 
-        name = (headers.get("x-authentik-name") or "").strip() or None
+        name = fix_header_text((headers.get("x-authentik-name") or "").strip()) or None
         username = username or external_id
 
         row = user_repo.get_by_external_id(conn, external_id)

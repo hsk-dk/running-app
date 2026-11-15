@@ -195,3 +195,28 @@ def test_oauth_state_is_signed_and_expires(db):
         oauth_state.read_state("not-a-state")
     with pytest.raises(ForbiddenError):
         oauth_state.read_state(oauth_state.make_state(5, now=time.time() - 3600))  # made an hour ago
+
+
+# ---- names with æ, ø and å ----------------------------------------------------------------------------------
+
+def test_a_name_sent_as_utf8_bytes_is_read_correctly_not_as_mojibake(proxy, db):
+    headers = {"x-authentik-uid": "u-henrik", "x-authentik-username": "henrik", "x-authentik-groups": "homelab-admins",
+               "x-authentik-name": "Henrik Skjærbæk".encode("utf-8")}
+    assert proxy.get("/api/me", headers=headers).json()["display_name"] == "Henrik Skjærbæk"
+
+
+def test_a_name_that_was_stored_garbled_is_healed_on_the_next_request(proxy, db):
+    from app.repositories import users as users_repo
+    proxy.get("/api/me", headers={"x-authentik-uid": "u-henrik", "x-authentik-username": "henrik", "x-authentik-groups": "homelab-admins", "x-authentik-name": "Henrik"})
+    c = db.get_conn(); users_repo.set_display_name(c, 1, "Henrik SkjÃ¦rbÃ¦k"); c.commit(); c.close()
+    again = {"x-authentik-uid": "u-henrik", "x-authentik-username": "henrik", "x-authentik-groups": "homelab-admins", "x-authentik-name": "Henrik Skjærbæk".encode("utf-8")}
+    assert proxy.get("/api/me", headers=again).json()["display_name"] == "Henrik Skjærbæk"
+
+
+def test_plain_and_already_correct_names_are_left_alone():
+    from app.services.user_service import fix_header_text
+    assert fix_header_text("Henrik") == "Henrik"
+    assert fix_header_text("") == ""
+    assert fix_header_text("Henrik SkjÃ¦rbÃ¦k") == "Henrik Skjærbæk"  # the garbled form is turned back
+    assert fix_header_text("Skjærbæk") == "Skjærbæk"  # a lone Latin-1 æ is not valid UTF-8, so it stays as it is
+    assert fix_header_text("日本語") == "日本語"  # cannot be encoded as Latin-1, so it stays as it is
