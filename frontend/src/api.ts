@@ -35,8 +35,8 @@ export const api = {
   getFirsts: () => getJson("/activities/firsts"),
   getStars: () => getJson("/stars"),
   getBadges: () => getJson("/badges"),
-  setReward: (name: string, cost: number) =>
-    getJson("/family/reward", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, cost }) }),
+  setReward: (name: string, cost: number, counts: "children" | "all" = "children") =>
+    getJson("/family/reward", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, cost, counts }) }),
   clearReward: () => getJson("/family/reward", { method: "DELETE" }),
   redeemReward: () => getJson("/family/reward/redeem", { method: "POST" }),
   giveBonus: (userId: number, note: string) =>

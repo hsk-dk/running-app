@@ -1,4 +1,5 @@
 import BadgeShelf from "./BadgeShelf";
+import CelebrationBanner from "./CelebrationBanner";
 import ChallengeCard from "./ChallengeCard";
 import StarsCard from "./StarsCard";
 
@@ -16,6 +17,7 @@ export default function ChildHome({ error }: { error: string | null }) {
           <span>{error}</span>
         </div>
       )}
+      <CelebrationBanner />
       <ChallengeCard />
       <StarsCard />
       <BadgeShelf />

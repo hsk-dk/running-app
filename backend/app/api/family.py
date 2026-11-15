@@ -22,7 +22,7 @@ def set_goal(payload: GoalUpdate, user: CurrentUser = Depends(current_user)):
 @router.put("/reward", response_model=RewardOut)
 def set_reward(payload: RewardIn, user: CurrentUser = Depends(current_user)):
     """A parent sets what the family is saving stars for. Declared before /{user_id}/..."""
-    return star_service.set_reward(user, payload.name, payload.cost)
+    return star_service.set_reward(user, payload.name, payload.cost, payload.counts)
 
 
 @router.delete("/reward", status_code=204)

@@ -26,8 +26,8 @@ def _challenge_days(conn, user_id: int, today: date) -> set[date]:
             "start_value": row["start_value"], "step": row["step"], "step_every_days": row["step_every_days"], "cap": row["cap"],
             "rest_weekdays": [int(x) for x in row["rest_weekdays"].split(",") if x != ""],
         }
-        logs = {date.fromisoformat(r["day"]): r["count"] for r in challenge_repo.logs(conn, row["id"])}
-        out |= challenge_domain.done_days(ch, logs, today)
+        entries = [(date.fromisoformat(r["day"]), r["count"], date.fromisoformat(r["logged_on"]) if r["logged_on"] else None) for r in challenge_repo.logs(conn, row["id"])]
+        out |= challenge_domain.done_days(ch, challenge_domain.timely_logs(entries), today)
     return out
 
 
@@ -58,25 +58,46 @@ def mine(user_id: int) -> dict:
 
 
 def _counts(u: CurrentUser) -> bool:
-    """Who is in the family's stars: everyone who shares, and children (their parents are in the loop anyway)."""
+    """Who is in the family's stars when everyone counts: everyone who shares, and children (their parents are in the loop anyway)."""
     return u.sharing_level != "private" or u.is_child
 
 
-def family_pace() -> dict:
+COUNTS = ("children", "all")
+
+
+def _participants(mode: str) -> list[CurrentUser]:
+    """Whose stars fill the reward. By default only the children's: otherwise a parent who runs four times a week fills the bar alone.
+    A family without any child has no one to leave out, so then everyone who shares counts."""
+    users = user_service.list_users()
+    if mode == "children":
+        kids = [u for u in users if u.is_child]
+        if kids:
+            return kids
+    return [u for u in users if _counts(u)]
+
+
+def _active_counts() -> str:
+    conn = get_conn()
+    try:
+        row = repo.active_reward(conn)
+    finally:
+        conn.close()
+    return row["counts"] if row is not None else "children"
+
+
+def family_pace(counts: str | None = None) -> dict:
     """How fast the family earns stars, whether or not there is a reward yet: people, stars a week, and whether it is only a guess."""
     window_from = timeutil.today() - timedelta(days=domain.RATE_DAYS - 1)
+    people_list = _participants(counts or _active_counts())
     in_window = 0
-    people = 0
-    for u in user_service.list_users():
-        if _counts(u):
-            people += 1
-            earned, bonus = stars_of(u.id)
-            in_window += domain.total(earned, bonus, window_from)
-    return {"people": people, **domain.pace(in_window, people)}
+    for u in people_list:
+        earned, bonus = stars_of(u.id)
+        in_window += domain.total(earned, bonus, window_from)
+    return {"people": len(people_list), **domain.pace(in_window, len(people_list))}
 
 
 def reward_progress() -> dict | None:
-    """The family's reward with the stars of everyone together. Nobody's own part is shown."""
+    """The family's reward with the stars of those who count, together. Nobody's own part is shown."""
     conn = get_conn()
     try:
         row = repo.active_reward(conn)
@@ -87,14 +108,13 @@ def reward_progress() -> dict | None:
         return None
     since = date.fromisoformat(row["since_day"])
     stars = row["carry"]
-    for u in user_service.list_users():
-        if _counts(u):
-            earned, bonus = stars_of(u.id)
-            stars += domain.total(earned, bonus, since)
+    for u in _participants(row["counts"]):
+        earned, bonus = stars_of(u.id)
+        stars += domain.total(earned, bonus, since)
     state = domain.reward_state(row["cost"], stars)
-    rate = family_pace()
+    rate = family_pace(row["counts"])
     return {
-        "id": row["id"], "name": row["name"], **state, "recent": recent,
+        "id": row["id"], "name": row["name"], **state, "recent": recent, "counts": row["counts"],
         "people": rate["people"], "per_week": rate["per_week"], "estimated": rate["estimated"],
         "weeks_left": domain.weeks_left(state["remaining"], rate["per_week"]),
     }
@@ -105,15 +125,17 @@ def _admin(user: CurrentUser) -> None:
         raise ForbiddenError("Kun en forælder kan ændre familiens belønning")
 
 
-def set_reward(admin: CurrentUser, name: str, cost: int) -> dict:
+def set_reward(admin: CurrentUser, name: str, cost: int, counts: str = "children") -> dict:
     _admin(admin)
+    if counts not in COUNTS:
+        raise ConflictError("Ukendt valg af, hvem der tæller med")
     conn = get_conn()
     try:
         row = repo.active_reward(conn)
         if row is None:
-            repo.create_reward(conn, name.strip(), cost, timeutil.today().isoformat())
+            repo.create_reward(conn, name.strip(), cost, timeutil.today().isoformat(), 0, counts)
         else:
-            repo.update_reward(conn, row["id"], name.strip(), cost)
+            repo.update_reward(conn, row["id"], name.strip(), cost, counts)
         conn.commit()
     finally:
         conn.close()
@@ -143,7 +165,7 @@ def redeem(admin: CurrentUser) -> dict:
     try:
         row = repo.active_reward(conn)
         repo.close_reward(conn, row["id"], today.isoformat())
-        repo.create_reward(conn, row["name"], row["cost"], (today + timedelta(days=1)).isoformat(), max(0, current["stars"] - row["cost"]))
+        repo.create_reward(conn, row["name"], row["cost"], (today + timedelta(days=1)).isoformat(), max(0, current["stars"] - row["cost"]), row["counts"])
         conn.commit()
     finally:
         conn.close()

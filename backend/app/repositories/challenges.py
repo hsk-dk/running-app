@@ -36,17 +36,17 @@ def archive(conn: sqlite3.Connection, user_id: int, challenge_id: int) -> bool:
 
 
 def logs(conn: sqlite3.Connection, challenge_id: int) -> list[sqlite3.Row]:
-    return conn.execute("SELECT day, count FROM challenge_logs WHERE challenge_id = ? ORDER BY day", (challenge_id,)).fetchall()
+    return conn.execute("SELECT day, count, logged_on FROM challenge_logs WHERE challenge_id = ? ORDER BY day", (challenge_id,)).fetchall()
 
 
-def set_log(conn: sqlite3.Connection, challenge_id: int, day: str, count: int) -> None:
+def set_log(conn: sqlite3.Connection, challenge_id: int, day: str, count: int, logged_on: str) -> None:
     if count <= 0:
         conn.execute("DELETE FROM challenge_logs WHERE challenge_id = ? AND day = ?", (challenge_id, day))
         return
     conn.execute(
-        "INSERT INTO challenge_logs (challenge_id, day, count) VALUES (?, ?, ?) "
-        "ON CONFLICT(challenge_id, day) DO UPDATE SET count = excluded.count",
-        (challenge_id, day, count),
+        "INSERT INTO challenge_logs (challenge_id, day, count, logged_on) VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(challenge_id, day) DO UPDATE SET count = excluded.count, logged_on = excluded.logged_on",
+        (challenge_id, day, count, logged_on),
     )
 
 

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { Stars, milestoneText, paceText, rewardText, starSlots } from "../lib/rewards";
+import { useMe } from "../lib/meContext";
+import { Stars, countsNote, milestoneText, paceText, rewardText, starSlots, starsNote } from "../lib/rewards";
 
 /** This week's stars and the family's reward. A star is for effort (an active day, a challenge day), never for speed or distance. */
 export default function StarsCard({ onLoaded }: { onLoaded?: (s: Stars) => void }) {
+  const { isChild } = useMe();
   const [data, setData] = useState<Stars | null>(null);
   useEffect(() => {
     api.getStars().then((s: Stars) => {
@@ -26,10 +28,7 @@ export default function StarsCard({ onLoaded }: { onLoaded?: (s: Stars) => void 
         ))}
         {slots.extra > 0 && <span className="u-chip u-chip--good">+{slots.extra} bonus</span>}
       </div>
-      <p className="u-card__meta" style={{ margin: 0 }}>
-        {slots.filled > 0 ? `${slots.filled} ${slots.filled === 1 ? "stjerne" : "stjerner"} denne uge. ` : "Ingen stjerner endnu denne uge. "}
-        En stjerne for hver dag, du er aktiv i mindst 15 minutter, og hver dag, du klarer din udfordring. Højst {data.week.cap} om ugen, og en stjerne forsvinder aldrig.
-      </p>
+      <p className="u-card__meta" style={{ margin: 0, ...(slots.filled >= data.week.cap ? { fontWeight: 700, color: "var(--color-text)" } : {}) }}>{starsNote(slots.filled + slots.extra, data.week.cap, isChild)}</p>
       {r && (
         <div style={{ display: "grid", gap: 6, borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
           <p style={{ margin: 0, fontWeight: 600 }}>{r.name}</p>
@@ -38,7 +37,7 @@ export default function StarsCard({ onLoaded }: { onLoaded?: (s: Stars) => void 
           </div>
           <p className="u-card__meta" style={{ margin: 0 }}>{rewardText(r)} {milestoneText(r.stars, r.cost)}</p>
           {paceText(r) && <p className="u-card__meta" style={{ margin: 0 }}>{paceText(r)}</p>}
-          <p className="u-card__meta" style={{ margin: 0 }}>Alle stjerner i familien lægges sammen.</p>
+          <p className="u-card__meta" style={{ margin: 0 }}>{countsNote(r.counts)}</p>
         </div>
       )}
     </section>

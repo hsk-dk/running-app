@@ -10,15 +10,16 @@ from datetime import date, timedelta
 NEW_DAYS = 7
 STAR_STEPS = (1, 10, 25, 50, 100)
 
+# The icons are plants and mountains that grow, never medals: no badge is worth more than another, and there is no ranking.
 # key, group, icon, title, what it says when earned, what it says while it is still ahead
 CATALOGUE: list[tuple[str, str, str, str, str, str]] = [
     ("first_run", "løb", "🏃", "Første skridt", "Du løb dit første løb.", "Løb dit første løb."),
-    ("km_3", "løb", "🥉", "Tre kilometer", "Du løb 3 km i ét løb.", "Løb 3 km i ét løb."),
-    ("km_5", "løb", "🥈", "Fem kilometer", "Du løb 5 km i ét løb.", "Løb 5 km i ét løb."),
-    ("km_8", "løb", "🥈", "Otte kilometer", "Du løb 8 km i ét løb.", "Løb 8 km i ét løb."),
-    ("km_10", "løb", "🥇", "Ti kilometer", "Du løb 10 km i ét løb.", "Løb 10 km i ét løb."),
-    ("km_15", "løb", "🥇", "Femten kilometer", "Du løb 15 km i ét løb.", "Løb 15 km i ét løb."),
-    ("km_21", "løb", "🏅", "Halvmaraton", "Du løb en halv maraton.", "Løb en halv maraton (21 km)."),
+    ("km_3", "løb", "🌱", "Tre kilometer", "Du løb 3 km i ét løb.", "Løb 3 km i ét løb."),
+    ("km_5", "løb", "🌿", "Fem kilometer", "Du løb 5 km i ét løb.", "Løb 5 km i ét løb."),
+    ("km_8", "løb", "🌳", "Otte kilometer", "Du løb 8 km i ét løb.", "Løb 8 km i ét løb."),
+    ("km_10", "løb", "🌲", "Ti kilometer", "Du løb 10 km i ét løb.", "Løb 10 km i ét løb."),
+    ("km_15", "løb", "⛰️", "Femten kilometer", "Du løb 15 km i ét løb.", "Løb 15 km i ét løb."),
+    ("km_21", "løb", "🏔️", "Halvmaraton", "Du løb en halv maraton.", "Løb en halv maraton (21 km)."),
     ("week_3", "løb", "📅", "Tre i ugen", "Du løb tre gange i samme uge.", "Løb tre gange i samme uge."),
     ("runs_10", "løb", "🔟", "Ti løb", "Du har løbet 10 gange.", "Løb 10 gange i alt."),
     ("runs_25", "løb", "🎽", "Femogtyve løb", "Du har løbet 25 gange.", "Løb 25 gange i alt."),

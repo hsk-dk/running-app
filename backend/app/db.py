@@ -488,6 +488,13 @@ def _migration_16_stars_and_rewards(conn: sqlite3.Connection) -> None:
     )
 
 
+def _migration_17_fair_stars(conn: sqlite3.Connection) -> None:
+    """Stars must be fair: a challenge day only earns a star when its number was written on the day (or the day after),
+    and a reward says whose stars count (the children's, by default)."""
+    _add_column_if_missing(conn, "challenge_logs", "logged_on", "TEXT")
+    _add_column_if_missing(conn, "family_rewards", "counts", "TEXT NOT NULL DEFAULT 'children'")
+
+
 MIGRATIONS = [
     _migration_1_add_missing_columns,
     _migration_2_add_indexes,
@@ -505,6 +512,7 @@ MIGRATIONS = [
     _migration_14_challenges,
     _migration_15_challenge_brags,
     _migration_16_stars_and_rewards,
+    _migration_17_fair_stars,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

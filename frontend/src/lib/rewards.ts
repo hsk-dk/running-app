@@ -12,6 +12,7 @@ export type Reward = {
   reached: boolean;
   remaining: number;
   recent: { name: string; cost: number; date: string }[];
+  counts?: "children" | "all";
   people?: number;
   per_week?: number;
   estimated?: boolean;
@@ -91,4 +92,26 @@ export function intervalNote(weeks: number): string {
   if (weeks <= 3) return "Et godt tempo: det er tæt nok på til at holde lysten, og det er stadig noget særligt.";
   if (weeks <= 4) return "Lidt længe for de yngste, men fint, hvis belønningen er større.";
   return "Længe at vente. Overvej en lille mellemstation undervejs.";
+}
+
+export const COUNTS_LABEL: Record<string, string> = { children: "Kun børnenes stjerner", all: "Alles stjerner (dem, der deler, og børnene)" };
+
+/** One line for the family about whose stars fill the bar. */
+export function countsNote(counts: string | undefined): string {
+  return counts === "all" ? "Alle i familien, der deler, og børnene bidrager." : "Det er børnenes stjerner, der fylder bjælken. De voksne hepper.";
+}
+
+/** The sentence under the week's stars: a cheer when all of them are there, and otherwise what a star is for, kept short for a child. */
+export function starsNote(filled: number, cap: number, child: boolean): string {
+  if (filled >= cap) return "🎉 Alle ugens stjerner! Flot arbejde.";
+  const what = child ? "En stjerne for hver dag, du er aktiv i 15 minutter, og hver dag, du klarer din udfordring." : "En stjerne for hver dag, du er aktiv i mindst 15 minutter, og hver dag, du klarer din udfordring.";
+  return `${filled > 0 ? `${filled} ${filled === 1 ? "stjerne" : "stjerner"} denne uge. ` : "Ingen stjerner endnu denne uge. "}${what}`;
+}
+
+export type Seen = { stars: number; badges: string[] };
+
+/** What is new since the last time this person looked: stars and badges. The first time ever is not "new": there is no earlier time to compare with. */
+export function whatsNew(seen: Seen | null, now: Seen): { stars: number; badges: string[] } {
+  if (!seen) return { stars: 0, badges: [] };
+  return { stars: Math.max(0, now.stars - seen.stars), badges: now.badges.filter((b) => !seen.badges.includes(b)) };
 }

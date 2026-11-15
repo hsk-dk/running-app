@@ -108,7 +108,7 @@ def log(user_id: int, challenge_id: int, count: int, day: date | None) -> dict:
         row = repo.get(conn, user_id, challenge_id)
         if row is None or row["archived"]:
             raise NotFoundError("Udfordringen findes ikke")
-        repo.set_log(conn, challenge_id, day.isoformat(), count)
+        repo.set_log(conn, challenge_id, day.isoformat(), count, today.isoformat())
         repo.delete_brag(conn, challenge_id, day.isoformat())  # a changed number is not what was shown: share it again if you like
         conn.commit()
     finally:
@@ -174,6 +174,7 @@ def for_family(user_id: int) -> dict:
         for r in rows:
             ch = _to_domain(r)
             logs = _logs(conn, r["id"])
+            logs = domain.timely_logs([(date.fromisoformat(x["day"]), x["count"], date.fromisoformat(x["logged_on"]) if x["logged_on"] else None) for x in repo.logs(conn, r["id"])])  # what the family sees must be fair
             s = domain.summary(ch, logs, today)
             p = s["progress"]
             items.append({

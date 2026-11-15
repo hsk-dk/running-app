@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { INTERVAL_WEEKS, Reward, intervalNote, perWeekText, suggestCost } from "../lib/rewards";
+import { COUNTS_LABEL, INTERVAL_WEEKS, Reward, intervalNote, perWeekText, suggestCost } from "../lib/rewards";
 
 type Person = { id: number; name: string; username: string; role: string; is_child: boolean };
 type Goal = { target_km: number | null; km: number; month: string };
@@ -11,6 +11,7 @@ export default function FamilySettings({ goal, reward, pace, onChanged }: { goal
   const [rewardCost, setRewardCost] = useState(reward ? String(reward.cost) : "");
   const [bonusNote, setBonusNote] = useState("");
   const [every, setEvery] = useState(3);
+  const [counts, setCounts] = useState<"children" | "all">(reward?.counts ?? "children");
   const [people, setPeople] = useState<Person[] | null>(null);
   const [target, setTarget] = useState(goal.target_km ? String(goal.target_km) : "");
   const [message, setMessage] = useState("");
@@ -39,7 +40,7 @@ export default function FamilySettings({ goal, reward, pace, onChanged }: { goal
       setMessage("Skriv et navn og et antal stjerner mellem 1 og 1000.");
       return;
     }
-    await run(() => api.setReward(rewardName.trim(), cost), "Belønningen er gemt.");
+    await run(() => api.setReward(rewardName.trim(), cost, counts), "Belønningen er gemt.");
   }
 
   async function run(action: () => Promise<unknown>, done: string) {
@@ -114,6 +115,16 @@ export default function FamilySettings({ goal, reward, pace, onChanged }: { goal
         <p className="u-card__meta" style={{ margin: 0 }}>
           Fælles belønning: familien sparer stjerner sammen, fx til en biograftur. En stjerne er for en aktiv dag (mindst 15 minutter) og en klaret udfordringsdag, højst 5 om ugen pr. person, og aldrig for tempo eller kilometer. Alle, der deler, og alle børn tæller med.
         </p>
+        <fieldset style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 4 }}>
+          <legend className="u-card__meta">Hvem fylder bjælken?</legend>
+          {(["children", "all"] as const).map((c) => (
+            <label key={c} style={{ display: "flex", gap: 10, alignItems: "center", minHeight: 44 }}>
+              <input type="radio" name="reward-counts" checked={counts === c} onChange={() => setCounts(c)} style={{ width: 22, height: 22 }} />
+              <span>{COUNTS_LABEL[c]}{c === "children" ? " (anbefalet)" : ""}</span>
+            </label>
+          ))}
+          <span className="u-card__meta">Med "kun børnene" kan en voksen, der løber ofte, ikke fylde bjælken alene. Er der ingen børn, tæller alle, der deler.</span>
+        </fieldset>
         {pace && pace.per_week > 0 ? (
           <div style={{ display: "grid", gap: 6 }}>
             <p className="u-card__meta" style={{ margin: 0 }}>

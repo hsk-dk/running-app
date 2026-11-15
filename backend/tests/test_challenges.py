@@ -95,7 +95,7 @@ def test_a_rest_day_has_no_target_and_a_future_start_is_not_started(two):
 
 # ---- what the parents and the family see ------------------------------------------------------------
 
-def test_a_parent_sees_days_done_and_the_development_with_numbers_for_a_childs_challenge(two):
+def test_a_parent_sees_days_done_and_the_development_with_numbers_for_a_childs_challenge(two, db):
     two.put("/api/admin/users/2/child", headers=ADMIN, json={"is_child": True})
     today = timeutil.today()
     cid = make(two, name="Planke", unit="sek", start_value=20, start_date=(today - timedelta(days=10)).isoformat()).json()["id"]
@@ -106,6 +106,7 @@ def test_a_parent_sees_days_done_and_the_development_with_numbers_for_a_childs_c
     assert first["first_count"] is None  # one day says nothing about development yet
     for i, n in ((6, 20), (4, 28), (2, 35)):
         two.put(f"/api/challenges/{cid}/log", headers=FAMILY, json={"count": n, "day": (today - timedelta(days=i)).isoformat()})
+    c = db.get_conn(); c.execute("UPDATE challenge_logs SET logged_on = day"); c.commit(); c.close()  # each number written on its own day
     anna = next(m for m in two.get("/api/family", headers=ADMIN).json()["members"] if m["user_id"] == 2)
     first = anna["guardian"]["challenges"][0]
     assert (first["first_count"], first["recent_best"], first["weeks"]) == (20, 45, 1)
@@ -116,6 +117,7 @@ def test_a_seven_day_run_shows_up_as_a_milestone_for_the_family(two, db):
     cid = make(two, start_date=(today - timedelta(days=6)).isoformat()).json()["id"]
     for i in range(7):
         two.put(f"/api/challenges/{cid}/log", headers=FAMILY, json={"count": 6, "day": (today - timedelta(days=i)).isoformat()})
+    c = db.get_conn(); c.execute("UPDATE challenge_logs SET logged_on = day"); c.commit(); c.close()  # each number written on its own day
     from app.repositories import users as users_repo
     c = db.get_conn(); users_repo.set_sharing_level(c, 2, "overview"); c.commit(); c.close()
     anna = next(m for m in two.get("/api/family", headers=ADMIN).json()["members"] if m["user_id"] == 2)
@@ -172,6 +174,7 @@ def test_the_family_sees_improvement_in_words_only_never_the_numbers(two, db):
     cid = _started(two, name="Armbøjninger")
     for n, ago in ((5, 6), (6, 4), (12, 0)):  # a new best, and more than twice the starting target of 5
         _log(two, cid, n, ago)
+    c = db.get_conn(); c.execute("UPDATE challenge_logs SET logged_on = day"); c.commit(); c.close()  # each number written on its own day
     from app.repositories import users as users_repo
     c = db.get_conn(); users_repo.set_sharing_level(c, 2, "overview"); c.commit(); c.close()
     anna = next(m for m in two.get("/api/family", headers=ADMIN).json()["members"] if m["user_id"] == 2)
