@@ -10,9 +10,12 @@ Andre i familien ser kun det, man selv har valgt at dele.
    steder end via proxyen, ellers kan headerne forfalskes.
 2. **Roller via grupper.** `AUTH_ADMIN_GROUPS` (fx `homelab-admins`) giver admin, `AUTH_FAMILY_GROUPS` (fx
    `homelab-family`) giver adgang som familiemedlem. Alle andre afvises (403).
-3. **Ejer af de eksisterende data.** Løb og planer fra før flere brugere overtages af den første admin, eller af
+3. **Tekniske konti.** `AUTH_HIDDEN_USERNAMES` (standard `akadmin`, Authentiks egen administrator) kan logge ind, men er ikke
+   et familiemedlem: kontoen vises ikke i Familie, tæller ikke i det fælles mål, står ikke i forældrenes liste og overtager
+   aldrig de gamle data. Brug din egen konto til daglig, og hold akadmin som nødadgang til Authentik.
+4. **Ejer af de eksisterende data.** Løb og planer fra før flere brugere overtages af den første admin, eller af
    den bruger der står i `AUTH_OWNER_USERNAME`.
-4. `APP_SECRET_KEY` bør sættes til en lang tilfældig værdi (underskriver OAuth-state).
+5. `APP_SECRET_KEY` bør sættes til en lang tilfældig værdi (underskriver OAuth-state).
 
 ## Datakilde: Garmin Connect (anbefalet)
 

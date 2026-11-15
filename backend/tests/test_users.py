@@ -195,3 +195,84 @@ def test_oauth_state_is_signed_and_expires(db):
         oauth_state.read_state("not-a-state")
     with pytest.raises(ForbiddenError):
         oauth_state.read_state(oauth_state.make_state(5, now=time.time() - 3600))  # made an hour ago
+
+
+# ---- names with æ, ø and å ----------------------------------------------------------------------------------
+
+def test_a_name_sent_as_utf8_bytes_is_read_correctly_not_as_mojibake(proxy, db):
+    headers = {"x-authentik-uid": "u-henrik", "x-authentik-username": "henrik", "x-authentik-groups": "homelab-admins",
+               "x-authentik-name": "Henrik Skjærbæk".encode("utf-8")}
+    assert proxy.get("/api/me", headers=headers).json()["display_name"] == "Henrik Skjærbæk"
+
+
+def test_a_name_that_was_stored_garbled_is_healed_on_the_next_request(proxy, db):
+    from app.repositories import users as users_repo
+    proxy.get("/api/me", headers={"x-authentik-uid": "u-henrik", "x-authentik-username": "henrik", "x-authentik-groups": "homelab-admins", "x-authentik-name": "Henrik"})
+    c = db.get_conn(); users_repo.set_display_name(c, 1, "Henrik SkjÃ¦rbÃ¦k"); c.commit(); c.close()
+    again = {"x-authentik-uid": "u-henrik", "x-authentik-username": "henrik", "x-authentik-groups": "homelab-admins", "x-authentik-name": "Henrik Skjærbæk".encode("utf-8")}
+    assert proxy.get("/api/me", headers=again).json()["display_name"] == "Henrik Skjærbæk"
+
+
+def test_plain_and_already_correct_names_are_left_alone():
+    from app.services.user_service import fix_header_text
+    assert fix_header_text("Henrik") == "Henrik"
+    assert fix_header_text("") == ""
+    assert fix_header_text("Henrik SkjÃ¦rbÃ¦k") == "Henrik Skjærbæk"  # the garbled form is turned back
+    assert fix_header_text("Skjærbæk") == "Skjærbæk"  # a lone Latin-1 æ is not valid UTF-8, so it stays as it is
+    assert fix_header_text("日本語") == "日本語"  # cannot be encoded as Latin-1, so it stays as it is
+
+
+# ---- technical accounts (Authentik's default admin) are not family -----------------------------------------------------
+
+AKADMIN = {"x-authentik-uid": "u-ak", "x-authentik-username": "akadmin", "x-authentik-name": "authentik Default Admin", "x-authentik-groups": "homelab-admins"}
+
+
+def _two_people_and_akadmin(proxy):
+    from tests.auth_helpers import ADMIN, FAMILY
+    for h in (ADMIN, FAMILY, AKADMIN):
+        proxy.get("/api/me", headers=h)
+    return ADMIN, FAMILY
+
+
+def test_the_default_admin_signs_in_but_is_not_part_of_the_family(proxy, db):
+    ADMIN, FAMILY = _two_people_and_akadmin(proxy)
+    assert proxy.get("/api/me", headers=AKADMIN).status_code == 200  # still admin: the way into Authentik's world and back
+    names = [m["name"] for m in proxy.get("/api/family", headers=ADMIN).json()["members"]]
+    assert names == ["Henrik", "Anna"] and "authentik Default Admin" not in names
+    assert [p["username"] for p in proxy.get("/api/admin/users", headers=ADMIN).json()] == ["henrik", "anna"]
+
+
+def test_the_default_admin_is_not_counted_in_the_goal_and_sees_the_family_without_itself(proxy, db):
+    ADMIN, _ = _two_people_and_akadmin(proxy)
+    from app.repositories import users as users_repo
+    c = db.get_conn(); users_repo.set_sharing_level(c, 3, "all"); c.commit(); c.close()
+    body = proxy.get("/api/family", headers=ADMIN).json()
+    assert body["goal"]["km"] == body["total_km_this_month"] == 0
+    seen = proxy.get("/api/family", headers=AKADMIN).json()["members"]
+    assert [m["name"] for m in seen] == ["Anna", "Henrik"]  # the technical account reads the family page (alphabetically: it is nobody's "me"), but is not on it
+
+
+def test_the_default_admin_never_takes_over_the_data_from_before_users_existed(proxy, db, monkeypatch):
+    from tests.auth_helpers import patch_settings
+    from app.db import get_conn
+    c = get_conn(); c.execute("UPDATE users SET external_id = 'local', username = 'owner' WHERE id = 1"); c.commit(); c.close()
+    patch_settings(monkeypatch, AUTH_OWNER_USERNAME="")  # no owner named: the first admin would normally take over
+    me = proxy.get("/api/me", headers=AKADMIN).json()
+    assert me["id"] != 1  # it got its own empty account; the old data is still waiting for a real person
+    from tests.auth_helpers import ADMIN
+    assert proxy.get("/api/me", headers=ADMIN).json()["id"] == 1
+
+
+def test_a_named_account_can_be_hidden_and_hiding_can_be_switched_off(proxy, db, monkeypatch):
+    from tests.auth_helpers import ADMIN, FAMILY, patch_settings
+    for h in (ADMIN, FAMILY):
+        proxy.get("/api/me", headers=h)
+    patch_settings(monkeypatch, AUTH_HIDDEN_USERNAMES=["anna", "service"])
+    assert [m["name"] for m in proxy.get("/api/family", headers=ADMIN).json()["members"]] == ["Henrik"]
+    patch_settings(monkeypatch, AUTH_HIDDEN_USERNAMES=[])
+    assert [m["name"] for m in proxy.get("/api/family", headers=ADMIN).json()["members"]] == ["Henrik", "Anna"]
+
+
+def test_hiding_ignores_capital_letters_and_spaces():
+    from app.services.user_service import is_hidden
+    assert is_hidden("akadmin") and is_hidden("  AkAdmin ") and not is_hidden("henrik") and not is_hidden(None) and not is_hidden("")
