@@ -20,14 +20,14 @@ def active_reward(conn: sqlite3.Connection) -> sqlite3.Row | None:
     return conn.execute("SELECT * FROM family_rewards WHERE redeemed_on IS NULL ORDER BY id DESC LIMIT 1").fetchone()
 
 
-def create_reward(conn: sqlite3.Connection, name: str, cost: int, since_day: str, carry: int = 0) -> int:
+def create_reward(conn: sqlite3.Connection, name: str, cost: int, since_day: str, carry: int = 0, counts: str = "children") -> int:
     return conn.execute(
-        "INSERT INTO family_rewards (name, cost, since_day, carry) VALUES (?, ?, ?, ?)", (name, cost, since_day, carry)
+        "INSERT INTO family_rewards (name, cost, since_day, carry, counts) VALUES (?, ?, ?, ?, ?)", (name, cost, since_day, carry, counts)
     ).lastrowid
 
 
-def update_reward(conn: sqlite3.Connection, reward_id: int, name: str, cost: int) -> None:
-    conn.execute("UPDATE family_rewards SET name = ?, cost = ? WHERE id = ? AND redeemed_on IS NULL", (name, cost, reward_id))
+def update_reward(conn: sqlite3.Connection, reward_id: int, name: str, cost: int, counts: str) -> None:
+    conn.execute("UPDATE family_rewards SET name = ?, cost = ?, counts = ? WHERE id = ? AND redeemed_on IS NULL", (name, cost, counts, reward_id))
 
 
 def close_reward(conn: sqlite3.Connection, reward_id: int, day: str) -> None:

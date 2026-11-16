@@ -10,6 +10,17 @@ from datetime import date, timedelta
 STREAK_STEPS = (7, 14, 30)  # planned days in a row
 
 
+LATE_AFTER_DAYS = 1  # a number written more than a day after the day itself earns no star
+
+
+def timely_logs(entries: list[tuple[date, int, date | None]]) -> dict[date, int]:
+    """The counts that may earn stars and badges: written on the day or the day after. An old log without a time is trusted.
+
+    A number can still be written or corrected later, and it shows on the person's own card, but it earns nothing: otherwise
+    a whole week could be filled in afterwards."""
+    return {d: n for d, n, written in entries if written is None or written <= d + timedelta(days=LATE_AFTER_DAYS)}
+
+
 def is_rest(challenge: dict, day: date) -> bool:
     return day.weekday() in challenge["rest_weekdays"]
 

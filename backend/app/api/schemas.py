@@ -446,6 +446,7 @@ class RewardOut(BaseModel):
     reached: bool
     remaining: int
     recent: list[RewardPastOut] = Field(default_factory=list)
+    counts: str = "children"
     people: int = 0
     per_week: float = 0
     estimated: bool = True
@@ -469,6 +470,7 @@ class StarsOut(BaseModel):
 class RewardIn(BaseModel):
     name: str = Field(min_length=1, max_length=40)
     cost: int = Field(ge=1, le=1000)
+    counts: Literal["children", "all"] = "children"  # whose stars fill it: the children's, or everyone's who shares
 
 
 class BonusIn(BaseModel):

@@ -5,7 +5,7 @@ import { Guardian, guardianNote, weekText } from "../lib/family";
 import { Brag, bragText, rangeText } from "../lib/challenge";
 import { useMe } from "../lib/meContext";
 import FamilySettings from "../components/FamilySettings";
-import { Reward, milestoneText, paceText, rewardText } from "../lib/rewards";
+import { Reward, countsNote, milestoneText, paceText, rewardText } from "../lib/rewards";
 import { levelLabel } from "../lib/sharing";
 
 type Run = { id: number; date: string | null; name: string | null; distance_km: number; duration_min: number };
@@ -207,7 +207,7 @@ export default function FamilyPage() {
           </div>
           <p style={{ margin: 0, fontWeight: 600 }}>{rewardText(family.reward)} {milestoneText(family.reward.stars, family.reward.cost)}</p>
           {paceText(family.reward) && <p className="u-card__meta" style={{ margin: 0 }}>{paceText(family.reward)}</p>}
-          <p className="u-card__meta" style={{ margin: 0 }}>Alle stjerner i familien lægges sammen. Ingen kan se, hvem der har fået hvor mange.</p>
+          <p className="u-card__meta" style={{ margin: 0 }}>{countsNote(family.reward.counts)} Ingen kan se, hvem der har fået hvor mange.</p>
         </section>
       )}
 

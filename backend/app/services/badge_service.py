@@ -23,7 +23,8 @@ def _challenge_inputs(user_id: int, today: date) -> dict:
                 "start_value": row["start_value"], "step": row["step"], "step_every_days": row["step_every_days"], "cap": row["cap"],
                 "rest_weekdays": [int(x) for x in row["rest_weekdays"].split(",") if x != ""],
             }
-            logs = {date.fromisoformat(r["day"]): r["count"] for r in challenge_repo.logs(conn, row["id"])}
+            entries = [(date.fromisoformat(r["day"]), r["count"], date.fromisoformat(r["logged_on"]) if r["logged_on"] else None) for r in challenge_repo.logs(conn, row["id"])]
+            logs = challenge_domain.timely_logs(entries)  # a number written long afterwards earns no badge either
             for n, day in challenge_domain.streak_dates(ch, logs, today).items():
                 if n not in streaks or day < streaks[n]:
                     streaks[n] = day

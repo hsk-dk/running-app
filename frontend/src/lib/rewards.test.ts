@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INTERVAL_WEEKS, Shelf, perWeekText, compactShelf, intervalNote, milestoneText, nextPerGroup, paceText, rewardText, starSlots, suggestCost } from "./rewards";
+import { COUNTS_LABEL, INTERVAL_WEEKS, Shelf, countsNote, starsNote, whatsNew, perWeekText, compactShelf, intervalNote, milestoneText, nextPerGroup, paceText, rewardText, starSlots, suggestCost } from "./rewards";
 
 const e = (key: string, isNew = false) => ({ key, group: "løb", icon: "🏃", title: key, description: "", date: "2026-11-01", is_new: isNew });
 const a = (key: string, group: string) => ({ key, group, icon: "⭐", title: key, hint: "" });
@@ -102,5 +102,40 @@ describe("suggestCost and intervalNote", () => {
     expect(intervalNote(3)).toContain("godt tempo");
     expect(intervalNote(4)).toContain("Lidt længe");
     expect(intervalNote(6)).toContain("mellemstation");
+  });
+});
+
+describe("countsNote", () => {
+  it("says whose stars fill the bar", () => {
+    expect(countsNote("children")).toContain("børnenes stjerner");
+    expect(countsNote(undefined)).toContain("børnenes stjerner");
+    expect(countsNote("all")).toContain("Alle i familien");
+    expect(Object.keys(COUNTS_LABEL)).toEqual(["children", "all"]);
+  });
+});
+
+describe("starsNote", () => {
+  it("cheers when every star of the week is there, instead of saying 'at most'", () => {
+    expect(starsNote(5, 5, true)).toBe("🎉 Alle ugens stjerner! Flot arbejde.");
+    expect(starsNote(6, 5, false)).toContain("Alle ugens stjerner");
+  });
+  it("says what a star is for, shorter for a child, and what there is so far", () => {
+    expect(starsNote(0, 5, true)).toBe("Ingen stjerner endnu denne uge. En stjerne for hver dag, du er aktiv i 15 minutter, og hver dag, du klarer din udfordring.");
+    expect(starsNote(1, 5, false)).toBe("1 stjerne denne uge. En stjerne for hver dag, du er aktiv i mindst 15 minutter, og hver dag, du klarer din udfordring.");
+    expect(starsNote(3, 5, true)).toContain("3 stjerner denne uge.");
+    expect(starsNote(3, 5, true)).not.toMatch(/højst|forsvinder/);
+  });
+});
+
+describe("whatsNew", () => {
+  it("is nothing the first time, so a new user is not showered with old news", () => {
+    expect(whatsNew(null, { stars: 12, badges: ["a", "b"] })).toEqual({ stars: 0, badges: [] });
+  });
+  it("is what has been added since", () => {
+    expect(whatsNew({ stars: 3, badges: ["a"] }, { stars: 5, badges: ["a", "b", "c"] })).toEqual({ stars: 2, badges: ["b", "c"] });
+    expect(whatsNew({ stars: 3, badges: ["a"] }, { stars: 3, badges: ["a"] })).toEqual({ stars: 0, badges: [] });
+  });
+  it("never reports fewer stars", () => {
+    expect(whatsNew({ stars: 9, badges: [] }, { stars: 4, badges: [] }).stars).toBe(0);
   });
 });

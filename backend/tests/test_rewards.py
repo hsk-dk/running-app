@@ -30,6 +30,10 @@ def home(proxy, db):
     return proxy
 
 
+def _written_on_the_day(db):
+    c = db.get_conn(); c.execute("UPDATE challenge_logs SET logged_on = day"); c.commit(); c.close()
+
+
 def stars(client, headers=ADMIN):
     return client.get("/api/stars", headers=headers).json()
 
@@ -92,14 +96,14 @@ def test_your_stars_are_your_own(home, db):
 
 def test_a_parent_sets_a_reward_and_everyone_who_shares_adds_to_it(home, db):
     assert home.put("/api/family/reward", headers=FAMILY, json={"name": "Biograftur", "cost": 4}).status_code == 403
-    r = home.put("/api/family/reward", headers=ADMIN, json={"name": "Biograftur", "cost": 4}).json()
+    r = home.put("/api/family/reward", headers=ADMIN, json={"name": "Biograftur", "cost": 4, "counts": "all"}).json()
     assert (r["name"], r["cost"], r["stars"], r["reached"], r["remaining"]) == ("Biograftur", 4, 0, False, 4)
     today = timeutil.today().isoformat()
     local(db, 1, today, 30, user_id=1)
     local(db, 2, today, 30, user_id=2)
     got = stars(home, BO)["reward"]
     assert got["stars"] == 2 and got["remaining"] == 2
-    assert set(got) == {"id", "name", "cost", "stars", "reached", "remaining", "recent", "people", "per_week", "estimated", "weeks_left"}  # no one's own part
+    assert set(got) == {"id", "name", "cost", "stars", "reached", "remaining", "recent", "counts", "people", "per_week", "estimated", "weeks_left"}  # no one's own part
     assert home.get("/api/family", headers=FAMILY).json()["reward"]["stars"] == 2
 
 
@@ -174,6 +178,7 @@ def test_challenge_badges_appear_on_the_shelf(home, db):
                                                              "start_date": (today - timedelta(days=6)).isoformat()}).json()["id"]
     for i in range(7):
         home.put(f"/api/challenges/{cid}/log", headers=FAMILY, json={"count": 26 - i, "day": (today - timedelta(days=i)).isoformat()})
+    _written_on_the_day(db)  # as if each number had been written that very day
     got = {b["key"] for b in home.get("/api/badges", headers=FAMILY).json()["earned"]}
     assert {"challenge_7", "challenge_best"} <= got
 
@@ -231,3 +236,104 @@ def test_the_family_page_has_the_pace_before_any_reward_is_set(home, db):
         local(db, 500 + i, (today - timedelta(days=i * 3)).isoformat(), 30)
     pace = home.get("/api/family", headers=FAMILY).json()["pace"]
     assert pace["estimated"] is False and pace["per_week"] == 2.0 and pace["people"] == 3  # eight stars in four weeks
+
+
+# ---- fair stars: whose count, and numbers written long afterwards ---------------------------------------------------------
+
+def _challenge(client, headers=FAMILY, days=10, **over):
+    body = {"name": "Armbøjninger", "unit": "stk", "start_value": 5, "step": 0, "step_every_days": 7, "rest_weekdays": [],
+            "start_date": (timeutil.today() - timedelta(days=days)).isoformat(), **over}
+    return client.post("/api/challenges", headers=headers, json=body).json()["id"]
+
+
+def _write(client, cid, n, ago=0, headers=FAMILY):
+    return client.put(f"/api/challenges/{cid}/log", headers=headers, json={"count": n, "day": (timeutil.today() - timedelta(days=ago)).isoformat()})
+
+
+def test_a_challenge_day_written_today_or_yesterday_earns_a_star_but_one_written_days_later_does_not(home, db):
+    cid = _challenge(home)
+    _write(home, cid, 6, 0)
+    assert stars(home, FAMILY)["total"] == 1
+    _write(home, cid, 6, 1)  # written today for yesterday: still in time
+    assert stars(home, FAMILY)["total"] == 2
+    _write(home, cid, 6, 5)  # five days late
+    assert stars(home, FAMILY)["total"] == 2
+    own = home.get("/api/challenges", headers=FAMILY).json()[0]
+    assert own["total"] == 18 and own["best_day"] == 6  # the person's own card still shows everything honestly
+
+
+def test_correcting_an_old_day_later_takes_its_star_away_but_a_correction_the_same_day_does_not(home, db):
+    cid = _challenge(home)
+    _write(home, cid, 6, 0)
+    _write(home, cid, 8, 0)  # same day: still fine
+    assert stars(home, FAMILY)["total"] == 1
+    c = db.get_conn(); c.execute("UPDATE challenge_logs SET logged_on = ?", ((timeutil.today() - timedelta(days=3)).isoformat(),)); c.commit(); c.close()
+    # as if the number had been written three days ago for today... then rewritten now is the normal case; here a day long past is rewritten
+    _write(home, cid, 7, 4)
+    assert stars(home, FAMILY)["total"] == 1  # the day four days ago earned nothing, today's star stays
+
+
+def test_numbers_written_long_afterwards_earn_no_badge_and_no_family_milestone(home, db):
+    today = timeutil.today()
+    cid = _challenge(home, days=6, step=0, start_value=20)
+    for i in range(7):
+        _write(home, cid, 20, i)  # a whole week filled in today
+    got = {b["key"] for b in home.get("/api/badges", headers=FAMILY).json()["earned"]}
+    assert "challenge_7" not in got and "challenge_best" not in got
+    from app.repositories import users as users_repo
+    c = db.get_conn(); users_repo.set_sharing_level(c, 2, "overview"); c.commit(); c.close()
+    anna = next(m for m in home.get("/api/family", headers=ADMIN).json()["members"] if m["user_id"] == 2)
+    assert not any("dage i træk" in x["label"] for x in anna["new_milestones"])
+    assert today  # silence the linter: the date is used by the helper
+
+
+def test_by_default_only_the_childrens_stars_fill_the_reward(home, db):
+    home.put("/api/admin/users/2/child", headers=ADMIN, json={"is_child": True})
+    today = timeutil.today().isoformat()
+    r = home.put("/api/family/reward", headers=ADMIN, json={"name": "Biograftur", "cost": 10}).json()
+    assert r["counts"] == "children" and r["people"] == 1
+    local(db, 1, today, 30, user_id=1)  # a parent runs
+    local(db, 2, today, 30, user_id=3)  # a grown-up who is not a child
+    assert stars(home)["reward"]["stars"] == 0  # none of that fills the bar
+    local(db, 3, today, 30, user_id=2)  # the child
+    assert stars(home)["reward"]["stars"] == 1
+
+
+def test_a_parent_can_let_everyone_count_and_the_choice_is_kept_when_the_reward_is_given(home, db):
+    home.put("/api/admin/users/2/child", headers=ADMIN, json={"is_child": True})
+    r = home.put("/api/family/reward", headers=ADMIN, json={"name": "Biograftur", "cost": 2, "counts": "all"}).json()
+    assert r["counts"] == "all" and r["people"] == 3
+    local(db, 1, timeutil.today().isoformat(), 30, user_id=1)
+    local(db, 2, timeutil.today().isoformat(), 30, user_id=3)
+    assert stars(home)["reward"]["reached"] is True
+    nxt = home.post("/api/family/reward/redeem", headers=ADMIN).json()
+    assert nxt["counts"] == "all" and nxt["people"] == 3
+    back = home.put("/api/family/reward", headers=ADMIN, json={"name": "Biograftur", "cost": 2}).json()
+    assert back["counts"] == "children"  # a change that leaves it out goes back to the default
+
+
+def test_a_family_with_no_children_still_has_stars_that_count(home, db):
+    r = home.put("/api/family/reward", headers=ADMIN, json={"name": "Pizza", "cost": 3}).json()
+    assert r["counts"] == "children" and r["people"] == 3  # nobody to leave out: everyone who shares counts
+    local(db, 1, timeutil.today().isoformat(), 30, user_id=1)
+    assert stars(home)["reward"]["stars"] == 1
+
+
+def test_an_unknown_choice_of_whose_stars_count_is_refused(home):
+    assert home.put("/api/family/reward", headers=ADMIN, json={"name": "x", "cost": 5, "counts": "some"}).status_code == 422
+
+
+def test_the_pace_follows_whose_stars_count(home, db):
+    home.put("/api/admin/users/2/child", headers=ADMIN, json={"is_child": True})
+    assert home.get("/api/family", headers=ADMIN).json()["pace"] == {"people": 1, "per_week": 3.0, "estimated": True}  # one child, a guess
+    home.put("/api/family/reward", headers=ADMIN, json={"name": "x", "cost": 5, "counts": "all"})
+    assert home.get("/api/family", headers=ADMIN).json()["pace"]["people"] == 3
+
+
+def test_the_migration_adds_the_two_columns(proxy, db):
+    c = db.get_conn()
+    logs = [r["name"] for r in c.execute("PRAGMA table_info(challenge_logs)")]
+    rewards = [r["name"] for r in c.execute("PRAGMA table_info(family_rewards)")]
+    v = c.execute("PRAGMA user_version").fetchone()[0]
+    c.close()
+    assert "logged_on" in logs and "counts" in rewards and v >= 17

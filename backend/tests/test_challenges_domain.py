@@ -152,3 +152,10 @@ def test_the_history_covers_eight_weeks_at_most_and_starts_at_the_start():
     assert len(h) == 56 and h[0]["date"] == "2026-09-23" and h[-1] == {"date": "2026-11-17", "target": c.target_for(p, d("2026-11-17")), "count": 12}
     short = c.history(ch(start_date=d("2026-11-15")), {}, d("2026-11-17"))
     assert [x["date"] for x in short] == ["2026-11-15", "2026-11-16", "2026-11-17"]
+
+
+def test_only_numbers_written_on_the_day_or_the_day_after_count_for_stars_and_badges():
+    e = [(d("2026-11-02"), 5, d("2026-11-02")), (d("2026-11-03"), 6, d("2026-11-04")), (d("2026-11-04"), 7, d("2026-11-06")), (d("2026-11-05"), 8, None)]
+    assert c.timely_logs(e) == {d("2026-11-02"): 5, d("2026-11-03"): 6, d("2026-11-05"): 8}  # a late one is out; one without a time is trusted
+    assert c.timely_logs([]) == {}
+    assert c.LATE_AFTER_DAYS == 1

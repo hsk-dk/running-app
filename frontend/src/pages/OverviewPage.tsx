@@ -1,4 +1,5 @@
 import ChallengeCard from "../components/ChallengeCard";
+import CelebrationBanner from "../components/CelebrationBanner";
 import ChildHome from "../components/ChildHome";
 import StarsCard from "../components/StarsCard";
 import WeekStoryCard from "../components/WeekStoryCard";
@@ -189,6 +190,8 @@ export default function OverviewPage({
         activities={activities}
         monthlyVolume={monthlyVolume}
       />
+
+      <CelebrationBanner />
 
       <ChallengeCard />
 
