@@ -15,6 +15,7 @@ type Member = {
   name: string;
   is_me: boolean;
   level: string;
+  others_see?: string | null;
   shared: boolean;
   week: { done: number; total: number; open: number } | null;
   month_km: number | null;
@@ -85,7 +86,7 @@ function MemberCard({ m, onOpen }: { m: Member; onOpen: (m: Member, id: number) 
     <section className="u-card" aria-labelledby={id} style={{ display: "grid", gap: 12, alignContent: "start" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <h2 id={id} className="u-h2">{m.is_me ? `${m.name} (dig)` : m.name}</h2>
-        <span className="u-chip">{levelLabel(m.level)}</span>
+        <span className="u-chip">{m.is_me && m.others_see ? `Andre ser: ${levelLabel(m.others_see)}` : levelLabel(m.level)}</span>
       </div>
 
       {m.guardian && <GuardianSummary g={m.guardian} />}

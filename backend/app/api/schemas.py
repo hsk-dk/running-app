@@ -539,6 +539,7 @@ class FamilyMemberOut(BaseModel):
     new_milestones: list[FamilyMilestoneOut] | None = None
     is_child: bool = False
     guardian: GuardianOut | None = None
+    others_see: Literal["private", "overview", "all", "milestones"] | None = None  # on your own card: what the others see of you
 
 
 class BragOut(BaseModel):

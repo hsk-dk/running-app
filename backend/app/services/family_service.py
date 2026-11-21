@@ -82,6 +82,14 @@ def _guardian_view(conn, user_id: int, today) -> dict:
     }
 
 
+def _others_see(person: CurrentUser) -> str:
+    """What anyone else is shown of this person: nothing, a child's milestones only, or what they chose."""
+    sharing = person.sharing_level if settings.FAMILY_SHARING_ENABLED else "private"
+    if sharing == "private":
+        return "private"
+    return "milestones" if person.is_child else sharing
+
+
 def _member(viewer: CurrentUser, target: CurrentUser) -> dict:
     level = access_level(viewer, target)
     conn = get_conn()
@@ -100,6 +108,7 @@ def _member(viewer: CurrentUser, target: CurrentUser) -> dict:
             "new_milestones": None,
             "is_child": target.is_child,
             "guardian": None,
+            "others_see": _others_see(target) if viewer.id == target.id else None,
         }
         if not entry["shared"]:
             return entry
