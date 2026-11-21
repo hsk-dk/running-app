@@ -1,3 +1,5 @@
+import threading
+
 from app.db import get_conn
 from app.errors import NotConnectedError, UpstreamError
 from app.repositories import activities as activity_repo
@@ -27,8 +29,30 @@ def _set_error(user_id: int, message: str) -> None:
         conn.close()
 
 
-def run_ingest(user_id: int, pages: int = 3):  # `pages` is kept for the API; every source pages on its own
-    """Sync every source the user has connected. One failing source does not stop the others."""
+_locks: dict[int, threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+
+def _lock_for(user_id: int) -> threading.Lock:
+    with _locks_guard:
+        return _locks.setdefault(user_id, threading.Lock())
+
+
+def run_ingest(user_id: int, pages: int = 3, wait: bool = True):  # `pages` is kept for the API; every source pages on its own
+    """Sync every source the user has connected. One failing source does not stop the others.
+
+    Only one sync per person runs at a time. A person pressing the button waits for a running one; the automatic sync
+    (`wait=False`) simply skips a person whose sync is already running, and gets None."""
+    lock = _lock_for(user_id)
+    if not lock.acquire(blocking=wait):
+        return None
+    try:
+        return _run_ingest(user_id)
+    finally:
+        lock.release()
+
+
+def _run_ingest(user_id: int):
     conn = get_conn()
     try:
         sources = []

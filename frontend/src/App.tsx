@@ -246,7 +246,11 @@ export default function App() {
         </div>
 
         <footer className="app-footer">
-          Sidst opdateret: {formatDateTime(adminStatus?.last_sync_at?.value)}
+          Sidst opdateret: {formatDateTime(adminStatus?.last_sync_at?.value)} (hentes automatisk){" "}
+          <button type="button" className="link-button" disabled={loading} onClick={() => handleAction("ingest")}
+            style={{ background: "none", border: "none", padding: 0, color: "inherit", textDecoration: "underline", cursor: "pointer", font: "inherit" }}>
+            Opdatér nu
+          </button>
         </footer>
       </main>
       </MeContext.Provider>

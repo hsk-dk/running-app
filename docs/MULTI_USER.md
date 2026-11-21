@@ -15,7 +15,12 @@ Andre i familien ser kun det, man selv har valgt at dele.
    aldrig de gamle data. Brug din egen konto til daglig, og hold akadmin som nødadgang til Authentik.
 4. **Ejer af de eksisterende data.** Løb og planer fra før flere brugere overtages af den første admin, eller af
    den bruger der står i `AUTH_OWNER_USERNAME`.
-5. `APP_SECRET_KEY` bør sættes til en lang tilfældig værdi (underskriver OAuth-state).
+5. **Automatisk synkronisering.** Appen henter selv nye løb og planen for alle med en tilsluttet kilde hvert
+   `SYNC_INTERVAL_MINUTES` (standard 30, `0` slår det fra). Første runde kører ca. et minut efter opstart. Fejler en kilde,
+   venter appen længere og længere (op til 6 timer) før næste forsøg for den person. Der kører kun én synkronisering ad
+   gangen pr. person; "Opdatér nu" i bunden og "Synkronisér" under Mere → Admin venter på en igangværende. Garmin har
+   ingen push, så det er polling.
+6. `APP_SECRET_KEY` bør sættes til en lang tilfældig værdi (underskriver OAuth-state).
 
 ## Datakilde: Garmin Connect (anbefalet)
 

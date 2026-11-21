@@ -7,7 +7,7 @@ from app.api import api_router
 from app.api.errors import register_exception_handlers
 from app.config import settings
 from app.db import init_db
-from app.services import planning_service, user_service
+from app.services import auto_sync, planning_service, user_service
 
 
 @asynccontextmanager
@@ -15,7 +15,12 @@ async def lifespan(_: FastAPI):
     init_db()
     for user in user_service.list_users():
         planning_service.rebuild_activity_links(user.id)
-    yield
+    syncer = auto_sync.from_settings()
+    syncer.start()  # does nothing when SYNC_INTERVAL_MINUTES is 0
+    try:
+        yield
+    finally:
+        syncer.stop()
 
 
 app = FastAPI(title="Træning", lifespan=lifespan)

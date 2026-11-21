@@ -159,6 +159,15 @@ def update_profile(user_id: int, sharing_level: str | None, display_name: str | 
         conn.close()
 
 
+def all_user_ids() -> list[int]:
+    """Every account, technical ones too: they have no data, but whoever has a connected source is synced."""
+    conn = get_conn()
+    try:
+        return [r["id"] for r in user_repo.list_all(conn)]
+    finally:
+        conn.close()
+
+
 def list_users() -> list[CurrentUser]:
     """The people in the family. Technical accounts are not people and are left out."""
     conn = get_conn()
