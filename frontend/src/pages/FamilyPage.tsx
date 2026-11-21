@@ -1,3 +1,4 @@
+import { cleanRunName } from "../lib/runName";
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import ActivityDetail from "../components/ActivityDetail";
@@ -127,7 +128,7 @@ function MemberCard({ m, onOpen }: { m: Member; onOpen: (m: Member, id: number) 
                 onClick={() => onOpen(m, r.id)}
               >
                 <span>
-                  {r.date ? new Date(r.date).toLocaleDateString("da-DK", { day: "numeric", month: "short" }) : "–"} · {r.name || "Løb"}
+                  {r.date ? new Date(r.date).toLocaleDateString("da-DK", { day: "numeric", month: "short" }) : "–"} · {cleanRunName(r.name) || "Løb"}
                 </span>
                 <span>{km(r.distance_km)} km</span>
               </button>
@@ -182,7 +183,7 @@ export default function FamilyPage() {
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
       <section>
         <p className="now__eyebrow">Familie</p>
-        <h1 className="u-h1">{km(family.total_km_this_month, 0)} km sammen denne måned</h1>
+        <h1 className="u-h1">{family.total_km_this_month > 0 ? `${km(family.total_km_this_month, 0)} km sammen denne måned` : "Ingen kilometer delt endnu denne måned"}</h1>
       </section>
 
       {family.goal.target_km !== null && family.goal.target_km > 0 && (

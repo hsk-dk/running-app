@@ -1,4 +1,5 @@
 import { MonthTotal } from "../lib/year";
+import { niceMax, useScrollEnd } from "../lib/useScrollEnd";
 
 const MONTHS = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
 const W = 860;
@@ -6,8 +7,12 @@ const B = 160;
 const H = 130;
 
 /** Kilometres per month. The newest (possibly unfinished) month is in full colour. */
-export default function MonthBars({ months }: { months: MonthTotal[] }) {
-  const mx = Math.max(100, Math.ceil(Math.max(...months.map((m) => m.km), 0) / 100) * 100);
+export default function MonthBars({ months: all }: { months: MonthTotal[] }) {
+  // Months before the first run are not "0 km", they are before you began: leave them out.
+  const first = all.findIndex((m) => m.km > 0);
+  const months = first > 0 ? all.slice(first) : all;
+  const scroller = useScrollEnd<HTMLDivElement>([months.length]);
+  const { max: mx } = niceMax(Math.max(...months.map((m) => m.km), 0), 20);
   const left = 40;
   const step = (W - left - 10) / Math.max(months.length, 1);
   const bw = Math.min(38, step * 0.7);
@@ -15,7 +20,8 @@ export default function MonthBars({ months }: { months: MonthTotal[] }) {
   const label = `Kilometer pr. måned: ${months.map((m) => `${MONTHS[Number(m.key.slice(5)) - 1]} ${Math.round(m.km)}`).join(", ")}`;
 
   return (
-    <div style={{ overflowX: "auto" }}>
+    <div>
+    <div ref={scroller} style={{ overflowX: "auto" }}>
       <svg viewBox={`0 0 ${W} 190`} role="img" aria-label={label} style={{ display: "block", width: "100%", minWidth: 600, height: "auto" }}>
         {ticks.map((v) => (
           <g key={v}>
@@ -33,12 +39,14 @@ export default function MonthBars({ months }: { months: MonthTotal[] }) {
           return (
             <g key={m.key}>
               <rect x={x} y={B - h} width={bw} height={h} rx={4} fill={last ? "var(--data-1)" : "var(--data-muted)"} />
-              <text x={x + bw / 2} y={B - h - 6} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--color-text)">{Math.round(m.km)}</text>
+              <text x={x + bw / 2} y={B - h - 6} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--color-text)">{m.km > 0 ? Math.round(m.km) : ""}</text>
               <text x={x + bw / 2} y={B + 16} textAnchor="middle" fontSize={11} fill="var(--color-text-muted)">{MONTHS[month] + yearMark}</text>
             </g>
           );
         })}
       </svg>
+    </div>
+    <p className="u-card__meta swipe-hint" style={{ margin: "4px 0 0" }}>På en lille skærm kan du stryge sidelæns.</p>
     </div>
   );
 }

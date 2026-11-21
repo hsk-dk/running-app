@@ -6,7 +6,7 @@ const GAP = 3;
 const LEFT = 30;
 const TOP = 22;
 const MONTHS = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
-const LEVEL_PCT = [0, 28, 50, 75, 100];
+const LEVEL_PCT = [0, 45, 62, 80, 100]; // the lightest run must be clearly darker than a day without one
 
 /** A year as weeks in columns and weekdays in rows. Darker means a longer run. */
 export default function YearHeatmap({ days, label }: { days: DayCell[]; label: string }) {

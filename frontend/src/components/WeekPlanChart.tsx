@@ -1,5 +1,5 @@
 import { sessionLabel } from "../lib/sessionTypes";
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   DayState,
@@ -60,11 +60,20 @@ export default function WeekPlanChart({
   badge?: ReactNode;
 }) {
   const [offset, setOffset] = useState(0);
+  const scroller = useRef<HTMLDivElement>(null);
   const start = useMemo(() => addDays(weekStartOf(today), offset * 7), [today, offset]);
   const days = useMemo(() => weekDays(plannedRuns, activities, start, today), [plannedRuns, activities, start, today]);
   const week = summarizeWeek(days);
   const weekNumber = isoWeekNumber(start);
   const colW = (W - LEFT * 2) / 7;
+  // On a narrow screen the chart scrolls sideways: start with today's day (or Monday in another week) in view.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    const today = days.find((d) => d.isToday);
+    const centre = today ? ((LEFT + today.weekday * colW + colW / 2) / W) * el.scrollWidth : 0;
+    el.scrollLeft = Math.max(0, centre - el.clientWidth / 2);
+  }, [offset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const label =
     `Uge ${weekNumber}, ${rangeLabel(start)}. ` +
@@ -101,7 +110,7 @@ export default function WeekPlanChart({
         </div>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
+      <div ref={scroller} style={{ overflowX: "auto" }}>
         <svg viewBox={`0 0 ${W} 285`} role="img" aria-label={label} style={{ display: "block", width: "100%", minWidth: 620, height: "auto" }}>
           <line x1={LEFT} y1={B} x2={W - LEFT} y2={B} stroke="var(--color-border-control)" />
           {days.map((d) => {
@@ -131,7 +140,7 @@ export default function WeekPlanChart({
                 )}
                 {d.extras.length > 0 && (
                   <>
-                    <rect x={cx + (run ? 26 : 0) - 22} y={B - 0.45 * H} width={44} height={0.45 * H} rx={5} fill="var(--data-fill)" fillOpacity={0.3} stroke="var(--data-1)" strokeWidth={1.5} strokeDasharray="3 3" />
+                    <rect x={cx + (run ? 26 : 0) - 22} y={B - 0.45 * H} width={44} height={0.45 * H} rx={5} fill="var(--data-1)" fillOpacity={0.55} />
                     <text x={cx + (run ? 26 : 0)} y={B - 0.45 * H - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--color-text)">
                       {extraMin} min
                     </text>
@@ -156,6 +165,8 @@ export default function WeekPlanChart({
           <text x={W - 80} y={13} fontSize={11} fill="var(--color-text-muted)">Løbet</text>
         </svg>
       </div>
+
+      <p className="u-card__meta swipe-hint" style={{ margin: 0 }}>På en lille skærm kan du stryge sidelæns.</p>
 
       <details>
         <summary style={{ cursor: "pointer", color: "var(--color-action-strong)", fontSize: 14 }}>Vis som tabel</summary>
