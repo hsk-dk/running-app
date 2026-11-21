@@ -1,4 +1,5 @@
 import { rollingAverage } from "../lib/year";
+import { niceMax, useScrollEnd } from "../lib/useScrollEnd";
 
 const W = 860;
 const L = 44;
@@ -8,17 +9,19 @@ const T = 14;
 /** Kilometres per week as faint bars and the four-week average as a line. */
 export default function FormChart({ weeklyKm, firstWeekLabel }: { weeklyKm: number[]; firstWeekLabel: (i: number) => string }) {
   const n = weeklyKm.length;
+  const scroller = useScrollEnd<HTMLDivElement>([n]);
   if (n < 2) return null;
   const avg = rollingAverage(weeklyKm, 4);
-  const mx = Math.max(20, Math.ceil(Math.max(...weeklyKm) / 20) * 20);
+  const { max: mx, step: tickStep } = niceMax(Math.max(...weeklyKm));
   const H = B - T;
   const step = (W - L) / n;
   const pts = avg.map((a, i) => `${i === 0 ? "M" : "L"}${(L + i * step + step / 2).toFixed(1)} ${(B - (a / mx) * H).toFixed(1)}`).join(" ");
-  const ticks = Array.from({ length: mx / 20 + 1 }, (_, i) => i * 20);
+  const ticks = Array.from({ length: mx / tickStep + 1 }, (_, i) => i * tickStep);
   const label = `Kilometer pr. uge de seneste ${n} uger med gennemsnit over fire uger. Gennemsnittet går fra ${Math.round(avg[3] ?? avg[0])} til ${Math.round(avg[n - 1])} km.`;
 
   return (
-    <div style={{ overflowX: "auto" }}>
+    <div>
+    <div ref={scroller} style={{ overflowX: "auto" }}>
       <svg viewBox={`0 0 ${W} 285`} role="img" aria-label={label} style={{ display: "block", width: "100%", minWidth: 600, height: "auto" }}>
         {ticks.map((v) => (
           <g key={v}>
@@ -43,6 +46,8 @@ export default function FormChart({ weeklyKm, firstWeekLabel }: { weeklyKm: numb
         <circle cx={L + (n - 1) * step + step / 2} cy={B - (avg[n - 1] / mx) * H} r={5} fill="var(--data-1)" />
         <text x={W - 10} y={282} textAnchor="end" fontSize={11} fill="var(--color-text-muted)">Linje: gennemsnit over fire uger · søjler: kilometer pr. uge</text>
       </svg>
+    </div>
+    <p className="u-card__meta swipe-hint" style={{ margin: "4px 0 0" }}>På en lille skærm kan du stryge sidelæns.</p>
     </div>
   );
 }

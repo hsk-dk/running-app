@@ -1,3 +1,4 @@
+import { cleanRunName } from "../lib/runName";
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import ActivityDetail from "../components/ActivityDetail";
@@ -14,6 +15,7 @@ type Member = {
   name: string;
   is_me: boolean;
   level: string;
+  others_see?: string | null;
   shared: boolean;
   week: { done: number; total: number; open: number } | null;
   month_km: number | null;
@@ -84,7 +86,7 @@ function MemberCard({ m, onOpen }: { m: Member; onOpen: (m: Member, id: number) 
     <section className="u-card" aria-labelledby={id} style={{ display: "grid", gap: 12, alignContent: "start" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <h2 id={id} className="u-h2">{m.is_me ? `${m.name} (dig)` : m.name}</h2>
-        <span className="u-chip">{levelLabel(m.level)}</span>
+        <span className="u-chip">{m.is_me && m.others_see ? `Andre ser: ${levelLabel(m.others_see)}` : levelLabel(m.level)}</span>
       </div>
 
       {m.guardian && <GuardianSummary g={m.guardian} />}
@@ -127,7 +129,7 @@ function MemberCard({ m, onOpen }: { m: Member; onOpen: (m: Member, id: number) 
                 onClick={() => onOpen(m, r.id)}
               >
                 <span>
-                  {r.date ? new Date(r.date).toLocaleDateString("da-DK", { day: "numeric", month: "short" }) : "–"} · {r.name || "Løb"}
+                  {r.date ? new Date(r.date).toLocaleDateString("da-DK", { day: "numeric", month: "short" }) : "–"} · {cleanRunName(r.name) || "Løb"}
                 </span>
                 <span>{km(r.distance_km)} km</span>
               </button>
@@ -182,7 +184,7 @@ export default function FamilyPage() {
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
       <section>
         <p className="now__eyebrow">Familie</p>
-        <h1 className="u-h1">{km(family.total_km_this_month, 0)} km sammen denne måned</h1>
+        <h1 className="u-h1">{family.total_km_this_month > 0 ? `${km(family.total_km_this_month, 0)} km sammen denne måned` : "Ingen kilometer delt endnu denne måned"}</h1>
       </section>
 
       {family.goal.target_km !== null && family.goal.target_km > 0 && (

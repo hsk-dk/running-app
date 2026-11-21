@@ -156,7 +156,7 @@ export function scoreNote(done: number, shortened: number, total: number, awaiti
 
 /** The sentence at the top of "Nu": says how the week is going before any number. */
 export function weekHeadline(summary: WeekSummary, next: PlannedRun | null, today: Date): string {
-  if (summary.total === 0) return "Ingen vigtige løb planlagt i denne uge.";
+  if (summary.total === 0) return "En rolig uge: ingen vigtige løb planlagt.";
   const base = `${summary.done} af ${summary.total} løb i hus.`;
   if (summary.open === 0) {
     return summary.done === summary.total ? `${base} Ugen er klaret.` : `${base} Ugen er slut.`;

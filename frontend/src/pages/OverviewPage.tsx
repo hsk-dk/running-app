@@ -1,3 +1,4 @@
+import { cleanRunName } from "../lib/runName";
 import ChallengeCard from "../components/ChallengeCard";
 import CelebrationBanner from "../components/CelebrationBanner";
 import ChildHome from "../components/ChildHome";
@@ -8,15 +9,6 @@ import NowHero from "../components/NowHero";
 import { useMe } from "../lib/meContext";
 import { scoreNote } from "../lib/week";
 import StatusBadge from "../components/StatusBadge";
-import {
-  AreaChart,
-  Area,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 const cardStyle: React.CSSProperties = {
   background: "var(--color-surface)",
@@ -242,8 +234,8 @@ export default function OverviewPage({
         )}
         <SummaryCard
           title="Planen denne uge"
-          value={`${summary?.adherence_pct_current_week ?? 0}%`}
-          subtitle={`${summary?.current_week_completed ?? 0}/${summary?.current_week_relevant ?? 0} vigtige løb`}
+          value={(summary?.current_week_relevant ?? 0) > 0 ? `${summary?.adherence_pct_current_week ?? 0}%` : "–"}
+          subtitle={(summary?.current_week_relevant ?? 0) > 0 ? `${summary?.current_week_completed ?? 0}/${summary?.current_week_relevant} vigtige løb` : "Ingen vigtige løb denne uge"}
         />
       </section>
 
@@ -281,40 +273,13 @@ export default function OverviewPage({
           </div>
         </div>
 
-        <div style={cardStyle}>
-          <div style={{ marginBottom: 8, fontWeight: 600, color: "var(--color-text)" }}>
-            Næste planlagte træning
-          </div>
-
-          {nextPlanned ? (
-            <div style={{ display: "grid", gap: 8 }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text)" }}>
-                {nextPlanned.display_target}
-              </div>
-              <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
-                {formatDate(nextPlanned.planned_date)} · {sessionLabel(nextPlanned.session_type)}
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <StatusBadge value={nextPlanned.status} />
-                {nextPlanned.optional ? <StatusBadge value="valgfri" /> : null}
-              </div>
-              {nextPlanned.notes ? (
-                <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{nextPlanned.notes}</div>
-              ) : null}
-            </div>
-          ) : (
-            <div style={{ color: "var(--color-text-muted)" }}>Ingen planlagte træninger.</div>
-          )}
-        </div>
-
+        {upcomingRuns.length > 0 && (
         <div style={cardStyle}>
           <div style={{ marginBottom: 8, fontWeight: 600, color: "var(--color-text)" }}>
             Kommende plan
           </div>
 
-          {upcomingRuns.length === 0 ? (
-            <div style={{ color: "var(--color-text-muted)" }}>Ingen kommende træninger.</div>
-          ) : (
+          {(
             <div style={{ display: "grid", gap: 8 }}>
               {upcomingRuns.map((run: any) => (
                 <div
@@ -344,33 +309,11 @@ export default function OverviewPage({
             </div>
           )}
         </div>
+        )}
       </section>
 
-      <section className="app-split">
-        <div style={cardStyle}>
-          <div style={{ marginBottom: 12, fontWeight: 600, color: "var(--color-text)" }}>
-            Månedlig distance
-          </div>
-          <div style={{ width: "100%", height: 280 }}>
-            <ResponsiveContainer>
-              <AreaChart data={monthlyVolume}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Area
-                  isAnimationActive={false}
-                  type="monotone"
-                  dataKey="km"
-                  stroke="var(--data-1)"
-                  fill="var(--data-fill)"
-                  fillOpacity={0.22}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
+      {latestMatched && (
+      <section className="app-split" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
         <div style={cardStyle}>
           <div style={{ marginBottom: 12, fontWeight: 600, color: "var(--color-text)" }}>
             Seneste planlagte løb, der blev løbet
@@ -380,7 +323,7 @@ export default function OverviewPage({
             <div style={{ display: "grid", gap: 10 }}>
               <div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)" }}>
-                  {latestMatched.matched_activity_name}
+                  {cleanRunName(latestMatched.matched_activity_name)}
                 </div>
                 <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
                   {formatDate(latestMatched.planned_date)} · {sessionLabel(latestMatched.session_type)}
@@ -400,12 +343,12 @@ export default function OverviewPage({
                 <StatusBadge value={latestMatched.status} />
               </div>
             </div>
-          ) : (
-            <div style={{ color: "var(--color-text-muted)" }}>Ingen match endnu.</div>
-          )}
+          ) : null}
         </div>
       </section>
+      )}
 
+      {weeklyConsistency.filter((w: any) => String(w.week) <= currentWeekKey).length > 0 && (
       <section
         style={{
           ...cardStyle,
@@ -415,12 +358,8 @@ export default function OverviewPage({
       >
         <div style={{ fontWeight: 600, color: "var(--color-text)" }}>Ugekonsistens</div>
 
-        {weeklyConsistency.length === 0 ? (
-          <div style={{ color: "var(--color-text-muted)", fontSize: 14 }}>
-            Ingen planlagte træninger endnu.
-          </div>
-        ) : (
-          weeklyConsistency.slice(-4).map((week: any) => (
+        {(
+          weeklyConsistency.filter((w: any) => String(w.week) <= currentWeekKey).slice(-4).map((week: any) => (
             <div
               key={week.week}
               style={{
@@ -435,7 +374,7 @@ export default function OverviewPage({
               }}
             >
               <div>
-                <div style={{ fontWeight: 600 }}>{week.week}</div>
+                <div style={{ fontWeight: 600 }}>Uge {Number(String(week.week).split("-W")[1])}</div>
                 <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
                   {week.completed}/{week.relevant_runs} vigtige løb
                 </div>
@@ -445,6 +384,7 @@ export default function OverviewPage({
           ))
         )}
       </section>
+      )}
     </div>
   );
 }

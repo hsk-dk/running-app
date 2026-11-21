@@ -1,3 +1,4 @@
+import { cleanRunName, shortWeek } from "../lib/runName";
 import { useMe } from "../lib/meContext";
 import { sessionLabel } from "../lib/sessionTypes";
 import { useMemo, useState } from "react";
@@ -87,6 +88,7 @@ export default function ActivitiesPage({
     });
   }, [activities, plannedRunById]);
 
+  const [limit, setLimit] = useState(40);
   const filteredActivities = useMemo(() => {
     const currentWeek = getCurrentIsoWeekKey();
 
@@ -216,13 +218,13 @@ export default function ActivitiesPage({
               </tr>
             </thead>
             <tbody>
-              {filteredActivities.map((a) => (
+              {filteredActivities.slice(0, limit).map((a) => (
                 <tr key={a.id}>
                   <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     {formatDate(a.date)}
                   </td>
                   <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
-                    {a.name}
+                    {cleanRunName(a.name)}
                   </td>
                   <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     {a.distance_km}
@@ -250,11 +252,11 @@ export default function ActivitiesPage({
                     )}
                   </td>
                   <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
-                    {a.weekKey || "-"}
+                    {shortWeek(a.weekKey)}
                   </td>
                   <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                      <StatusBadge value={a.derivedStatus} />
+                      {a.derivedStatus === "Ikke planlagt" ? <span style={{ color: "var(--color-text-muted)" }}>-</span> : <StatusBadge value={a.derivedStatus} />}
                       {a.matchedPlan?.manual_override ? <StatusBadge value="Manuel" /> : null}
                     </div>
                   </td>
@@ -274,6 +276,15 @@ export default function ActivitiesPage({
                 </tr>
               ))}
 
+              {filteredActivities.length > limit && (
+                <tr>
+                  <td colSpan={9} style={{ padding: "10px 8px", textAlign: "center" }}>
+                    <button type="button" className="u-btn u-btn--secondary" onClick={() => setLimit(limit + 40)}>
+                      Vis flere ({filteredActivities.length - limit})
+                    </button>
+                  </td>
+                </tr>
+              )}
               {filteredActivities.length === 0 && (
                 <tr>
                   <td

@@ -240,7 +240,7 @@ export default function App() {
 
       <MeContext.Provider value={{ isChild: !!me?.is_child, isAdmin: me?.role === "admin", id: me?.id ?? null }}>
         <main id="indhold" className="u-container app-main" tabIndex={-1}>
-        {me && <SourceBanner me={me} notice={notice} onDismiss={() => setNotice(null)} onOpenMe={() => setPage("more")} />}
+        {me && page !== "more" && <SourceBanner me={me} notice={notice} onDismiss={() => setNotice(null)} onOpenMe={() => setPage("more")} />}
         <div className="u-panel" style={{ minHeight: 620 }}>
           {renderPage()}
         </div>

@@ -156,3 +156,13 @@ def test_the_schema_has_the_child_flag_with_adults_as_the_default(proxy, db):
     cols = {r["name"]: r for r in c.execute("PRAGMA table_info(users)").fetchall()}
     c.close()
     assert "is_child" in cols and cols["is_child"]["dflt_value"] == "0"
+
+
+def test_your_own_card_says_what_the_others_see_of_you(home, db):
+    share(db, ANNA, "private")
+    assert member(home, FAMILY, ANNA)["others_see"] == "private"
+    share(db, ANNA, "overview")
+    assert member(home, FAMILY, ANNA)["others_see"] == "milestones"  # a child is only ever shown as milestones
+    share(db, BO_ID, "overview")
+    assert member(home, BO, BO_ID)["others_see"] == "overview"  # an adult as chosen
+    assert member(home, ADMIN, ANNA)["others_see"] is None  # only on your own card

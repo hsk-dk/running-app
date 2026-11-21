@@ -1,9 +1,13 @@
+import { dateKey } from "../lib/week";
+import { cleanRunName } from "../lib/runName";
 import { sessionTypeOptions, sessionLabel } from "../lib/sessionTypes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api";
 import StatusBadge from "../components/StatusBadge";
 import WeekPlanChart from "../components/WeekPlanChart";
+
+const PLAN_ROWS = 15;
 
 const cardStyle: React.CSSProperties = {
   background: "var(--color-surface)",
@@ -230,10 +234,13 @@ export default function PlanPage({
     };
   }, [createOpen, editing]);
 
-  const filteredRuns = useMemo(() => {
+  const matchingRuns = useMemo(() => {
     if (filter === "alle") return plannedRuns;
     return plannedRuns.filter((p) => p.status === filter);
   }, [plannedRuns, filter]);
+  // A long history is folded: the newest rows (and everything still to come) first, the rest on request.
+  const [showAllRuns, setShowAllRuns] = useState(false);
+  const filteredRuns = showAllRuns ? matchingRuns : matchingRuns.slice(-PLAN_ROWS);
 
   const currentWeek = useMemo(() => {
     const weekKey = getCurrentIsoWeekKey();
@@ -476,16 +483,28 @@ return (
         </section>
       )}
 
+      {plannedRuns.length === 0 ? (
+        <section style={cardStyle}>
+          <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>Ingen plan endnu</div>
+          <p className="u-card__meta" style={{ margin: 0 }}>
+            Tilføj en træning, eller forbind din Runna-plan under Mere → Mig. Så vises ugen her.
+          </p>
+        </section>
+      ) : (
       <WeekPlanChart
         plannedRuns={plannedRuns}
         activities={activities}
         badge={<StatusBadge value={currentWeek.score} />}
       />
+      )}
+      {plannedRuns.length > 0 && (
       <p className="u-card__meta" style={{ marginTop: -8 }}>
         {currentWeek.awaiting} vigtige løb venter stadig og tæller ikke negativt endnu. Valgfrie
         træninger vises i planen, men påvirker ikke ugefarven negativt.
       </p>
+      )}
 
+      {plannedRuns.length > 0 && (
       <section>
         <div style={cardStyle}>
           <div
@@ -562,7 +581,7 @@ return (
                         {p.display_actual}
                       </td>
                       <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
-                        {p.matched_activity_name ?? "-"}
+                        {p.matched_activity_name ? cleanRunName(p.matched_activity_name) : "-"}
                       </td>
                       <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--color-surface-muted)" }}>
                         <div
@@ -573,8 +592,7 @@ return (
                             flexWrap: "wrap",
                           }}
                         >
-                          <StatusBadge value={p.status} />
-                          {awaiting ? <StatusBadge value="Afventer" variant="info" /> : null}
+                          {awaiting && p.planned_date <= dateKey(new Date()) ? <StatusBadge value="Afventer" variant="info" /> : <StatusBadge value={p.status} />}
                           {p.optional ? <StatusBadge value="Valgfri" variant="optional" /> : null}
                           {p.manual_override ? <StatusBadge value="Manuel" /> : null}
                         </div>
@@ -611,8 +629,16 @@ return (
               </tbody>
             </table>
           </div>
+          {matchingRuns.length > filteredRuns.length && (
+            <div style={{ marginTop: 12, textAlign: "center" }}>
+              <button type="button" className="u-btn u-btn--secondary" onClick={() => setShowAllRuns(true)}>
+                Vis ældre ({matchingRuns.length - filteredRuns.length})
+              </button>
+            </div>
+          )}
         </div>
       </section>
+      )}
 
       {createOpen && (
         <Modal label="Tilføj træning" onClose={() => setCreateOpen(false)} closeDisabled={creating}>
