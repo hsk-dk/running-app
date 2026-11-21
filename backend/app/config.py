@@ -26,6 +26,8 @@ class Settings:
     # Family members can choose to share an overview or their runs with each other. Switch off to disable.
     FAMILY_SHARING_ENABLED = os.getenv("FAMILY_SHARING_ENABLED", "true").lower() in ("1", "true", "yes")
 
+    # How often (in minutes) the app fetches new runs and the plan for everyone with a connected source. 0 switches it off.
+    SYNC_INTERVAL_MINUTES = int(os.getenv("SYNC_INTERVAL_MINUTES", "30") or 0)
     SMASHRUN_CLIENT_ID = os.getenv("SMASHRUN_CLIENT_ID", "")
     SMASHRUN_CLIENT_SECRET = os.getenv("SMASHRUN_CLIENT_SECRET", "")
     SMASHRUN_REDIRECT_URI = os.getenv("SMASHRUN_REDIRECT_URI", "")
