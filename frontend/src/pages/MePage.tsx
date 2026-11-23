@@ -96,7 +96,7 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
                 name="sharing"
                 checked={me.sharing_level === l.key}
                 onChange={() => run(() => api.updateMe({ sharing_level: l.key }))}
-                style={{ width: 22, height: 22, marginTop: 2, accentColor: "#446EA8" }}
+                style={{ width: 22, height: 22, marginTop: 2, accentColor: "var(--color-action-strong)" }}
               />
               <span>
                 <b>{l.label}</b>
@@ -153,7 +153,7 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
             spellCheck={false}
             value={garminKey}
             onChange={(e) => setGarminKey(e.target.value)}
-            style={{ minHeight: 44, padding: "0 12px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", width: "100%", boxSizing: "border-box" }}
+            style={{ minHeight: 44, padding: "0 12px", border: "1px solid var(--color-border-control)", borderRadius: 8, font: "inherit", width: "100%", boxSizing: "border-box" }}
           />
           <details>
             <summary className="u-card__meta" style={{ cursor: "pointer", minHeight: 44, display: "flex", alignItems: "center" }}>Sådan får du nøglen</summary>
@@ -220,7 +220,7 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
               spellCheck={false}
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              style={{ minHeight: 44, padding: "0 12px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", width: "100%", boxSizing: "border-box" }}
+              style={{ minHeight: 44, padding: "0 12px", border: "1px solid var(--color-border-control)", borderRadius: 8, font: "inherit", width: "100%", boxSizing: "border-box" }}
             />
             <details>
               <summary className="u-card__meta" style={{ cursor: "pointer", minHeight: 44, display: "flex", alignItems: "center" }}>Sådan får du tokenet</summary>
@@ -295,7 +295,7 @@ export default function MePage({ me, onChanged }: { me: Me; onChanged: () => voi
               placeholder="https://cal.runna.com/…"
               value={runnaUrl}
               onChange={(e) => setRunnaUrl(e.target.value)}
-              style={{ minHeight: 44, padding: "0 12px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", width: "100%", boxSizing: "border-box" }}
+              style={{ minHeight: 44, padding: "0 12px", border: "1px solid var(--color-border-control)", borderRadius: 8, font: "inherit", width: "100%", boxSizing: "border-box" }}
             />
             <details>
               <summary className="u-card__meta" style={{ cursor: "pointer", minHeight: 44, display: "flex", alignItems: "center" }}>Sådan finder du linket</summary>

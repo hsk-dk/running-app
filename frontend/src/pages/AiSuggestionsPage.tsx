@@ -157,9 +157,9 @@ export default function AiSuggestionsPage({
         <section
           style={{
             ...cardStyle,
-            border: "1px solid #fecaca",
-            background: "#fef2f2",
-            color: "#991b1b",
+            border: "1px solid var(--chip-bad-border)",
+            background: "var(--chip-bad-bg)",
+            color: "var(--chip-bad-text)",
             fontSize: 14,
           }}
         >
@@ -183,7 +183,7 @@ export default function AiSuggestionsPage({
           }}
         >
           <div
-            style={{ fontWeight: 600, color: "#92400e", marginBottom: 6 }}
+            style={{ fontWeight: 600, color: "var(--text-warn)", marginBottom: 6 }}
           >
             AI-tjeneste ikke tilgængelig
           </div>
@@ -191,7 +191,7 @@ export default function AiSuggestionsPage({
             {result.error ||
               "Sørg for at Ollama kører lokalt. Se env.example for konfiguration."}
           </div>
-          <div style={{ fontSize: 13, color: "#92400e", marginTop: 10 }}>
+          <div style={{ fontSize: 13, color: "var(--text-warn)", marginTop: 10 }}>
             <strong>Trin for at aktivere AI:</strong>
             <ol style={{ margin: "6px 0 0 18px", lineHeight: 1.8 }}>
               <li>
@@ -200,7 +200,7 @@ export default function AiSuggestionsPage({
                   href="https://ollama.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: "#1d4ed8" }}
+                  style={{ color: "var(--chip-info-text)" }}
                 >
                   Ollama
                 </a>
@@ -209,7 +209,7 @@ export default function AiSuggestionsPage({
                 Kør modellen:{" "}
                 <code
                   style={{
-                    background: "#fde68a",
+                    background: "var(--chip-warn-border)",
                     padding: "1px 6px",
                     borderRadius: 4,
                   }}
@@ -221,7 +221,7 @@ export default function AiSuggestionsPage({
                 Sæt{" "}
                 <code
                   style={{
-                    background: "#fde68a",
+                    background: "var(--chip-warn-border)",
                     padding: "1px 6px",
                     borderRadius: 4,
                   }}
@@ -251,7 +251,7 @@ export default function AiSuggestionsPage({
                 <div
                   style={{
                     fontSize: 12,
-                    color: "#94a3b8",
+                    color: "var(--color-text-muted)",
                     marginTop: 8,
                   }}
                 >
@@ -327,9 +327,9 @@ export default function AiSuggestionsPage({
                         </span>
                         <span
                           style={{
-                            background: "#eff6ff",
-                            border: "1px solid #bfdbfe",
-                            color: "#1e40af",
+                            background: "var(--chip-info-bg)",
+                            border: "1px solid var(--chip-info-border)",
+                            color: "var(--chip-info-text)",
                             borderRadius: 6,
                             padding: "2px 8px",
                             fontSize: 12,
@@ -341,9 +341,9 @@ export default function AiSuggestionsPage({
                         {!s.mandatory && (
                           <span
                             style={{
-                              background: "#faf5ff",
-                              border: "1px solid #e9d5ff",
-                              color: "#7c3aed",
+                              background: "var(--chip-optional-bg)",
+                              border: "1px solid var(--chip-optional-border)",
+                              color: "var(--chip-optional-text)",
                               borderRadius: 6,
                               padding: "2px 8px",
                               fontSize: 12,
@@ -356,9 +356,9 @@ export default function AiSuggestionsPage({
                         {added && (
                           <span
                             style={{
-                              background: "#ecfdf5",
-                              border: "1px solid #bbf7d0",
-                              color: "#166534",
+                              background: "var(--chip-good-bg)",
+                              border: "1px solid var(--chip-good-border)",
+                              color: "var(--chip-good-text)",
                               borderRadius: 6,
                               padding: "2px 8px",
                               fontSize: 12,

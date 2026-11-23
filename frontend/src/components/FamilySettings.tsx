@@ -103,7 +103,7 @@ export default function FamilySettings({ goal, reward, pace, onChanged }: { goal
             inputMode="decimal"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            style={{ minHeight: 44, padding: "0 10px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", width: 140 }}
+            style={{ minHeight: 44, padding: "0 10px", border: "1px solid var(--color-border-control)", borderRadius: 8, font: "inherit", width: 140 }}
           />
         </label>
         <button type="submit" className="u-btn u-btn--primary">Gem målet</button>
@@ -134,7 +134,7 @@ export default function FamilySettings({ goal, reward, pace, onChanged }: { goal
             </p>
             <label className="u-card__meta" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               Hvor tit vil I have en belønning?
-              <select value={every} onChange={(e) => setEvery(Number(e.target.value))} style={{ minHeight: 44, padding: "0 10px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", background: "var(--color-surface)" }}>
+              <select value={every} onChange={(e) => setEvery(Number(e.target.value))} style={{ minHeight: 44, padding: "0 10px", border: "1px solid var(--color-border-control)", borderRadius: 8, font: "inherit", background: "var(--color-surface)" }}>
                 {INTERVAL_WEEKS.map((w) => <option key={w} value={w}>{w === 1 ? "hver uge" : `hver ${w}. uge`}</option>)}
               </select>
               <button type="button" className="u-btn u-btn--secondary" onClick={() => setRewardCost(String(suggestCost(pace.per_week, every)))}>
@@ -147,11 +147,11 @@ export default function FamilySettings({ goal, reward, pace, onChanged }: { goal
         <div style={{ display: "flex", gap: 8, alignItems: "end", flexWrap: "wrap" }}>
           <label className="u-card__meta" style={{ display: "grid", gap: 4 }}>
             Hvad sparer vi til?
-            <input value={rewardName} maxLength={40} onChange={(e) => setRewardName(e.target.value)} placeholder="Biograftur" style={{ minHeight: 44, padding: "0 10px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", width: 200 }} />
+            <input value={rewardName} maxLength={40} onChange={(e) => setRewardName(e.target.value)} placeholder="Biograftur" style={{ minHeight: 44, padding: "0 10px", border: "1px solid var(--color-border-control)", borderRadius: 8, font: "inherit", width: 200 }} />
           </label>
           <label className="u-card__meta" style={{ display: "grid", gap: 4 }}>
             Stjerner
-            <input inputMode="numeric" value={rewardCost} onChange={(e) => setRewardCost(e.target.value)} style={{ minHeight: 44, padding: "0 10px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", width: 100 }} />
+            <input inputMode="numeric" value={rewardCost} onChange={(e) => setRewardCost(e.target.value)} style={{ minHeight: 44, padding: "0 10px", border: "1px solid var(--color-border-control)", borderRadius: 8, font: "inherit", width: 100 }} />
           </label>
           <button type="submit" className="u-btn u-btn--primary">{reward ? "Gem ændringen" : "Start belønningen"}</button>
         </div>
@@ -169,7 +169,7 @@ export default function FamilySettings({ goal, reward, pace, onChanged }: { goal
           <p className="u-card__meta" style={{ margin: 0 }}>Bonusstjerne: for indsats, der ikke kan måles, fx at blive ved, selv om det var hårdt. Højst 3 om dagen til samme person.</p>
           <label className="u-card__meta" style={{ display: "grid", gap: 4, maxWidth: 360 }}>
             Hvorfor? (valgfrit)
-            <input value={bonusNote} maxLength={80} onChange={(e) => setBonusNote(e.target.value)} style={{ minHeight: 44, padding: "0 10px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit" }} />
+            <input value={bonusNote} maxLength={80} onChange={(e) => setBonusNote(e.target.value)} style={{ minHeight: 44, padding: "0 10px", border: "1px solid var(--color-border-control)", borderRadius: 8, font: "inherit" }} />
           </label>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {people.map((p) => (

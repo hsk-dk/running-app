@@ -83,7 +83,7 @@ export default function RoutesCard({ others = [], today = new Date() }: { others
               setPeriod(e.target.value);
               setPickedYet(true);
             }}
-            style={{ minHeight: 44, padding: "0 10px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", background: "var(--color-surface)" }}
+            style={{ minHeight: 44, padding: "0 10px", border: "1px solid var(--color-border-control)", borderRadius: 8, font: "inherit", background: "var(--color-surface)" }}
           >
             <option value={ALL}>{periodLabel(ALL)}</option>
             <option value={LAST_YEAR}>{periodLabel(LAST_YEAR)}</option>
@@ -119,7 +119,7 @@ export default function RoutesCard({ others = [], today = new Date() }: { others
           {view === "play" && areas.length > 1 && (
             <label className="u-card__meta" style={{ display: "grid", gap: 4, maxWidth: 320 }}>
               Område
-              <select value={area?.key ?? ""} onChange={(e) => setAreaKey(e.target.value)} style={{ minHeight: 44, padding: "0 10px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", background: "var(--color-surface)" }}>
+              <select value={area?.key ?? ""} onChange={(e) => setAreaKey(e.target.value)} style={{ minHeight: 44, padding: "0 10px", border: "1px solid var(--color-border-control)", borderRadius: 8, font: "inherit", background: "var(--color-surface)" }}>
                 {areas.map((a) => <option key={a.key} value={a.key}>{a.name} ({a.routes.length} løb)</option>)}
               </select>
             </label>
