@@ -3,7 +3,7 @@ import { api } from "../api";
 import { useWidth } from "../lib/useWidth";
 import { Challenge, WEEKDAY_NAMES, WEEKDAY_SHORT, dayMessage, planText, progressText, unitText } from "../lib/challenge";
 
-const field: React.CSSProperties = { minHeight: 44, padding: "0 10px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", background: "var(--color-surface)" };
+const field: React.CSSProperties = { minHeight: 44, padding: "0 10px", border: "1px solid var(--color-border-control)", borderRadius: 8, font: "inherit", background: "var(--color-surface)" };
 
 function WeekDots({ c }: { c: Challenge }) {
   return (

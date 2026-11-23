@@ -474,9 +474,9 @@ return (
         <section
           style={{
             ...cardStyle,
-            border: "1px solid #fecaca",
-            background: "#fef2f2",
-            color: "#991b1b",
+            border: "1px solid var(--chip-bad-border)",
+            background: "var(--chip-bad-bg)",
+            color: "var(--chip-bad-text)",
           }}
                >
           {localError}

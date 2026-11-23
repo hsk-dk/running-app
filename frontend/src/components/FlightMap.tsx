@@ -552,7 +552,7 @@ export default function FlightMap({
                 <select
                   value=""
                   onChange={(e) => (e.target.value === "indoor" ? flyToIndoor() : e.target.value !== "" && flyTo(Number(e.target.value)))}
-                  style={{ minHeight: 44, padding: "0 10px", border: "1px solid #cbd3dd", borderRadius: 8, font: "inherit", background: "var(--color-surface)" }}
+                  style={{ minHeight: 44, padding: "0 10px", border: "1px solid var(--color-border-control)", borderRadius: 8, font: "inherit", background: "var(--color-surface)" }}
                 >
                   <option value="">Vælg sted</option>
                   {fa.map((a, i) => (
@@ -579,7 +579,7 @@ export default function FlightMap({
                 setPlaying(false);
                 seek(Number(e.target.value));
               }}
-              style={{ width: "100%", minHeight: 44, accentColor: "#446EA8" }}
+              style={{ width: "100%", minHeight: 44, accentColor: "var(--color-action-strong)" }}
             />
           </label>
           <p className="u-card__meta">
