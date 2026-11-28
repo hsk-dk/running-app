@@ -202,7 +202,7 @@ export default function App() {
         <div className="u-header__inner">
           <div className="u-header__brand">{APP_NAME}</div>
 
-          <nav className="u-header__nav" aria-label="Hovednavigation">
+          <nav className="u-header__nav u-header__nav--tabbar" aria-label="Hovednavigation">
             <NavItem
               active={page === "overview"}
               label="Nu"
