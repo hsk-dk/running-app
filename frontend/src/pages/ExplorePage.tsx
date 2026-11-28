@@ -16,7 +16,7 @@ import { useMemo } from "react";
 import { Other } from "../lib/other";
 import { Activity, PlannedRun } from "../lib/week";
 
-/** The pictures: your routes, your year, the next race and the total. */
+/** The pictures. Quick things first (badges, records, the next race, load, build-up, the year), the big map and the pace landscape last. */
 export default function ExplorePage({ activities, plannedRuns }: { activities: Activity[]; plannedRuns: PlannedRun[] }) {
   const [others, setOthers] = useState<Other[]>([]);
   useEffect(() => {
@@ -39,14 +39,15 @@ export default function ExplorePage({ activities, plannedRuns }: { activities: A
       </section>
       <BadgeShelf />
       {(beginner || isChild) && start}
+      {!beginner && !isChild && <TrophyShelf activities={activities} />}
       {!isChild && <RaceCard activities={activities} plannedRuns={plannedRuns} />}
-      {!isChild && <RoutesCard others={others} />}
-      {!isChild && <PaceLandscape />}
       {!isChild && <LoadCard activities={activities} others={others} />}
       {!beginner && !isChild && start}
-      {!beginner && !isChild && <TrophyShelf activities={activities} />}
       <YearRing activities={activities} others={others} />
       {!isChild && <MilestoneCard activities={activities} />}
+      {/* the big pictures last: the map is a block that would push everything else out of sight */}
+      {!isChild && <RoutesCard others={others} />}
+      {!isChild && <PaceLandscape />}
     </div>
   );
 }
