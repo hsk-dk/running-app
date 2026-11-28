@@ -202,7 +202,7 @@ export default function App() {
         <div className="u-header__inner">
           <div className="u-header__brand">{APP_NAME}</div>
 
-          <nav className="u-header__nav" aria-label="Hovednavigation">
+          <nav className="u-header__nav u-header__nav--tabbar" aria-label="Hovednavigation">
             <NavItem
               active={page === "overview"}
               label="Nu"
@@ -246,9 +246,8 @@ export default function App() {
         </div>
 
         <footer className="app-footer">
-          Sidst opdateret: {formatDateTime(adminStatus?.last_sync_at?.value)} (hentes automatisk){" "}
-          <button type="button" className="link-button" disabled={loading} onClick={() => handleAction("ingest")}
-            style={{ background: "none", border: "none", padding: 0, color: "inherit", textDecoration: "underline", cursor: "pointer", font: "inherit" }}>
+          <span>Sidst opdateret: {formatDateTime(adminStatus?.last_sync_at?.value)} (hentes automatisk)</span>
+          <button type="button" className="u-btn u-btn--secondary" disabled={loading} onClick={() => handleAction("ingest")}>
             Opdatér nu
           </button>
         </footer>
